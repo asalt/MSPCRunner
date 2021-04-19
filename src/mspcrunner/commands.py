@@ -369,45 +369,49 @@ class MokaPotConsole(Command):
         **kws,
     ):
 
-        super().__init__(*args, *kws)
+        super().__init__(*args, **kws)
         self.decoy_prefix = decoy_prefix
         self.train_fdr = train_fdr
         self.test_fdr = test_fdr
         self.seed = seed
         self.folds = folds
+        self.outdir = '.'
 
-    def get_inputfiles(self):
+    def get_inputfiles(self): 
+        # do not use right now
         pinfiles = Path('.').glob('*pin')
-        return pinfiles
+        return list(pinfiles)
 
 
 
     @property
     def CMD(self):
-        self.announce()
-        for inputfile in self.get_inputfiles():
+        #self.announce()
+         
+        #for inputfile in self.get_inputfiles():
+        #for inputfile in self.inputfiles:
 
-            parse_rawname
-            yield [
-                MOKAPOT,
-                "--decoy_prefix",
-                "rev_",
-                "--missed_cleavages",
-                "2",
-                "--dest_dir",
-                self.outdir,
-                "--file_root",
-                f"{inputfile.stem}_",
-                "--train_fdr",
-                self.train_fdr,
-                "--test_fdr",
-                self.test_fdr,
-                "--seed",
-                self.seed,
-                "--folds",
-                self.folds,
-                inputfile
-            ]
+            #parse_rawname
+        return [[
+            MOKAPOT,
+            "--decoy_prefix",
+            "rev_",
+            "--missed_cleavages",
+            "2",
+            "--dest_dir",
+            self.outdir,
+            "--file_root",
+            f"{inputfile.stem}_",
+            "--train_fdr",
+            self.train_fdr,
+            "--test_fdr",
+            self.test_fdr,
+            "--seed",
+            self.seed,
+            "--folds",
+            self.folds,
+            inputfile
+        ] for inputfile in self.inputfiles]
 
     def execute(self):
         "execute"

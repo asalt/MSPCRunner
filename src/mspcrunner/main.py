@@ -46,7 +46,8 @@ from .utils import confirm_param_or_exit
 # TODO set this via some config file
 #WORKDIR = Path("E:\MSPCRunner\processing\tmp")
 #PROCESSING_DIR = Path("E:\MSPCRunner\processing")
-WORKDIR = Path('.')
+#WORKDIR = Path('.')
+WORKDIR = Path('D:\MSPCworkdir')
 PROCESSING_DIR = Path('.')
 MASIC_DEFAULT_CONF = Path("masic_default.xml")  # need to have LF, TMT10, 11, 16..
 # will change later
@@ -57,6 +58,23 @@ MSFRAGGER_DEFAULT_CONF = Path(
 MASIC_DEFAULT_CONF = Path("../")  # need to have LF, TMT10, 11, 16..
 
 logger = get_logger(__name__)
+
+class Context:
+    __init__(self,):
+        self.ctx = dict()
+def make_new_context():
+    return Context()
+
+def get_current_context():
+    """
+    can make our own context
+    """
+
+    ctx = click.get_current_context(silent=True)
+    if ctx is None:
+        ctx = make_new_context()
+
+    return ctx
 
 
 # move all the database checking logic to central server
@@ -136,7 +154,7 @@ def worker_run(*args, **kwargs):
     """
     logging.info('**worker_run**')
     logger.info("ready to execute")
-    ctx = click.get_current_context()
+    ctx = get_current_context()
     worker = ctx.obj["worker"]
 
     for name, cmd in worker._commands.items():
@@ -169,7 +187,7 @@ def main(
     """
     run MSPC pipeline: raw -> MASIC -> MSFragger -> Percolator
     """
-    #ctx = click.get_current_context()
+    #ctx = get_current_context()
 
     if ctx.invoked_subcommand is None:
         logger.info("starting MSPCRunner")
@@ -230,7 +248,7 @@ def search(
 ):
     logger.info("welcome to search")
 
-    ctx = click.get_current_context()
+    ctx = get_current_context()
     rawfiles = ctx.obj['rawfiles']
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
@@ -256,7 +274,7 @@ def quant(
     ):
     logger.info("welcome to quant")
 
-    ctx = click.get_current_context()
+    ctx = get_current_context()
     rawfiles = ctx.obj['rawfiles']
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
@@ -287,16 +305,23 @@ def percolate(
         default="rev_", help="decoy prefix in database"
     ),
 ):
-    ctx = click.get_current_context()
+    ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
+    rawfiles = ctx.obj['rawfiles']
+
+    # TODO better finding of pin files
+    pinfiles = [list(rawfile.parent.glob(f"{rawfile.stem}*pin")) for rawfile in rawfiles]
+    pinfiles = [x[0] for x in pinfiles if x]
 
     mokapot = MokaPotConsole(
         cmd_runner,
+        inputfiles = pinfiles,
         train_fdr=train_fdr,
         test_fdr=test_fdr,
         folds=folds,
         decoy_prefix=decoy_prefix,
+        #outdir=WORKDIR
     )
     worker.register("mokapot", mokapot)
 
