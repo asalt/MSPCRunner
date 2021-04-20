@@ -173,25 +173,35 @@ def maybe_calc_labeling_efficiency(df, outname):
         labeled = df[ df.modification_info.fillna('').str.contains(MASS_SHIFTS)]
         f.write(f"{outname}\t{len(labeled)}\t{len(df)}\t{len(labeled)/len(df)}\n")
 
-def main():
-    if len(sys.argv) < 2:
+def main(path=None):
+    if len(sys.argv) < 2 and path is None:
         print('USAGE python psm_merge.py <target_directory>')
         sys.exit(0)
+    if path is None:
+        path = sys.argv[1]
+    
+    path = Path(path)
 
-    files = glob(os.path.join(sys.argv[1], '*tsv'))
+    #files = glob(os.path.join(path, '*tsv'))
+    files = path.glob('*tsv')
     for f in files:
-        basename = os.path.splitext(f)[0]
-        print(files)
+        #basename = os.path.splitext(f)[0]
+        #print(files)
 
-        sic_f = glob(f"{basename}_SICstats.txt")
+        #sic_f = glob(f"{basename}_SICstats.txt")
+        sic_f = list(path.glob(f"{f.stem}*SICstats.txt"))
         if sic_f:
             sic_f = sic_f[0]
 
         #percpsm_f = glob(f'{basename}.pin-percolator-psms.txt')
-        percpsm_f = glob(f'{basename}*mokapot.psms.txt')
+        #percpsm_f = glob(f'{basename}*mokapot.psms.txt')
+        percpsm_f = list(path.glob(f"{f.stem}*mokapot.psms.txt"))
+        #import ipdb; ipdb.set_trace()
+        if not percpsm_f:
+            print(f"Could not find percolator psm file for {f}")
         percpsm_f = percpsm_f[0]
 
-        ri_f = glob(f'{basename}_ReporterIons.txt')
+        ri_f = list(path.glob(f'{f.stem}_ReporterIons.txt'))
         if ri_f:
             ri_f = ri_f[0]
         else:
@@ -199,7 +209,7 @@ def main():
 
         df = concat(search_result_f = f, sic_f=sic_f, percpsm_f = percpsm_f, ri_f=ri_f)
         #outname = f"{basename}_percolator_MASIC.txt"
-        outname = f"{basename}_MSPCRunner_a1.txt"
+        outname = f"{f.stem}_MSPCRunner_a1.txt"
 
         maybe_calc_labeling_efficiency(df, outname)
 
