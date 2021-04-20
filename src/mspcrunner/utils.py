@@ -4,18 +4,23 @@ from configparser import ConfigParser
 from pathlib import Path
 import logging
 
+
 def confirm_param_or_exit(paramfile, preset, PRESET_DICT) -> Path:
+
     if paramfile is None and preset is None:
         logging.error(f"param file not specified")
         raise RuntimeError(f"param file not specified")
 
+    if preset is None:
+        return paramfile
 
     if preset is not None:
         _paramfile = PRESET_DICT.get(preset)
         if _paramfile is None or not _paramfile.exists():
             logging.error(f"predefined param file {_paramfile} does not exist yet.")
-            #raise NotImplementedError(f"{_paramfile} does not exist")
+            # raise NotImplementedError(f"{_paramfile} does not exist")
     return _paramfile
+
 
 def read_properties(filename, comment_chars=("#", ":")):
     """Reads a given properties file with each line of the format key=value.  Returns a dictionary containing the pairs.
@@ -77,4 +82,3 @@ def write_properties(filename, dictionary):
 #
 #    print ["Failure!", "Success!"][data == newdata]
 #    return
-
