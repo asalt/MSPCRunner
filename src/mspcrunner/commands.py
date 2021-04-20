@@ -1,6 +1,7 @@
 # commands
 import sys
 import os
+import platform
 import subprocess
 from collections import defaultdict
 from pathlib import Path
@@ -14,33 +15,36 @@ from typing import Tuple, Any, Iterable, List, Dict
 
 BASEDIR = os.path.split(__file__)[0]
 
-MSFRAGGER_EXE = os.path.abspath(os.path.join(BASEDIR, "../../ext/MSFragger/MSFragger-3.2/MSFragger-3.2.jar"))
-#MSFRAGGER_EXE = os.path.join(BASEDIR, "..\ext\MSFragger\MSFragger-3.2\MSFragger-3.2.jar")
+MSFRAGGER_EXE = os.path.abspath(
+    os.path.join(BASEDIR, "../../ext/MSFragger/MSFragger-3.2/MSFragger-3.2.jar")
+)
+# MSFRAGGER_EXE = os.path.join(BASEDIR, "..\ext\MSFragger\MSFragger-3.2\MSFragger-3.2.jar")
 MASIC_EXE = os.path.abspath(os.path.join(BASEDIR, "../../ext/MASIC/MASIC_Console.exe"))
 
-MOKAPOT = 'mokapot'
+MOKAPOT = "mokapot"
+
 
 def get_logger(name=__name__):
 
-    #import queue
-    #from logging import handlers
-    #que = queue.Queue(-1)  # no limit on size
-    #queue_handler = handlers.QueueHandler(que)
-    #handler = logging.StreamHandler()
-    #listener = handlers.QueueListener(que, handler)
+    # import queue
+    # from logging import handlers
+    # que = queue.Queue(-1)  # no limit on size
+    # queue_handler = handlers.QueueHandler(que)
+    # handler = logging.StreamHandler()
+    # listener = handlers.QueueListener(que, handler)
 
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-    #logger.addHandler(queue_handler)
+    # logger.addHandler(queue_handler)
 
     fh = logging.FileHandler("MSPCRunner.log")
-    #fh.flush = sys.stdout.flush
+    # fh.flush = sys.stdout.flush
     # fh.setLevel(logging.DEBUG)
     # create console handler with a higher log level
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(logging.INFO)
-    #ch.flush = sys.stdout.flush
-    #ch = logging.StreamHandler()
+    # ch.flush = sys.stdout.flush
+    # ch = logging.StreamHandler()
 
     # create formatter and add it to the handlers
     formatter = logging.Formatter(
@@ -51,8 +55,8 @@ def get_logger(name=__name__):
     # add the handlers to the logger
     logger.addHandler(fh)
     logger.addHandler(ch)
-    #listener.start()
-    #logging.getLogger('').addHandler(fh)
+    # listener.start()
+    # logging.getLogger('').addHandler(fh)
     return logger
 
 
@@ -102,6 +106,12 @@ def run_and_log(CMD, *args, **kwargs):
     return ret
 
 
+def resolve_if_path(x):
+    if isinstance(x, Path):
+        return x.resolve()
+    return x
+
+
 class CMDRunner:  # receiver
     """
     receiver for running CMD via subprocess
@@ -117,58 +127,62 @@ class CMDRunner:  # receiver
         if CMD is None:
             raise ValueError("Must pass an iterable command collection")
 
-        #logger = logging.getLogger('commands.CMDrunner.run')
+        # logger = logging.getLogger('commands.CMDrunner.run')
         # logger.info(f"Running: {' '.join(CMD)}")
-        logger.info(f"Running: {' '.join(map(str, CMD))}")
+
+        _CMD = map(resolve_if_path, CMD)
+        # _CMD = " ".join(map(str, _CMD))
+        _CMD = map(str, _CMD)
+        _CMD = list(_CMD)
+
+        logger.info(f"Running: {_CMD}")
 
         if "capture_output" not in kwargs:
             kwargs["capture_output"] = True
 
         popen = subprocess.Popen(
-            " ".join(map(str, CMD)),
-            #CMD,
+            _CMD,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             bufsize=1,
             universal_newlines=True,
-            shell=False
+            shell=False,
         )
-        #print('made popen', flush=True)
+        # print('made popen', flush=True)
 
-        #while True:
+        # while True:
         #    line = popen.stdout.readline().rstrip()
         #    line_e = popen.stderr.readline().rstrip()  # this works
         #    logger.info(line)
         #    logger.warning(line_e)
         #    if not line:
         #        break
-        #popen.stdout.close()
+        # popen.stdout.close()
 
         # stdout = list()
-        #for stdout_line in popen.stdout:
+        # for stdout_line in popen.stdout:
         #    print(stdout_line, end='')
         # stdout.append(stdout_line)
-        #for stdout_line in iter(popen.stdout.readline, ''):
-        #while popen.poll() is None:
+        # for stdout_line in iter(popen.stdout.readline, ''):
+        # while popen.poll() is None:
         stdout = list()
         for stdout_line in popen.stdout:
-            logger.info(stdout_line)
-            stdout.append(stdout_line)
-            #logger.handlers[0].flush()
-            #logger.handlers[1].flush()
-            #print(stdout_line, flush=True)
+            logger.info(stdout_line.strip())
+            # stdout.append(stdout_line)
+            # logger.handlers[0].flush()
+            # logger.handlers[1].flush()
+            # print(stdout_line, flush=True)
         ## fix this later?
 
-        #for i in stdout:
-            #logger.info(i)
+        # for i in stdout:
+        # logger.info(i)
         retcode = popen.wait()
-        #popen.stdout.close()
-            #logging.info(i)
+        # popen.stdout.close()
+        # logging.info(i)
 
-        #import ipdb; ipdb.set_trace()
         # run(CMD, *args, **kwargs)
 
-        #retcode = popen.wait()
+        # retcode = popen.wait()
         if retcode == 0:
             logger.info(f"Command finished with exitcode: {retcode}")
         else:
@@ -270,10 +284,10 @@ class Command:
 
     def update_inputfiles(self, inputfiles) -> None:
         self.inputfiles = inputfiles
-    
+
     def get_inputfiles(self) -> List[Path]:
         if self.inputfiles is None:
-            return (Path('<inputfiles>'),)
+            return (Path("<inputfiles>"),)
         return self.inputfiles
 
     def execute(self):
@@ -340,14 +354,13 @@ class FileRealtor:  # receiver
 class PythonCommand(Command):
 
     NAME = "PythonCommand"
-    
+
     @property
     def CMD(self):
         return dict(
             inputfiles=self.inputfiles,
             outdir=self.outdir,
         )
-
 
     def execute(self):
         self.announce()
@@ -366,6 +379,7 @@ class MokaPotConsole(Command):
         test_fdr=0.05,
         seed=888,
         folds=3,
+        outdir=".",
         **kws,
     ):
 
@@ -375,49 +389,60 @@ class MokaPotConsole(Command):
         self.test_fdr = test_fdr
         self.seed = seed
         self.folds = folds
-        self.outdir = '.'
+        self.outdir = outdir
+        self.pinfiles = tuple()
 
-    def get_inputfiles(self): 
-        # do not use right now
-        pinfiles = Path('.').glob('*pin')
-        return list(pinfiles)
-
-
+    def find_pinfiles(self):
+        """
+        looks for pinfiles in same directory as input (raw) files
+        """
+        pinfiles = list()
+        for inputfile in self.inputfiles:  # Path objects
+            _pinfile_glob = inputfile.parent.glob("*pin")
+            for _pinfile in _pinfile_glob:
+                pinfiles.append(_pinfile)
+        self.pinfiles = pinfiles
+        return pinfiles
 
     @property
     def CMD(self):
-        #self.announce()
-         
-        #for inputfile in self.get_inputfiles():
-        #for inputfile in self.inputfiles:
+        # self.announce()
 
-            #parse_rawname
-        return [[
-            MOKAPOT,
-            "--decoy_prefix",
-            "rev_",
-            "--missed_cleavages",
-            "2",
-            "--dest_dir",
-            self.outdir,
-            "--file_root",
-            f"{inputfile.stem}_",
-            "--train_fdr",
-            self.train_fdr,
-            "--test_fdr",
-            self.test_fdr,
-            "--seed",
-            self.seed,
-            "--folds",
-            self.folds,
-            inputfile
-        ] for inputfile in self.inputfiles]
+        # for inputfile in self.get_inputfiles():
+        # for inputfile in self.inputfiles:
+
+        # parse_rawname
+        return [
+            [
+                MOKAPOT,
+                "--decoy_prefix",
+                "rev_",
+                "--missed_cleavages",
+                "2",
+                "--dest_dir",
+                self.outdir,
+                "--file_root",
+                f"{pinfile.stem}_",
+                "--train_fdr",
+                self.train_fdr,
+                "--test_fdr",
+                self.test_fdr,
+                "--seed",
+                self.seed,
+                "--folds",
+                self.folds,
+                pinfile,
+            ]
+            for pinfile in self.pinfiles
+        ]
 
     def execute(self):
         "execute"
         # return self._receiver.action("run", self.CMD)
+        self.find_pinfiles()  # should be created by the time this executs
         for CMD in self.CMD:
             ret = self._receiver.run(CMD=CMD)
+
 
 class MASIC(Command):
 
@@ -428,10 +453,15 @@ class MASIC(Command):
         # TODO check os
         self.announce()
         for inputfile in self.inputfiles:
-            # return ["mono", MASIC_EXE, f"/P:{self.paramfile}", f"/O:{self.outdir}", f"/I:{inputfile}"]
+            return [
+                "mono",
+                MASIC_EXE,
+                f"/P:{self.paramfile}",
+                f"/O:{inputfile.parent.resolve()}",
+                f"/I:{inputfile.resolve()}",
+            ]
             # return [MASIC_EXE, f"/P:{self.paramfile}", f"/O:{self.outdir}", f"/I:{inputfile}"]
-            return [MASIC_EXE,
-            f"/P:\"{self.paramfile}\"", f"/O:{self.outdir}", f"/I:{inputfile}"]
+            # return [MASIC_EXE, f"/P:\"{self.paramfile}\"", f"/O:{self.outdir}", f"/I:{inputfile}"]
 
 
 class MSFragger(Command):
@@ -464,14 +494,22 @@ class MSFragger(Command):
             logging.error(f"{param} does not exist")
         self._params[param] = value
 
+    @staticmethod
+    def quote_if_windows(x):
+        if platform.system() == "Windows":
+            return f'"{x}"'
+        return f"{x}"
+
     @property
     def CMD(self):
         return [
             "java",
             f"-Xmx{self.ramalloc}G",
             "-jar",
-            f"\"{MSFRAGGER_EXE}\"",
-            f"\"{self.paramfile}\"",
+            self.quote_if_windows(MSFRAGGER_EXE),
+            self.quote_if_windows(self.paramfile.resolve()),
+            # f"\"{MSFRAGGER_EXE}\"",
+            # f"\"{self.paramfile.resolve()}\"",
             *self.get_inputfiles(),
         ]
 

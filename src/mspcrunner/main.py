@@ -37,18 +37,23 @@ from .commands import (
 from .commands import get_logger
 from .commands import CMDRunner_Tester
 
-from .predefined_params import Predefined_Search, Predefined_Quant, PREDEFINED_SEARCH_PARAMS, PREDEFINED_QUANT_PARAMS
+from .predefined_params import (
+    Predefined_Search,
+    Predefined_Quant,
+    PREDEFINED_SEARCH_PARAMS,
+    PREDEFINED_QUANT_PARAMS,
+)
 from .utils import confirm_param_or_exit
 
 # import db
 # from db import get_database_conn
 
 # TODO set this via some config file
-#WORKDIR = Path("E:\MSPCRunner\processing\tmp")
-#PROCESSING_DIR = Path("E:\MSPCRunner\processing")
-#WORKDIR = Path('.')
-WORKDIR = Path('D:\MSPCworkdir')
-PROCESSING_DIR = Path('.')
+# WORKDIR = Path("E:\MSPCRunner\processing\tmp")
+# PROCESSING_DIR = Path("E:\MSPCRunner\processing")
+# WORKDIR = Path('.')
+WORKDIR = Path("D:\MSPCworkdir")
+PROCESSING_DIR = Path(".")
 MASIC_DEFAULT_CONF = Path("masic_default.xml")  # need to have LF, TMT10, 11, 16..
 # will change later
 MSFRAGGER_DEFAULT_CONF = Path(
@@ -59,11 +64,17 @@ MASIC_DEFAULT_CONF = Path("../")  # need to have LF, TMT10, 11, 16..
 
 logger = get_logger(__name__)
 
+
 class Context:
-    __init__(self,):
+    def __init__(
+        self,
+    ):
         self.ctx = dict()
+
+
 def make_new_context():
     return Context()
+
 
 def get_current_context():
     """
@@ -152,22 +163,25 @@ def worker_run(*args, **kwargs):
     """
     run context.obj['worker'] jobs in order of registration
     """
-    logging.info('**worker_run**')
+    logging.info("**worker_run**")
     logger.info("ready to execute")
     ctx = get_current_context()
     worker = ctx.obj["worker"]
 
     for name, cmd in worker._commands.items():
         print(name)
-        logger.info(f"""
+        logger.info(
+            f"""
         {cmd.NAME} : {cmd._receiver.NAME} with {cmd.CMD}
-        """)
+        """
+        )
         res = worker.execute(name)
-    #import ipdb; ipdb.set_trace()
-    
-    #msfragger= worker._commands['msfragger']
-    1+1
+    # import ipdb; ipdb.set_trace()
+
+    # msfragger= worker._commands['msfragger']
+    1 + 1
     return
+
 
 @app.callback(
     invoke_without_command=True, no_args_is_help=True, result_callback=worker_run
@@ -178,7 +192,8 @@ def main(
         False, "--dry", help="Dry run, do not actually execute commands"
     ),
     path: Optional[Path] = typer.Option(
-        default=None, help="Path with raw files to process. Will process all raw files in path."
+        default=None,
+        help="Path with raw files to process. Will process all raw files in path.",
     ),
     rawfile: Optional[List[Path]] = typer.Option(
         default=None, exists=True, help="raw file to process"
@@ -187,7 +202,7 @@ def main(
     """
     run MSPC pipeline: raw -> MASIC -> MSFragger -> Percolator
     """
-    #ctx = get_current_context()
+    # ctx = get_current_context()
 
     if ctx.invoked_subcommand is None:
         logger.info("starting MSPCRunner")
@@ -206,8 +221,6 @@ def main(
         file_mover = FileMover()
         file_realtor = FileRealtor()
 
-
-
     calc_outdirs = PythonCommand(
         file_realtor,
         inputfiles=rawfiles,
@@ -216,12 +229,12 @@ def main(
     )
 
     worker = Worker()
-    worker.register('output_finder', calc_outdirs)
+    worker.register("output_finder", calc_outdirs)
 
-    #stage_files = PythonCommand(
-        #file_mover, inputfiles=rawfiles, outdir=PROCESSING_DIR, name="filestager"
-    #)
-    #worker.register("stage_files", stage_files)
+    # stage_files = PythonCommand(
+    # file_mover, inputfiles=rawfiles, outdir=PROCESSING_DIR, name="filestager"
+    # )
+    # worker.register("stage_files", stage_files)
 
     ctx.obj = dict(
         rawfiles=rawfiles,
@@ -230,11 +243,8 @@ def main(
         file_realtor=file_realtor,
         worker=worker,
     )
-    
+
     # worker = Worker()
-
-
-
 
 
 @app.command()
@@ -244,12 +254,12 @@ def search(
     ramalloc: Optional[int] = typer.Option(
         default=10, help="Amount of memory (in GB) for msfragger"
     ),
-    msfragger_conf: Optional[Path] = typer.Option(MSFRAGGER_DEFAULT_CONF),
+    # msfragger_conf: Optional[Path] = typer.Option(MSFRAGGER_DEFAULT_CONF),
 ):
     logger.info("welcome to search")
 
     ctx = get_current_context()
-    rawfiles = ctx.obj['rawfiles']
+    rawfiles = ctx.obj["rawfiles"]
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
 
@@ -258,40 +268,38 @@ def search(
     msfragger = MSFragger(
         cmd_runner,
         inputfiles=rawfiles,  # we can set this later
-        #paramfile=msfragger_conf.absolute(),
-        paramfile=paramfile.absolute(),
+        # paramfile=msfragger_conf.absolute(),
+        paramfile=paramfile.resolve(),
         ramalloc=ramalloc,
         name="msfragger-cmd",
     )
     worker.register("msfragger", msfragger)
 
+
 @app.command()
 def quant(
     preset: Predefined_Quant = typer.Option(None, case_sensitive=False),
     paramfile: Optional[Path] = typer.Option(None),
-    #masic_conf: Optional[Path] = typer.Option(MASIC_DEFAULT_CONF),
-
-    ):
+    # masic_conf: Optional[Path] = typer.Option(MASIC_DEFAULT_CONF),
+):
     logger.info("welcome to quant")
 
     ctx = get_current_context()
-    rawfiles = ctx.obj['rawfiles']
+    rawfiles = ctx.obj["rawfiles"]
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
 
     paramfile = confirm_param_or_exit(paramfile, preset, PREDEFINED_QUANT_PARAMS)
 
-
     masic = MASIC(
         cmd_runner,
         inputfiles=rawfiles,  # we can set this later
-        #paramfile=msfragger_conf.absolute(),
+        # paramfile=msfragger_conf.absolute(),
         paramfile=paramfile.absolute(),
-        #ramalloc=ramalloc,
+        # ramalloc=ramalloc,
         name="masic-cmd",
     )
     worker.register("masic", masic)
-
 
 
 @app.command()
@@ -308,23 +316,21 @@ def percolate(
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
-    rawfiles = ctx.obj['rawfiles']
+    rawfiles = ctx.obj["rawfiles"]
 
-    # TODO better finding of pin files
-    pinfiles = [list(rawfile.parent.glob(f"{rawfile.stem}*pin")) for rawfile in rawfiles]
-    pinfiles = [x[0] for x in pinfiles if x]
+    for ix, rawfile in enumerate(rawfiles):
 
-    mokapot = MokaPotConsole(
-        cmd_runner,
-        inputfiles = pinfiles,
-        train_fdr=train_fdr,
-        test_fdr=test_fdr,
-        folds=folds,
-        decoy_prefix=decoy_prefix,
-        #outdir=WORKDIR
-    )
-    worker.register("mokapot", mokapot)
-
+        mokapot = MokaPotConsole(
+            cmd_runner,
+            inputfiles=(rawfile,),
+            outdir=rawfile.parent.resolve(),
+            train_fdr=train_fdr,
+            test_fdr=test_fdr,
+            folds=folds,
+            decoy_prefix=decoy_prefix,
+            # outdir=WORKDIR
+        )
+        worker.register(f"mokapot-{ix}", mokapot)
 
 
 @app.command()
