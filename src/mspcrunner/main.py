@@ -195,6 +195,9 @@ def main(
         default=None,
         help="Path with raw files to process. Will process all raw files in path.",
     ),
+    depth: Optional[int] = typer.Option(default = 2,
+        help="recursion depth for rawfile search. to be used with `path` argument"
+        ),
     rawfile: Optional[List[Path]] = typer.Option(
         default=None, exists=True, help="raw file to process"
     ),
@@ -208,8 +211,10 @@ def main(
         logger.info("starting MSPCRunner")
 
     if path:
-        rawfiles_in_path = path.glob("*raw")
-        rawfile += list(rawfiles_in_path)
+        for i in range(depth):
+            _glob = '*/'*i + '*raw'
+            rawfiles_in_path = path.glob(_glob)
+            rawfile += list(rawfiles_in_path)
     rawfiles = rawfile  # just for semantics
 
     if dry:
