@@ -233,10 +233,11 @@ def main(path=None):
 
         #percpsm_f = glob(f'{basename}.pin-percolator-psms.txt')
         #percpsm_f = glob(f'{basename}*mokapot.psms.txt')
-        percpsm_f = list(path.glob(f"{f.stem}*mokapot.psms.txt"))
-        #import ipdb; ipdb.set_trace()
+        percpsm_f = list([x for x in path.glob(f"{f.stem}*mokapot.psms.txt")])
+        #print(x for x in percpsm_f)
         if not percpsm_f:
             print(f"Could not find percolator psm file for {f}")
+            continue
         percpsm_f = percpsm_f[0]
 
         ri_f = list(path.glob(f'{f.stem}_ReporterIons.txt'))

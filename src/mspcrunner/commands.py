@@ -18,8 +18,11 @@ BASEDIR = os.path.split(__file__)[0]
 MSFRAGGER_EXE = os.path.abspath(
     os.path.join(BASEDIR, "../../ext/MSFragger/MSFragger-3.2/MSFragger-3.2.jar")
 )
+MSFRAGGER_EXE = Path(MSFRAGGER_EXE)
+
 # MSFRAGGER_EXE = os.path.join(BASEDIR, "..\ext\MSFragger\MSFragger-3.2\MSFragger-3.2.jar")
 MASIC_EXE = os.path.abspath(os.path.join(BASEDIR, "../../ext/MASIC/MASIC_Console.exe"))
+MASIC_EXE = Path(MASIC_EXE)
 
 MOKAPOT = "mokapot"
 
@@ -473,7 +476,7 @@ class MSFragger(Command):
         self.ramalloc = ramalloc
         self._params = None
 
-    def read_config(self, conf) -> dict:
+    def read_config(self, conf) -> dict: # this is smarter than using csv module
         parser = ConfigParser(inline_comment_prefixes="#")
         with open(conf) as stream:
             parser.read_string("[top]\n" + stream.read())  # create dummy header
@@ -495,7 +498,7 @@ class MSFragger(Command):
         self._params[param] = value
 
     @staticmethod
-    def quote_if_windows(x):
+    def quote_if_windows(x): # not needed
         if platform.system() == "Windows":
             return f'"{x}"'
         return f"{x}"
@@ -506,10 +509,11 @@ class MSFragger(Command):
             "java",
             f"-Xmx{self.ramalloc}G",
             "-jar",
-            self.quote_if_windows(MSFRAGGER_EXE),
-            self.quote_if_windows(self.paramfile.resolve()),
-            # f"\"{MSFRAGGER_EXE}\"",
-            # f"\"{self.paramfile.resolve()}\"",
+            #self.quote_if_windows(MSFRAGGER_EXE),
+            #self.quote_if_windows(self.paramfile.resolve()),
+            #f"\"{MSFRAGGER_EXE}\"",
+            f"{MSFRAGGER_EXE.resolve()}",
+            f"{self.paramfile.resolve()}",
             *self.get_inputfiles(),
         ]
 

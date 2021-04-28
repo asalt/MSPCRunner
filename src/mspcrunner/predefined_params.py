@@ -21,7 +21,7 @@ PREDEFINED_SEARCH_PARAMS = {
     #'OTIT' : Path('../params/MSfragger_OTIT.conf'),
     "OTIT-hs": BASEDIR / Path("../../params/MSfragger_OTIT_hs.conf"),
     "OTOT": BASEDIR / Path("../../params/MSfragger_OTOT.conf"),
-    "TMT6-OTOT": BASEDIR / Path("../../params/MSfragger_OTOT.conf"),
+    "TMT6-OTOT": BASEDIR / Path("../../params/MSfragger_TMT6_OTOT.conf"),
     "TMT6-OTOT-QC": BASEDIR / Path("../../params/MSfragger_TMT6_OTOT_QC.conf"),
     "TMT11-OTOT-QC": BASEDIR / Path("../../params/MSfragger_TMT6_OTOT_QC.conf"),
     "TMT16.OTOT": BASEDIR / Path("../../params/MSfragger_OTOT.conf"),
