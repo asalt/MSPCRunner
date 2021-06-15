@@ -1,17 +1,19 @@
 # commands
-import sys
+import logging
 import os
 import platform
-import subprocess
-from collections import defaultdict
-from pathlib import Path
-import logging
 import re
-from time import time
+import subprocess
+import sys
 
 # from collections.abc import Iterable
-from collections import OrderedDict
-from typing import Tuple, Any, Iterable, List, Dict
+from collections import OrderedDict, defaultdict
+from pathlib import Path
+from time import time
+from typing import Any, Dict, Iterable, List, Mapping, Tuple
+from .worker import Worker
+
+import click
 
 BASEDIR = os.path.split(__file__)[0]
 
@@ -20,55 +22,13 @@ MSFRAGGER_EXE = os.path.abspath(
 )
 MSFRAGGER_EXE = Path(MSFRAGGER_EXE)
 
-# MSFRAGGER_EXE = os.path.join(BASEDIR, "..\ext\MSFragger\MSFragger-3.2\MSFragger-3.2.jar")
-MASIC_EXE = os.path.abspath(os.path.join(BASEDIR, "../../ext/MASIC/MASIC_Console.exe"))
-MASIC_EXE = Path(MASIC_EXE)
 
 MOKAPOT = "mokapot"
 
 
-def get_logger(name=__name__):
+from .logger import get_logger
 
-    # import queue
-    # from logging import handlers
-    # que = queue.Queue(-1)  # no limit on size
-    # queue_handler = handlers.QueueHandler(que)
-    # handler = logging.StreamHandler()
-    # listener = handlers.QueueListener(que, handler)
-
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    # logger.addHandler(queue_handler)
-
-    fh = logging.FileHandler("MSPCRunner.log")
-    # fh.flush = sys.stdout.flush
-    # fh.setLevel(logging.DEBUG)
-    # create console handler with a higher log level
-    ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.INFO)
-    # ch.flush = sys.stdout.flush
-    # ch = logging.StreamHandler()
-
-    # create formatter and add it to the handlers
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    fh.setFormatter(formatter)
-    ch.setFormatter(formatter)
-    # add the handlers to the logger
-    logger.addHandler(fh)
-    logger.addHandler(ch)
-    # listener.start()
-    # logging.getLogger('').addHandler(fh)
-    return logger
-
-
-logger = get_logger()
-
-# from pypattern import Command, Invoker, Receiver
-
-
-from abc import ABCMeta, abstractmethod
+logger = get_logger(__name__)
 
 
 def parse_rawname(name: str) -> Tuple[str, str, str]:
@@ -227,9 +187,9 @@ class CMDRunner_Tester:  # receiver
     def run(self, *args, CMD=None, **kwargs):
 
         # logger.info(f"Running: {' '.join(map(str, CMD))}")
-        logger.info(
-            f"{self!r} is pretending to run {CMD}\n\targs:{args}, kwargs:{kwargs}"
-        )
+        # logger.info(
+        #    f"{self!r} is pretending to run {CMD}\n\targs:{args}, kwargs:{kwargs}"
+        # )
         if "capture_output" not in kwargs:
             kwargs["capture_output"] = True
 
@@ -275,9 +235,16 @@ class Command:
     ):
         self.name = name
         self._receiver = receiver
+        self._CMD = None
         self.inputfiles = inputfiles
         self.paramfile = paramfile
         self.outdir = outdir or Path(".")
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+    def set_files(self, inputfiles: dict):
+        logger.info(f"Updating inputfiles on {self}")
+        self.inputfiles = inputfiles
 
     def __repr__(self):
         return f"{self.NAME} | {self.name}"
@@ -285,16 +252,16 @@ class Command:
     def announce(self) -> None:
         logger.info(f"Setting up {self.NAME}")
 
-    def update_inputfiles(self, inputfiles) -> None:
-        self.inputfiles = inputfiles
+    # def update_inputfiles(self, inputfiles) -> None:
+    #     self.inputfiles = inputfiles
 
-    def get_inputfiles(self) -> List[Path]:
-        if self.inputfiles is None:
-            return (Path("<inputfiles>"),)
-        return self.inputfiles
+    # def get_inputfiles(self) -> List[Path]:
+    #     if self.inputfiles is None:
+    #         return (Path("<inputfiles>"),)
+    #     return self.inputfiles
 
-    def execute(self):
-        raise NotImplementedError("need to define")
+    # def execute(self):
+    #     raise NotImplementedError("need to define")
 
     @property
     def CMD(self):
@@ -304,6 +271,133 @@ class Command:
         "execute"
         # return self._receiver.action("run", self.CMD)
         return self._receiver.run(CMD=self.CMD)
+
+
+class RunContainer:
+
+    # these are the names to be used for `get_file` to get their corresponding attributes
+    MAPPING = dict(
+        spectra="_spectra",
+        pinfile="_mokapot_psms",
+        reporterions="_reporterions",
+        # TODO expand
+    )
+
+    def __init__(self, stem=None) -> None:
+        """
+        can set the stem explicitly or let it self-calculate
+        :see self.stem:
+        """
+        self._stem = stem
+        self._files = list()
+        self._file_mappings = dict()
+        # self._spectra = None
+        # self._pinfile = None
+        # self._tsv_searchres = None
+        # self._pepxml = None
+        # self._mokapot_psms = None
+        # self._mokapot_peptides = None
+        # self._sics = None
+        # self._reporterions = None
+
+    @property
+    def spectra(self):
+        return
+
+    def __repr__(self) -> str:
+        return f"RunContainer <{self.stem}>"
+
+    def __str__(self) -> str:
+        return f"RunContainer <{self.stem}>"
+
+    @property
+    def stem(self):
+        if self._stem is None:
+            stem_length = min(len(x.stem) for x in self._files)
+            _stem = self._files[0].name[0:stem_length]
+            stems = {x.stem for x in self._files}
+            # if len(stems) > 1:
+            #    raise ValueError('!!')
+            # self._stem = tuple(stems)[0]
+            self._stem = _stem
+        return self._stem
+
+    def add_file(self, f):
+        # keep a record of all files
+        self._files.append(f)
+        if f.name.endswith("mzML"):
+            self._file_mappings["spectra"] = f
+        elif f.name.endswith("raw") and self._file_mappings.get("spectra") is None:
+            self._file_mappings["spectra"] = f
+        elif f.name.endswith("pin"):
+            self._file_mappings["pinfile"] = f
+        elif f.name.endswith("tsv"):
+            self._file_mappings["tsv_searchres"] = f
+        elif f.name.endswith("pepXML"):
+            self._file_mappings["pepxml"] = f
+        elif f.name.endswith("mokapot.psms.txt"):
+            self._file_mappings["mokapot-psms"] = f
+        elif f.name.endswith("mokapot.peptides.txt"):
+            self._file_mappings["mokapot-peptides"] = f
+        elif f.name.endswith("SICstats.txt"):
+            self._file_mappings["SICs"] = f
+        elif f.name.endswith("ReporterIons.txt"):
+            self._file_mappings["ReporterIons"] = f
+        # elif f.name.endswith('MSPCRunner'):
+        # self._file_mappings['ReporterIons'] = f
+        else:
+            pass
+            # logger.info(f"Unknown file {f}")
+
+    def get_file(self, name):
+        # can expand this to different methods for getting different files, with various checks
+        # Can add more logic such as checking if file exists, file size, creation time, etc
+        return self._file_mappings.get(name)
+
+        # return self.attrs.get(name, lambda x: x)()
+
+    def relocate(self, new_dir: Path):
+
+        for filetype, file in self._file_mappings.items():
+            if not isinstance(file, Path):
+                continue
+            relocated_obj = file.rename(new_dir / file.parts[-1])
+            logging.info(f"{file} -> {relocated_obj}")
+            self._file_mappings[filetype] = relocated_obj
+            # file = self.get_file(filetype)
+
+
+class FileFinder:  # receiver
+    NAME = "FileFinder Receiver"
+
+    PATTERNS = ["*raw", "*mzML", "*txt", "*pin"]
+    FILE_EXTENSIONS = [".mokapot.psms", "_ReporterIons", "_SICstats", "_MSPCRunner_a1"]
+
+    def run(self, file=None, path=None, depth=5, **kws) -> List[RunContainer]:
+        # res = li()
+        res = defaultdict(RunContainer)
+        for pat in self.PATTERNS:
+            for i in range(depth):
+                globstr = "*/" * i + pat
+                for f in path.glob(globstr):
+                    if not f.is_file():
+                        continue
+                    # print(f)
+                    # recno, runno, searchno = parse_rawname(f.stem)
+                    # if searchno is None:
+                    #    searchno = "6"
+                    # name=parse_rawname(f.name)
+                    # full_name =  f"{recno}_{runno}_{searchno}"
+
+                    basename = f.stem
+                    for ext in self.FILE_EXTENSIONS:
+                        if basename.endswith(ext):
+                            basename = basename.split(ext)[0]
+
+                    res[basename].add_file((f))
+                    # run_container = RunContainer(stem=f.stem)
+                    # res.append(run_container)
+        return res
 
 
 class FileMover:  # receiver
@@ -338,34 +432,63 @@ class FileRealtor:  # receiver
 
     NAME = "FileRealtor"
 
-    def run(self, inputfiles=None, outdir=None, CMD=None) -> Dict[Path, List[Path]]:
+    def run(
+        self, inputfiles: Dict[str, RunContainer] = None, outdir: Path = None, **kwargs
+    ) -> Dict[Path, List[Path]]:
         """
         :inputfiles: Path objects of files to
         """
         results = defaultdict(list)
-        for inputfile in inputfiles:
-            recno, runno, searchno = parse_rawname(inputfile.name)
+        # print(inputfiles[[x for x in inputfiles.keys()][0]])
+        for (
+            id,
+            run_container,
+        ) in inputfiles.items():  # id may be equivalent to stem, but doesn't have to be
+            recno, runno, searchno = parse_rawname(run_container.stem)
+            if recno is None:
+                logger.info(f"Could not find recno for {run_container.stem}, skipping")
+                continue
+            if searchno is None:
+                searchno = "6"
             outname = "_".join(filter(None, (recno, runno, searchno)))
+
             new_home = outdir / outname
-            new_home.mkdir(exist_ok=True)
-            logger.info(f"{inputfile} -> {new_home}")
-            logger.info("For future")
-            results[new_home].append(inputfile)
-            return results
+            if not new_home.exists():
+                logger.info(f"Creating {new_home}")
+                new_home.mkdir(exist_ok=False)
+            else:
+                # logger.info(f"{new_home} already exists.")
+                pass
+
+            # logger.info(f"{inputfile} -> {new_home}")
+            run_container.relocate(new_home)
+
+            results[new_home].append(run_container)
+        return results
 
 
 class PythonCommand(Command):
 
     NAME = "PythonCommand"
 
+    def __init__(self, *args, **kws):
+        super().__init__(
+            *args, **kws
+        )  # this has to be called before we can access "args"
+
     @property
     def CMD(self):
-        return dict(
-            inputfiles=self.inputfiles,
-            outdir=self.outdir,
-        )
+        """
+        Return the dictionary of attributes to pass to the receiver as kwargs.
+        """
+        self._cmd = self.__dict__
+        return self._cmd
+        # return dict(
+        #    inputfiles=self.inputfiles,
+        #    outdir=self.outdir,
+        # )
 
-    def execute(self):
+    def execute(self, *args, **kws):
         self.announce()
         return self._receiver.run(**self.CMD)
 
@@ -394,6 +517,7 @@ class MokaPotConsole(Command):
         self.folds = folds
         self.outdir = outdir
         self.pinfiles = tuple()
+        self._cmd = None
 
     def find_pinfiles(self):
         """
@@ -401,7 +525,7 @@ class MokaPotConsole(Command):
         """
         pinfiles = list()
         for inputfile in self.inputfiles:  # Path objects
-            _pinfile_glob = inputfile.parent.glob("*pin")
+            _pinfile_glob = inputfile.parent.glob(f"{inputfile.stem}*pin")
             for _pinfile in _pinfile_glob:
                 pinfiles.append(_pinfile)
         self.pinfiles = pinfiles
@@ -413,9 +537,17 @@ class MokaPotConsole(Command):
 
         # for inputfile in self.get_inputfiles():
         # for inputfile in self.inputfiles:
+        pinfiles = tuple()
+        if self.inputfiles:
+            pinfiles = [
+                x.get_file("pinfile") for x in self.inputfiles.values()
+            ]  # the values are RawFile instances
+            pinfiles = [x for x in pinfiles if x is not None]
 
         # parse_rawname
-        return [
+        if not pinfiles:
+            res = tuple()
+        res = [
             [
                 MOKAPOT,
                 "--decoy_prefix",
@@ -425,7 +557,7 @@ class MokaPotConsole(Command):
                 "--dest_dir",
                 self.outdir,
                 "--file_root",
-                f"{pinfile.stem}_",
+                f"{pinfile.stem}",
                 "--train_fdr",
                 self.train_fdr,
                 "--test_fdr",
@@ -434,99 +566,19 @@ class MokaPotConsole(Command):
                 self.seed,
                 "--folds",
                 self.folds,
-                pinfile,
+                str(pinfile.resolve()),
             ]
-            for pinfile in self.pinfiles
+            for pinfile in pinfiles
         ]
+        self._CMD = res
+        return self._CMD
 
     def execute(self):
         "execute"
         # return self._receiver.action("run", self.CMD)
-        self.find_pinfiles()  # should be created by the time this executs
+        # self.find_pinfiles()  # should be created by the time this executs
         for CMD in self.CMD:
             ret = self._receiver.run(CMD=CMD)
-
-
-class MASIC(Command):
-
-    NAME = "MASIC"
-
-    @property
-    def CMD(self):
-        # TODO check os
-        self.announce()
-        for inputfile in self.inputfiles:
-            return [
-                "mono",
-                MASIC_EXE,
-                f"/P:{self.paramfile}",
-                f"/O:{inputfile.parent.resolve()}",
-                f"/I:{inputfile.resolve()}",
-            ]
-            # return [MASIC_EXE, f"/P:{self.paramfile}", f"/O:{self.outdir}", f"/I:{inputfile}"]
-            # return [MASIC_EXE, f"/P:\"{self.paramfile}\"", f"/O:{self.outdir}", f"/I:{inputfile}"]
-
-
-class MSFragger(Command):
-
-    NAME = "MSFragger"
-
-    def __init__(self, *args, ramalloc="50G", **kwargs):
-        super().__init__(*args, **kwargs)
-        self.ramalloc = ramalloc
-        self._params = None
-
-    def read_config(self, conf) -> dict: # this is smarter than using csv module
-        parser = ConfigParser(inline_comment_prefixes="#")
-        with open(conf) as stream:
-            parser.read_string("[top]\n" + stream.read())  # create dummy header
-        return parser["top"]
-
-    @property
-    def params() -> dict:
-        if self._params is None:
-            param_dict = read_params(self.conf)
-            self._params = param_dict
-        return self._params
-
-    def get_param_value(self, param):
-        return self._params.get(param)
-
-    def set_param(self, param, value):
-        if param not in self._params:
-            logging.error(f"{param} does not exist")
-        self._params[param] = value
-
-    @staticmethod
-    def quote_if_windows(x): # not needed
-        if platform.system() == "Windows":
-            return f'"{x}"'
-        return f"{x}"
-
-    @property
-    def CMD(self):
-        return [
-            "java",
-            f"-Xmx{self.ramalloc}G",
-            "-jar",
-            #self.quote_if_windows(MSFRAGGER_EXE),
-            #self.quote_if_windows(self.paramfile.resolve()),
-            #f"\"{MSFRAGGER_EXE}\"",
-            f"{MSFRAGGER_EXE.resolve()}",
-            f"{self.paramfile.resolve()}",
-            *self.get_inputfiles(),
-        ]
-
-
-class MASIC_Tester(MASIC):
-
-    NAME = "MASIC Tester"
-
-    def execute(self):
-        print(f"{self!r} : sending {self.CMD}")
-        # ret = self._receiver.action("run", self.CMD)
-        ret = self._receiver.run(self.CMD)
-        # print(f"{self} : sending {self.CMD}")
 
 
 class Percolator(Command):
@@ -556,37 +608,3 @@ class FinalFormatter(Command):
     """
 
     pass
-
-
-class Worker:  # invoker
-    """
-    Invoker
-    """
-
-    def __init__(
-        self,
-    ):  # Override init to initialize an Invoker with Commands to accept.
-        self._history = list()
-        self._commands = dict()
-        self._output = OrderedDict()
-
-    def register(self, command_name, command):
-        self._commands[command_name] = command
-
-    def execute(self, command_name):
-        "Execute any registered commands"
-
-        if command_name in self._commands.keys():
-            output = self._commands[command_name].execute()
-            self._history.append((time(), command_name))
-            self._output[command_name] = output
-            return output
-
-        else:
-            logger.error(f"Command [{command_name}] not recognised")
-
-    def something_else(self):
-        pass
-
-    def set_on_start(self, command):
-        pass

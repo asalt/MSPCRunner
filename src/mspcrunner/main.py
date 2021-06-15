@@ -1,3 +1,30 @@
+import ipdb
+from ipdb.__main__ import _init_pdb
+from .utils import confirm_param_or_exit
+from .predefined_params import (
+    Predefined_Search,
+    Predefined_Quant,
+    PREDEFINED_SEARCH_PARAMS,
+    PREDEFINED_QUANT_PARAMS,
+)
+from .commands import CMDRunner_Tester
+from .commands import get_logger
+from .MASIC import MASIC
+from .MSFragger import MSFragger
+from .commands import (
+    CMDRunner,
+    FileFinder,
+    MokaPotRunner,
+    RawObj,
+    Command,
+    Worker,
+    RawObj,
+    PythonCommand,
+    FileMover,
+    FileRealtor,
+    MokaPotConsole,
+)
+import logging
 import sys
 import os
 import re
@@ -18,32 +45,6 @@ app = typer.Typer(chain=True)
 # from folderstats import get_folderstats
 BASEDIR = Path(os.path.split(__file__)[0])
 
-import logging
-
-from .commands import (
-    CMDRunner,
-    MokaPotRunner,
-    RawObj,
-    Command,
-    MASIC,
-    MSFragger,
-    Worker,
-    RawObj,
-    PythonCommand,
-    FileMover,
-    FileRealtor,
-    MokaPotConsole,
-)
-from .commands import get_logger
-from .commands import CMDRunner_Tester
-
-from .predefined_params import (
-    Predefined_Search,
-    Predefined_Quant,
-    PREDEFINED_SEARCH_PARAMS,
-    PREDEFINED_QUANT_PARAMS,
-)
-from .utils import confirm_param_or_exit
 
 # import db
 # from db import get_database_conn
@@ -54,10 +55,11 @@ from .utils import confirm_param_or_exit
 # WORKDIR = Path('.')
 WORKDIR = Path("D:\MSPCworkdir")
 PROCESSING_DIR = Path(".")
-MASIC_DEFAULT_CONF = Path("masic_default.xml")  # need to have LF, TMT10, 11, 16..
+# need to have LF, TMT10, 11, 16..
+MASIC_DEFAULT_CONF = Path("masic_default.xml")
 # will change later
 MSFRAGGER_DEFAULT_CONF = Path(
-    "../params/MSfragger_OTIT_hs.conf"
+    "../params/MSFragger_OTIT_hs.conf"
 )  # need to have LF, TMT10, 11, 16..
 
 MASIC_DEFAULT_CONF = Path("../")  # need to have LF, TMT10, 11, 16..
@@ -66,6 +68,10 @@ logger = get_logger(__name__)
 
 
 class Context:
+
+    _worker = None
+    _experiments = None
+
     def __init__(
         self,
     ):
@@ -89,6 +95,8 @@ def get_current_context():
 
 
 # move all the database checking logic to central server
+
+
 def _survey(workdir=WORKDIR):
     if isinstance(workdir, str):
         workdir = Path(workdir)
@@ -163,19 +171,22 @@ def worker_run(*args, **kwargs):
     """
     run context.obj['worker'] jobs in order of registration
     """
-    logging.info("**worker_run**")
+    logger.info("**worker_run**")
     logger.info("ready to execute")
     ctx = get_current_context()
     worker = ctx.obj["worker"]
 
     for name, cmd in worker._commands.items():
         print(name)
+        # filecontainers = worker._output.get("experiment_finder", None)
+
         logger.info(
             f"""
         {cmd.NAME} : {cmd._receiver.NAME} with {cmd.CMD}
         """
         )
         res = worker.execute(name)
+        # import ipdb; ipdb.set_trace()
     # import ipdb; ipdb.set_trace()
 
     # msfragger= worker._commands['msfragger']
@@ -195,9 +206,14 @@ def main(
         default=None,
         help="Path with raw files to process. Will process all raw files in path.",
     ),
-    depth: Optional[int] = typer.Option(default = 2,
-        help="recursion depth for rawfile search. to be used with `path` argument"
-        ),
+    outdir: Optional[Path] = typer.Option(
+        default=Path("."),
+        help="Root directory to store results. Defaults to current directory.",
+    ),
+    depth: Optional[int] = typer.Option(
+        default=2,
+        help="recursion depth for rawfile search. to be used with `path` argument",
+    ),
     rawfile: Optional[List[Path]] = typer.Option(
         default=None, exists=True, help="raw file to process"
     ),
@@ -210,12 +226,31 @@ def main(
     if ctx.invoked_subcommand is None:
         logger.info("starting MSPCRunner")
 
-    if path:
-        for i in range(depth):
-            _glob = '*/'*i + '*raw'
-            rawfiles_in_path = path.glob(_glob)
-            rawfile += list(rawfiles_in_path)
-    rawfiles = rawfile  # just for semantics
+    # TODO look for raw and mzML
+    # TODO replace with PythonCommand with FileFinder receiver
+    # if path:
+    #     for i in range(depth):
+    #         #_glob = '*/'*i + '*mzML'
+    #         _glob = '*/'*i + '*raw'
+    #         rawfiles_in_path = path.glob(_glob)
+    #         for f in rawfiles_in_path:
+    #             if f.is_file():
+    #                 rawfile.append(f)
+    # rawfiles = rawfile  # just for semantics
+    # print(rawfiles)
+    # import ipdb; ipdb.set_trace()
+
+    worker = Worker()
+
+    file_finder = FileFinder()
+    collect_experiments = PythonCommand(
+        file_finder,
+        file=rawfile,
+        path=path,
+        depth=depth,
+        name="experiment_finder",
+    )
+    worker.register("experiment_finder", collect_experiments)
 
     if dry:
         cmd_runner = CMDRunner_Tester(production_receiver=CMDRunner)
@@ -228,12 +263,12 @@ def main(
 
     calc_outdirs = PythonCommand(
         file_realtor,
-        inputfiles=rawfiles,
-        outdir=PROCESSING_DIR,
+        # inputfiles=rawfiles,
+        # outdir=PROCESSING_DIR,
+        outdir=outdir,
         name="file-folder-mapping",
     )
 
-    worker = Worker()
     worker.register("output_finder", calc_outdirs)
 
     # stage_files = PythonCommand(
@@ -242,7 +277,7 @@ def main(
     # worker.register("stage_files", stage_files)
 
     ctx.obj = dict(
-        rawfiles=rawfiles,
+        # rawfiles=rawfiles,
         cmd_runner=cmd_runner,
         file_mover=file_mover,
         file_realtor=file_realtor,
@@ -264,9 +299,9 @@ def search(
     logger.info("welcome to search")
 
     ctx = get_current_context()
-    rawfiles = ctx.obj["rawfiles"]
-    cmd_runner = ctx.obj["cmd_runner"]
-    worker = ctx.obj["worker"]
+    rawfiles = ctx.obj.get("rawfiles")
+    cmd_runner = ctx.obj.get("cmd_runner")
+    worker = ctx.obj.get("worker")
 
     paramfile = confirm_param_or_exit(paramfile, preset, PREDEFINED_SEARCH_PARAMS)
 
@@ -290,7 +325,7 @@ def quant(
     logger.info("welcome to quant")
 
     ctx = get_current_context()
-    rawfiles = ctx.obj["rawfiles"]
+    # rawfiles = ctx.obj["rawfiles"]
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
 
@@ -298,7 +333,7 @@ def quant(
 
     masic = MASIC(
         cmd_runner,
-        inputfiles=rawfiles,  # we can set this later
+        # inputfiles=rawfiles,  # we can set this later
         # paramfile=msfragger_conf.absolute(),
         paramfile=paramfile.absolute(),
         # ramalloc=ramalloc,
@@ -309,8 +344,8 @@ def quant(
 
 @app.command()
 def percolate(
-    train_fdr: Optional[float] = typer.Option(default=0.05, help="train fdr"),
-    test_fdr: Optional[float] = typer.Option(default=0.05, help="test fdr"),
+    train_fdr: Optional[float] = typer.Option(default=0.01, help="train fdr"),
+    test_fdr: Optional[float] = typer.Option(default=0.01, help="test fdr"),
     folds: Optional[int] = typer.Option(
         default=3, help="number of cross-validation folds to use"
     ),
@@ -321,21 +356,23 @@ def percolate(
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
-    rawfiles = ctx.obj["rawfiles"]
 
-    for ix, rawfile in enumerate(rawfiles):
+    # rawfiles = ctx.obj["rawfiles"]
 
-        mokapot = MokaPotConsole(
-            cmd_runner,
-            inputfiles=(rawfile,),
-            outdir=rawfile.parent.resolve(),
-            train_fdr=train_fdr,
-            test_fdr=test_fdr,
-            folds=folds,
-            decoy_prefix=decoy_prefix,
-            # outdir=WORKDIR
-        )
-        worker.register(f"mokapot-{ix}", mokapot)
+    # for ix, rawfile in enumerate(rawfiles):
+
+    mokapot = MokaPotConsole(
+        cmd_runner,
+        # inputfiles=(rawfile,),
+        # outdir=rawfile.parent.resolve(),
+        train_fdr=train_fdr,
+        test_fdr=test_fdr,
+        folds=folds,
+        decoy_prefix=decoy_prefix,
+        # outdir=WORKDIR
+    )
+    ix = 0
+    worker.register(f"mokapot-{ix}", mokapot)
 
 
 @app.command()
@@ -446,12 +483,12 @@ if __name__ == "__main__":
     # inputfiles = ["a.raw", "b.raw"]
     # paramf = "paramf.xml"
 
-    ## Receiver
+    # Receiver
     # cmd_runner = CMDRunner()
 
     # masic = MASIC(cmd_runner, paramf, *inputfiles)
 
-    ## cmd
+    # cmd
     # masic = MASIC(cmd_runner, paramf, *inputfiles)
 
     # worker = Worker()
@@ -460,7 +497,7 @@ if __name__ == "__main__":
     ##  masic = MASIC(cmd_runner)
     ##  worker.register('masic', masic)
 
-    ##FullPipelineWorker
+    # FullPipelineWorker
 
     ##mascic_runner = MASIC(CMDRunner, paramf, *inputfiles)
 
@@ -473,12 +510,12 @@ if __name__ == "__main__":
     # inputfiles = ["a.raw", "b.raw"]
     # paramf = "paramf.xml"
 
-    ## Receiver
+    # Receiver
     # cmd_runner = CMDRunner()
 
     # masic = MASIC(cmd_runner, paramf, *inputfiles)
 
-    ## cmd
+    # cmd
     # masic = MASIC(cmd_runner, paramf, *inputfiles)
 
     # worker = Worker()
@@ -487,6 +524,6 @@ if __name__ == "__main__":
     ##  masic = MASIC(cmd_runner)
     ##  worker.register('masic', masic)
 
-    ##FullPipelineWorker
+    # FullPipelineWorker
 
     ##mascic_runner = MASIC(CMDRunner, paramf, *inputfiles)
