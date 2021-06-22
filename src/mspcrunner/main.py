@@ -1,10 +1,10 @@
-import ipdb
-from ipdb.__main__ import _init_pdb
 from .utils import confirm_param_or_exit
 from .predefined_params import (
     Predefined_Search,
     Predefined_Quant,
+    Predefined_RefSeq,
     PREDEFINED_SEARCH_PARAMS,
+    PREDEFINED_REFSEQ_PARAMS,
     PREDEFINED_QUANT_PARAMS,
 )
 from .commands import CMDRunner_Tester
@@ -24,6 +24,7 @@ from .commands import (
     FileRealtor,
     MokaPotConsole,
 )
+from .psm_merge import PSM_Merger
 import logging
 import sys
 import os
@@ -154,6 +155,7 @@ def do_search(*rawfiles, paramf=MASIC_DEFAULT_CONF, CMDRunner=CMDRunner):
         paramf = Path(paramf)
 
     cmd_runner = CMDRunner()
+
     masic = MASIC(cmd_runner, paramf, *rawfiles, name="alex-test")
     # TODO make msfragger.conf
     msfragger = MSFragger(
@@ -251,6 +253,7 @@ def main(
         name="experiment_finder",
     )
     worker.register("experiment_finder", collect_experiments)
+    inputfiles = worker.execute("experiment_finder")
 
     if dry:
         cmd_runner = CMDRunner_Tester(production_receiver=CMDRunner)
@@ -263,6 +266,7 @@ def main(
 
     calc_outdirs = PythonCommand(
         file_realtor,
+        inputfiles=inputfiles,
         # inputfiles=rawfiles,
         # outdir=PROCESSING_DIR,
         outdir=outdir,
@@ -291,6 +295,7 @@ def main(
 def search(
     preset: Predefined_Search = typer.Option(None, case_sensitive=False),
     paramfile: Optional[Path] = typer.Option(None),
+    refseq: Predefined_RefSeq = typer.Option(None),
     ramalloc: Optional[int] = typer.Option(
         default=10, help="Amount of memory (in GB) for msfragger"
     ),
@@ -299,18 +304,21 @@ def search(
     logger.info("welcome to search")
 
     ctx = get_current_context()
-    rawfiles = ctx.obj.get("rawfiles")
+    # rawfiles = ctx.obj.get("rawfiles")
     cmd_runner = ctx.obj.get("cmd_runner")
     worker = ctx.obj.get("worker")
 
     paramfile = confirm_param_or_exit(paramfile, preset, PREDEFINED_SEARCH_PARAMS)
+    refseq = PREDEFINED_REFSEQ_PARAMS.get(refseq)
 
     msfragger = MSFragger(
         cmd_runner,
-        inputfiles=rawfiles,  # we can set this later
+        inputfiles=worker._output.get("experiment_finder"),
+        # inputfiles=rawfiles,  # we can set this later
         # paramfile=msfragger_conf.absolute(),
         paramfile=paramfile.resolve(),
         ramalloc=ramalloc,
+        refseq=refseq,
         name="msfragger-cmd",
     )
     worker.register("msfragger", msfragger)
@@ -326,20 +334,27 @@ def quant(
 
     ctx = get_current_context()
     # rawfiles = ctx.obj["rawfiles"]
+
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
 
     paramfile = confirm_param_or_exit(paramfile, preset, PREDEFINED_QUANT_PARAMS)
 
-    masic = MASIC(
-        cmd_runner,
-        # inputfiles=rawfiles,  # we can set this later
-        # paramfile=msfragger_conf.absolute(),
-        paramfile=paramfile.absolute(),
-        # ramalloc=ramalloc,
-        name="masic-cmd",
-    )
-    worker.register("masic", masic)
+    for (ix, run_container) in enumerate(
+        worker._output.get("experiment_finder", tuple())
+    ):
+
+        masic = MASIC(
+            cmd_runner,
+            inputfile=run_container,
+            # inputfiles=worker._output.get("experiment_finder"),
+            # inputfile=run_container,
+            # paramfile=msfragger_conf.absolute(),
+            paramfile=paramfile.absolute(),
+            # ramalloc=ramalloc,
+            name=f"masic-cmd-{ix}",
+        )
+        worker.register(f"masic-cmd-{ix}", masic)
 
 
 @app.command()
@@ -353,6 +368,7 @@ def percolate(
         default="rev_", help="decoy prefix in database"
     ),
 ):
+
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
@@ -361,23 +377,47 @@ def percolate(
 
     # for ix, rawfile in enumerate(rawfiles):
 
-    mokapot = MokaPotConsole(
-        cmd_runner,
-        # inputfiles=(rawfile,),
-        # outdir=rawfile.parent.resolve(),
-        train_fdr=train_fdr,
-        test_fdr=test_fdr,
-        folds=folds,
-        decoy_prefix=decoy_prefix,
-        # outdir=WORKDIR
-    )
-    ix = 0
-    worker.register(f"mokapot-{ix}", mokapot)
+    for (ix, run_container) in enumerate(
+        worker._output.get("experiment_finder", tuple())
+    ):
+
+        mokapot = MokaPotConsole(
+            cmd_runner,
+            # inputfiles=(rawfile,),
+            # outdir=rawfile.parent.resolve(),
+            # inputfiles=worker._output.get("experiment_finder"),
+            inputfiles=run_container,
+            train_fdr=train_fdr,
+            test_fdr=test_fdr,
+            folds=folds,
+            decoy_prefix=decoy_prefix,
+            name=f"mokapot-{ix}"
+            # outdir=WORKDIR
+        )
+        worker.register(f"mokapot-{ix}", mokapot)
 
 
 @app.command()
-def something_completely_different():
-    return
+def merge_psms():
+    ctx = get_current_context()
+    cmd_runner = ctx.obj["cmd_runner"]
+    worker = ctx.obj["worker"]
+
+    for (ix, run_container) in enumerate(
+        worker._output.get("experiment_finder", tuple())
+    ):
+
+        # psm_merger = PSM_Merger()
+
+        merge_psms = PythonCommand(
+            PSM_Merger(),
+            runcontainer=run_container,
+            # psm_merger,
+            name=f"merge_psms_{ix}",
+        )
+        worker.register(f"merge_psms_{ix}", merge_psms)
+
+        # worker.register(f"PSM-Merger", psm_merger)
 
 
 @app.command()

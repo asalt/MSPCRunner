@@ -12,6 +12,8 @@ from pathlib import Path
 from time import time
 from typing import Any, Dict, Iterable, List, Mapping, Tuple
 from .worker import Worker
+from .file_finder import FileFinder
+from .containers import RunContainer
 
 import click
 
@@ -75,6 +77,127 @@ def resolve_if_path(x):
     return x
 
 
+import threading
+import queue
+
+
+def run(fd, q):
+    for line in iter(fd.readline, ""):
+        q.put(line)
+    q.put(None)
+
+
+def create(fd):
+    q = queue.Queue()
+    t = threading.Thread(target=run, args=(fd, q))
+    t.daemon = True
+    t.start()
+    return q, t
+
+
+from subprocess import Popen, PIPE
+from threading import Thread
+from queue import Queue  # Python 2
+
+
+def reader(pipe, queue):
+    try:
+        with pipe:
+            for line in iter(pipe.readline, b""):
+                queue.put((pipe, line), block=False)
+    finally:
+        queue.put(None, block=False)
+
+
+import threading, queue
+
+
+def merge_pipes(**named_pipes):
+    r"""
+    Merges multiple pipes from subprocess.Popen (maybe other sources as well).
+    The keyword argument keys will be used in the output to identify the source
+    of the line.
+
+    Example:
+    p = subprocess.Popen(['some', 'call'],
+                         stdin=subprocess.PIPE,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+    outputs = {'out': log.info, 'err': log.warn}
+    for name, line in merge_pipes(out=p.stdout, err=p.stderr):
+        outputs[name](line)
+
+    This will output stdout to the info logger, and stderr to the warning logger
+    """
+
+    # Constants. Could also be placed outside of the method. I just put them here
+    # so the method is fully self-contained
+    PIPE_OPENED = 1
+    PIPE_OUTPUT = 2
+    PIPE_CLOSED = 3
+
+    # Create a queue where the pipes will be read into
+    output = queue.Queue()
+
+    # This method is the run body for the threads that are instatiated below
+    # This could be easily rewritten to be outside of the merge_pipes method,
+    # but to make it fully self-contained I put it here
+    def pipe_reader(name, pipe):
+        r"""
+        reads a single pipe into the queue
+        """
+        output.put(
+            (
+                PIPE_OPENED,
+                name,
+            )
+        )
+        try:
+            for line in iter(pipe.readline, ""):
+                output.put(
+                    (
+                        PIPE_OUTPUT,
+                        name,
+                        line.rstrip(),
+                    )
+                )
+        finally:
+            output.put(
+                (
+                    PIPE_CLOSED,
+                    name,
+                )
+            )
+
+    # Start a reader for each pipe
+    for name, pipe in named_pipes.items():
+        t = threading.Thread(
+            target=pipe_reader,
+            args=(
+                name,
+                pipe,
+            ),
+        )
+        t.daemon = True
+        t.start()
+
+    # Use a counter to determine how many pipes are left open.
+    # If all are closed, we can return
+    pipe_count = 0
+
+    # Read the queue in order, blocking if there's no data
+    for data in iter(output.get, ""):
+        code = data[0]
+        if code == PIPE_OPENED:
+            pipe_count += 1
+        elif code == PIPE_CLOSED:
+            pipe_count -= 1
+        elif code == PIPE_OUTPUT:
+            yield data[1:]
+        if pipe_count == 0:
+            return
+
+
 class CMDRunner:  # receiver
     """
     receiver for running CMD via subprocess
@@ -95,6 +218,7 @@ class CMDRunner:  # receiver
 
         _CMD = map(resolve_if_path, CMD)
         # _CMD = " ".join(map(str, _CMD))
+
         _CMD = map(str, _CMD)
         _CMD = list(_CMD)
 
@@ -106,11 +230,39 @@ class CMDRunner:  # receiver
         popen = subprocess.Popen(
             _CMD,
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            stderr=subprocess.PIPE,
             bufsize=1,
             universal_newlines=True,
             shell=False,
         )
+
+        # q = Queue()
+        # t1 = Thread(target=reader, args=[popen.stderr, q])
+        # t2 = Thread(target=reader, args=[popen.stdout, q])
+        # t1.daemon = True
+        # t2.daemon = True
+        # t1.start()
+        # t2.start()
+        # for _ in range(1):
+        #     for source, line in iter(q.get, None):
+        #         if not line.strip():
+        #             continue
+        #         # if not line.strip("."):
+        #         #     continue
+        #         logger.info(line.strip())
+        #         # print("%s: %s" % (source, line))
+        # import ipdb
+
+        for pipe, msg in merge_pipes(stdout=popen.stdout, stderr=popen.stderr):
+            logger.info(msg)
+
+        retcode = popen.wait()
+
+        # if retcode == 0:
+        #     logger.info(f"Command finished with exitcode: {retcode}")
+        # else:
+        #     logger.error(f"Command finished with exitcode: {retcode}")
+
         # print('made popen', flush=True)
 
         # while True:
@@ -129,27 +281,32 @@ class CMDRunner:  # receiver
         # for stdout_line in iter(popen.stdout.readline, ''):
         # while popen.poll() is None:
         stdout = list()
-        for stdout_line in popen.stdout:
-            logger.info(stdout_line.strip())
-            # stdout.append(stdout_line)
-            # logger.handlers[0].flush()
-            # logger.handlers[1].flush()
-            # print(stdout_line, flush=True)
+
+        # for stderr_line in popen.stderr, stdout_line in popen.stdout:
+
+        # http://amoffat.github.io/sh/sections/asynchronous_execution.html
+
+        # for stdout_line in popen.stdout:
+        #     logger.info(stdout_line.strip())
+        # for l1, l2 in zip_longest(popen.stdout, popen.stderr):
+        #     logger.info(l1.strip())
+        #     logger.info(l2.strip())
+        # # second guy always runs second, after subprocess completes
+
+        # stdout.append(stdout_line)
+        # logger.handlers[0].flush()
+        # logger.handlers[1].flush()
+        # print(stdout_line, flush=True)
         ## fix this later?
 
         # for i in stdout:
         # logger.info(i)
-        retcode = popen.wait()
         # popen.stdout.close()
         # logging.info(i)
 
         # run(CMD, *args, **kwargs)
 
         # retcode = popen.wait()
-        if retcode == 0:
-            logger.info(f"Command finished with exitcode: {retcode}")
-        else:
-            logger.error(f"Command finished with exitcode: {retcode}")
         # if retcode != 0:
         # logger.error(f"{retcode}")
         # logger.error(f"{stdout[-1]}")
@@ -270,134 +427,18 @@ class Command:
     def execute(self):
         "execute"
         # return self._receiver.action("run", self.CMD)
-        return self._receiver.run(CMD=self.CMD)
+        if not self.CMD:  # CMD lazy loads, can end up empty if all jobs completed
+            return
+        if isinstance(self.CMD, (list, tuple)) and isinstance(
+            self.CMD[0], (list, tuple)
+        ):
 
-
-class RunContainer:
-
-    # these are the names to be used for `get_file` to get their corresponding attributes
-    MAPPING = dict(
-        spectra="_spectra",
-        pinfile="_mokapot_psms",
-        reporterions="_reporterions",
-        # TODO expand
-    )
-
-    def __init__(self, stem=None) -> None:
-        """
-        can set the stem explicitly or let it self-calculate
-        :see self.stem:
-        """
-        self._stem = stem
-        self._files = list()
-        self._file_mappings = dict()
-        # self._spectra = None
-        # self._pinfile = None
-        # self._tsv_searchres = None
-        # self._pepxml = None
-        # self._mokapot_psms = None
-        # self._mokapot_peptides = None
-        # self._sics = None
-        # self._reporterions = None
-
-    @property
-    def spectra(self):
-        return
-
-    def __repr__(self) -> str:
-        return f"RunContainer <{self.stem}>"
-
-    def __str__(self) -> str:
-        return f"RunContainer <{self.stem}>"
-
-    @property
-    def stem(self):
-        if self._stem is None:
-            stem_length = min(len(x.stem) for x in self._files)
-            _stem = self._files[0].name[0:stem_length]
-            stems = {x.stem for x in self._files}
-            # if len(stems) > 1:
-            #    raise ValueError('!!')
-            # self._stem = tuple(stems)[0]
-            self._stem = _stem
-        return self._stem
-
-    def add_file(self, f):
-        # keep a record of all files
-        self._files.append(f)
-        if f.name.endswith("mzML"):
-            self._file_mappings["spectra"] = f
-        elif f.name.endswith("raw") and self._file_mappings.get("spectra") is None:
-            self._file_mappings["spectra"] = f
-        elif f.name.endswith("pin"):
-            self._file_mappings["pinfile"] = f
-        elif f.name.endswith("tsv"):
-            self._file_mappings["tsv_searchres"] = f
-        elif f.name.endswith("pepXML"):
-            self._file_mappings["pepxml"] = f
-        elif f.name.endswith("mokapot.psms.txt"):
-            self._file_mappings["mokapot-psms"] = f
-        elif f.name.endswith("mokapot.peptides.txt"):
-            self._file_mappings["mokapot-peptides"] = f
-        elif f.name.endswith("SICstats.txt"):
-            self._file_mappings["SICs"] = f
-        elif f.name.endswith("ReporterIons.txt"):
-            self._file_mappings["ReporterIons"] = f
-        # elif f.name.endswith('MSPCRunner'):
-        # self._file_mappings['ReporterIons'] = f
+            all_return = list()
+            for CMD in self.CMD:
+                ret = self._receiver.run(CMD=CMD)
+                all_return.append(ret)
         else:
-            pass
-            # logger.info(f"Unknown file {f}")
-
-    def get_file(self, name):
-        # can expand this to different methods for getting different files, with various checks
-        # Can add more logic such as checking if file exists, file size, creation time, etc
-        return self._file_mappings.get(name)
-
-        # return self.attrs.get(name, lambda x: x)()
-
-    def relocate(self, new_dir: Path):
-
-        for filetype, file in self._file_mappings.items():
-            if not isinstance(file, Path):
-                continue
-            relocated_obj = file.rename(new_dir / file.parts[-1])
-            logging.info(f"{file} -> {relocated_obj}")
-            self._file_mappings[filetype] = relocated_obj
-            # file = self.get_file(filetype)
-
-
-class FileFinder:  # receiver
-    NAME = "FileFinder Receiver"
-
-    PATTERNS = ["*raw", "*mzML", "*txt", "*pin"]
-    FILE_EXTENSIONS = [".mokapot.psms", "_ReporterIons", "_SICstats", "_MSPCRunner_a1"]
-
-    def run(self, file=None, path=None, depth=5, **kws) -> List[RunContainer]:
-        # res = li()
-        res = defaultdict(RunContainer)
-        for pat in self.PATTERNS:
-            for i in range(depth):
-                globstr = "*/" * i + pat
-                for f in path.glob(globstr):
-                    if not f.is_file():
-                        continue
-                    # print(f)
-                    # recno, runno, searchno = parse_rawname(f.stem)
-                    # if searchno is None:
-                    #    searchno = "6"
-                    # name=parse_rawname(f.name)
-                    # full_name =  f"{recno}_{runno}_{searchno}"
-
-                    basename = f.stem
-                    for ext in self.FILE_EXTENSIONS:
-                        if basename.endswith(ext):
-                            basename = basename.split(ext)[0]
-
-                    res[basename].add_file((f))
-                    # run_container = RunContainer(stem=f.stem)
-                    # res.append(run_container)
-        return res
+            all_return = self._receiver.run(CMD=self.CMD)
 
 
 class FileMover:  # receiver
@@ -411,12 +452,13 @@ class FileMover:  # receiver
         logger.info(f"starting {self}")
         if outdir is None:
             outdir = Path(".")
+            return inputfiles
         logger.info(f"Outdir set to {outdir}")
 
         newfiles = list()
         for inputfile in inputfiles:
-            newfile = inputfile.rename(outdir / inputfile.name)
             logger.info(f"{inputfile} --> {newfile}")
+            newfile = inputfile.rename(outdir / inputfile.name)
             newfiles.append(newfile)
 
         return newfiles
@@ -441,9 +483,8 @@ class FileRealtor:  # receiver
         results = defaultdict(list)
         # print(inputfiles[[x for x in inputfiles.keys()][0]])
         for (
-            id,
-            run_container,
-        ) in inputfiles.items():  # id may be equivalent to stem, but doesn't have to be
+            run_container
+        ) in inputfiles:  # id may be equivalent to stem, but doesn't have to be
             recno, runno, searchno = parse_rawname(run_container.stem)
             if recno is None:
                 logger.info(f"Could not find recno for {run_container.stem}, skipping")
@@ -453,6 +494,8 @@ class FileRealtor:  # receiver
             outname = "_".join(filter(None, (recno, runno, searchno)))
 
             new_home = outdir / outname
+            if outdir.resolve().parts[-1] == new_home.parts[0]:  #  already created
+                new_home = outdir
             if not new_home.exists():
                 logger.info(f"Creating {new_home}")
                 new_home.mkdir(exist_ok=False)
@@ -506,6 +549,7 @@ class MokaPotConsole(Command):
         seed=888,
         folds=3,
         outdir=".",
+        basename=None,  # will get from pinfile if not defined
         **kws,
     ):
 
@@ -517,19 +561,8 @@ class MokaPotConsole(Command):
         self.folds = folds
         self.outdir = outdir
         self.pinfiles = tuple()
+        self.basename = basename
         self._cmd = None
-
-    def find_pinfiles(self):
-        """
-        looks for pinfiles in same directory as input (raw) files
-        """
-        pinfiles = list()
-        for inputfile in self.inputfiles:  # Path objects
-            _pinfile_glob = inputfile.parent.glob(f"{inputfile.stem}*pin")
-            for _pinfile in _pinfile_glob:
-                pinfiles.append(_pinfile)
-        self.pinfiles = pinfiles
-        return pinfiles
 
     @property
     def CMD(self):
@@ -537,39 +570,43 @@ class MokaPotConsole(Command):
 
         # for inputfile in self.get_inputfiles():
         # for inputfile in self.inputfiles:
-        pinfiles = tuple()
-        if self.inputfiles:
+
+        if self.inputfiles and isinstance(self.inputfiles, RunContainer):
+            pinfiles = [self.inputfiles.get_file("pinfile")]
+        elif self.inputfiles and not isinstance(self.inputfiles, RunContainer):
             pinfiles = [
-                x.get_file("pinfile") for x in self.inputfiles.values()
+                x.get_file("pinfile") for x in self.inputfiles
             ]  # the values are RawFile instances
-            pinfiles = [x for x in pinfiles if x is not None]
+            # pinfiles = [x for x in pinfiles if x is not None]
+        if self.basename is not None:
+            file_root = self.basename
+        elif len(pinfiles) == 1:
+            file_root = pinfiles[0].stem
+        elif len(pinfiles) > 1 and self.basename is None:
+            raise NotImplementedError("")
 
         # parse_rawname
-        if not pinfiles:
-            res = tuple()
         res = [
-            [
-                MOKAPOT,
-                "--decoy_prefix",
-                "rev_",
-                "--missed_cleavages",
-                "2",
-                "--dest_dir",
-                self.outdir,
-                "--file_root",
-                f"{pinfile.stem}",
-                "--train_fdr",
-                self.train_fdr,
-                "--test_fdr",
-                self.test_fdr,
-                "--seed",
-                self.seed,
-                "--folds",
-                self.folds,
-                str(pinfile.resolve()),
-            ]
-            for pinfile in pinfiles
+            MOKAPOT,
+            "--decoy_prefix",
+            "rev_",
+            "--missed_cleavages",
+            "2",
+            "--dest_dir",
+            self.outdir,
+            "--file_root",
+            f"{file_root}",
+            "--train_fdr",
+            self.train_fdr,
+            "--test_fdr",
+            self.test_fdr,
+            "--seed",
+            self.seed,
+            "--folds",
+            self.folds,
+            *[str(pinfile.resolve()) for pinfile in pinfiles],
         ]
+
         self._CMD = res
         return self._CMD
 
@@ -577,8 +614,7 @@ class MokaPotConsole(Command):
         "execute"
         # return self._receiver.action("run", self.CMD)
         # self.find_pinfiles()  # should be created by the time this executs
-        for CMD in self.CMD:
-            ret = self._receiver.run(CMD=CMD)
+        return self._receiver.run(CMD=self.CMD)
 
 
 class Percolator(Command):

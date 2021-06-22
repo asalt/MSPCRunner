@@ -4,7 +4,13 @@ from glob import glob
 import re
 from pathlib import Path
 import pandas as pd
+from mokapot import read_pin
+from typing import Any, Dict, Iterable, List, Mapping, Tuple
+from .commands import RunContainer
 
+from .logger import get_logger
+
+logger = get_logger(__name__)
 
 MSFRAGGER_TSV_COLUMNS = (
     "scannum",
@@ -133,6 +139,7 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
     search_result = pd.read_table(search_result_f)
     # percpsm = pd.read_table(percpsm_f, usecols=[0,1,2,3,4,5])
     percpsm = pd.read_table(percpsm_f)
+    # percpsm = read_pin(str(percpsm_f), to_df=True )
     if sic_f:
         sic = pd.read_table(sic_f)
     if ri_f:
@@ -171,6 +178,7 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
             on=["scannum", "peptide"],
             how="right",  # merge right as we don't want decoys
         )
+
         res = res[(res["mokapot q-value"] <= 0.01) & (res["hit_rank"] == 1)]
     else:
         res = search_result
@@ -204,6 +212,51 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
 MASS_SHIFTS = "229\.1629|286\.184"
 
 
+class PSM_Merger:
+
+    NAME = "PSM-Merger"
+    """
+    concatenation of the following:
+     - msfragger search results (tsv),
+     - masic quant ms1 (tsv)
+     - masic quant reporter ions (tsv) if present
+     - percolator/mokapot psms (tsv)
+    """
+
+    def run(
+        self, runcontainer: RunContainer = None, outdir: Path = None, **kwargs
+    ) -> List[Path]:
+
+        if runcontainer is None:
+            raise ValueError("No input")
+
+        search_res = runcontainer.get_file("tsv_searchres")
+        percpsm_f = runcontainer.get_file("mokapot-psms")
+        sic_f = runcontainer.get_file("SICs")
+        ri_f = runcontainer.get_file("ReporterIons")
+
+        if search_res is None:
+            logger.info(f"No search result file for {runcontainer.stem}")
+            return
+        if percpsm_f is None:
+            logger.info(f"No search result file for {runcontainer.stem}")
+            return
+
+        df = concat(
+            search_result_f=search_res, sic_f=sic_f, percpsm_f=percpsm_f, ri_f=ri_f
+        )
+        # outname = f"{basename}_percolator_MASIC.txt"
+        outname = f"{runcontainer.stem}_MSPCRunner_a1.txt"
+
+        maybe_calc_labeling_efficiency(df, outname)
+
+        print(f"Writing {outname}")
+        df.to_csv(outname, sep="\t", index=False)
+
+        1 + 1
+        1 + 3
+
+
 def maybe_calc_labeling_efficiency(df, outname):
     if not df.modification_info.fillna("").str.contains(MASS_SHIFTS).any():
         return
@@ -211,43 +264,44 @@ def maybe_calc_labeling_efficiency(df, outname):
         labeled = df[df.modification_info.fillna("").str.contains(MASS_SHIFTS)]
         f.write(f"{outname}\t{len(labeled)}\t{len(df)}\t{len(labeled)/len(df)}\n")
 
+
 def main(path=None):
     if len(sys.argv) < 2 and path is None:
-        print('USAGE python psm_merge.py <target_directory>')
+        print("USAGE python psm_merge.py <target_directory>")
         sys.exit(0)
     if path is None:
         path = sys.argv[1]
-    
+
     path = Path(path)
 
-    #files = glob(os.path.join(path, '*tsv'))
-    files = path.glob('*tsv')
+    # files = glob(os.path.join(path, '*tsv'))
+    files = path.glob("*tsv")
     for f in files:
-        #basename = os.path.splitext(f)[0]
-        #print(files)
+        # basename = os.path.splitext(f)[0]
+        # print(files)
 
-        #sic_f = glob(f"{basename}_SICstats.txt")
+        # sic_f = glob(f"{basename}_SICstats.txt")
         sic_f = list(path.glob(f"{f.stem}*SICstats.txt"))
         if sic_f:
             sic_f = sic_f[0]
 
-        #percpsm_f = glob(f'{basename}.pin-percolator-psms.txt')
-        #percpsm_f = glob(f'{basename}*mokapot.psms.txt')
+        # percpsm_f = glob(f'{basename}.pin-percolator-psms.txt')
+        # percpsm_f = glob(f'{basename}*mokapot.psms.txt')
         percpsm_f = list([x for x in path.glob(f"{f.stem}*mokapot.psms.txt")])
-        #print(x for x in percpsm_f)
+        # print(x for x in percpsm_f)
         if not percpsm_f:
             print(f"Could not find percolator psm file for {f}")
             continue
         percpsm_f = percpsm_f[0]
 
-        ri_f = list(path.glob(f'{f.stem}_ReporterIons.txt'))
+        ri_f = list(path.glob(f"{f.stem}_ReporterIons.txt"))
         if ri_f:
             ri_f = ri_f[0]
         else:
             ri_f = None
 
-        df = concat(search_result_f = f, sic_f=sic_f, percpsm_f = percpsm_f, ri_f=ri_f)
-        #outname = f"{basename}_percolator_MASIC.txt"
+        df = concat(search_result_f=f, sic_f=sic_f, percpsm_f=percpsm_f, ri_f=ri_f)
+        # outname = f"{basename}_percolator_MASIC.txt"
         outname = f"{f.stem}_MSPCRunner_a1.txt"
 
         maybe_calc_labeling_efficiency(df, outname)
