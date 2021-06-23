@@ -25,6 +25,7 @@ from .commands import (
     MokaPotConsole,
 )
 from .psm_merge import PSM_Merger
+from .psm_concat import PSM_Concat
 import logging
 import sys
 import os
@@ -418,6 +419,27 @@ def merge_psms():
         worker.register(f"merge_psms_{ix}", merge_psms)
 
         # worker.register(f"PSM-Merger", psm_merger)
+
+
+@app.command()
+def concat_psms():
+    ctx = get_current_context()
+    cmd_runner = ctx.obj["cmd_runner"]
+    worker = ctx.obj["worker"]
+
+    # for (ix, run_container) in enumerate(
+    #     worker._output.get("experiment_finder", tuple())
+    # ):
+
+    # psm_merger = PSM_Merger()
+
+    concat_psms = PythonCommand(
+        PSM_Concat(),
+        runcontainers=worker._output.get("experiment_finder", tuple()),
+        # psm_merger,
+        name=f"concat_psms_0",
+    )
+    worker.register(f"concat_psms_0", concat_psms)
 
 
 @app.command()

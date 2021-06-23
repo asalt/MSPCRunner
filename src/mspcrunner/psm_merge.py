@@ -57,7 +57,7 @@ def filechecker(f):
     return Path(f)
 
 
-def peak(f, nrows=5):
+def peek(f, nrows=5):
     df = pd.read_table(f, nrows=nrows)
     if all(x in df for x in MSFRAGGER_TSV_COLUMNS):
         return "msfragger_psms"
@@ -67,6 +67,7 @@ def peak(f, nrows=5):
 
 class RawResultProcessor:
     """
+    THIS IS NOT BEING USED. MERGE WITH below class?
     container for combining:
     :MSFragger (or other?) search results:
     :Percolator output:
@@ -225,7 +226,7 @@ class PSM_Merger:
 
     def run(
         self, runcontainer: RunContainer = None, outdir: Path = None, **kwargs
-    ) -> List[Path]:
+    ) -> List[Path]:  # return ?
 
         if runcontainer is None:
             raise ValueError("No input")
@@ -239,7 +240,7 @@ class PSM_Merger:
             logger.info(f"No search result file for {runcontainer.stem}")
             return
         if percpsm_f is None:
-            logger.info(f"No search result file for {runcontainer.stem}")
+            logger.info(f"No percolator result file for {runcontainer.stem}")
             return
 
         df = concat(
@@ -252,9 +253,7 @@ class PSM_Merger:
 
         print(f"Writing {outname}")
         df.to_csv(outname, sep="\t", index=False)
-
-        1 + 1
-        1 + 3
+        return 0
 
 
 def maybe_calc_labeling_efficiency(df, outname):

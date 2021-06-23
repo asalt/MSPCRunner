@@ -1,10 +1,12 @@
-from containers import RunContainer
 import re
 import os
 from collections import defaultdict
 from glob import glob
 from pathlib import Path
 import pandas as pd
+from typing import Collection, List
+
+from .containers import RunContainer
 
 
 def find_rec_run(target):
@@ -26,12 +28,41 @@ class PSM_Concat:
     NAME = "PSM-Concat"
 
     def run(
-        self, runcontainer: RunContainer = None, outdir: Path = None, **kwargs
+        self,
+        runcontainers: List[RunContainer] = None,
+        outdir: Path = None,
+        **kwargs,
     ) -> str:
 
-        if runcontainer is None:
+        if runcontainers is None:
             raise ValueError("No input")
-        1 + 1
+
+        filegroups = defaultdict(list)
+        # for f in sorted(files):
+        for container in runcontainers:
+            mspcfile = container.get_file("MSPCRunner")
+            if mspcfile is None:
+                continue
+
+            recrun = find_rec_run(container.stem)
+            # print(recrun)
+            if not recrun:
+                print(f"Could not get group for f{container}")
+                continue
+            if recrun:
+                group = f"{recrun[0]}_{recrun[1]}"
+                filegroups[group].append(mspcfile)
+
+        for group, files in filegroups.items():
+            print(group)
+            for f in files:
+                print(f)
+            print(len(files))
+            df = pd.concat(pd.read_table(f) for f in files)
+            outname = f"{group}_6_psms_all.txt"
+            df.to_csv(outname, sep="\t", index=False)
+            print(f"Wrote {outname}")
+
         return "s"
 
 

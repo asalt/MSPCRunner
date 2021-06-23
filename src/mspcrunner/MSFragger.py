@@ -3,6 +3,8 @@ import os
 import sys
 from pathlib import Path
 from time import time
+from configparser import ConfigParser
+
 from .logger import get_logger
 from .commands import Command
 
@@ -47,8 +49,9 @@ class MSFragger(Command):
         # write_config
         1 + 1
 
-    def read_config(self, conf) -> dict:  # this is smarter than using csv module
-        from configparser import ConfigParser
+    def read_config(
+        self, conf
+    ) -> ConfigParser:  # this is smarter than using csv module
 
         parser = ConfigParser(inline_comment_prefixes="#")
         parser.optionxform = str  # preserve case

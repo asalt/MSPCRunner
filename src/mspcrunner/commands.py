@@ -114,6 +114,10 @@ import threading, queue
 
 def merge_pipes(**named_pipes):
     r"""
+    lifted from https://stackoverflow.com/a/51668895
+    another possible solution:
+    https://github.com/waszil/subpiper
+
     Merges multiple pipes from subprocess.Popen (maybe other sources as well).
     The keyword argument keys will be used in the output to identify the source
     of the line.
@@ -578,6 +582,7 @@ class MokaPotConsole(Command):
                 x.get_file("pinfile") for x in self.inputfiles
             ]  # the values are RawFile instances
             # pinfiles = [x for x in pinfiles if x is not None]
+
         if self.basename is not None:
             file_root = self.basename
         elif len(pinfiles) == 1:

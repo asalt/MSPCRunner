@@ -1,4 +1,6 @@
 from pathlib import Path
+
+import ipdb
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -14,7 +16,7 @@ class RunContainer:
         # TODO expand
     )
 
-    def __init__(self, stem=None) -> None:
+    def __init__(self, stem=None, rootdir: Path = None) -> None:
         """
         can set the stem explicitly or let it self-calculate
         :see self.stem:
@@ -22,6 +24,7 @@ class RunContainer:
         self._stem = stem
         self._files = list()
         self._file_mappings = dict()
+        self._rootdir = rootdir
         # self._spectra = None
         # self._pinfile = None
         # self._tsv_searchres = None
@@ -53,9 +56,22 @@ class RunContainer:
             self._stem = _stem
         return self._stem
 
+    @property
+    def rootdir(self):
+        if self._rootdir is None:
+            parents = {x.parent for x in self._files}
+            if len(parents) > 1:
+                raise ValueError("cannot handle, but easily fixed")
+            self._rootdir = list(parents)[0]
+        return self._rootdir
+
     def add_file(self, f):
         # keep a record of all files
         self._files.append(f)
+
+        # always store raw files in "raw"
+        if f.name.endswith("raw"):
+            self._file_mappings["raw"] = f
 
         if f.name.endswith("mzML"):
             self._file_mappings["spectra"] = f
@@ -75,15 +91,25 @@ class RunContainer:
             self._file_mappings["SICs"] = f
         elif f.name.endswith("ReporterIons.txt"):
             self._file_mappings["ReporterIons"] = f
+        elif "MSPCRunner" in f.name:
+            self._file_mappings["MSPCRunner"] = f
         # elif f.name.endswith('MSPCRunner'):
         # self._file_mappings['ReporterIons'] = f
         else:
             pass
             # logger.info(f"Unknown file {f}")
 
+    def update_files(self):
+        """"""
+        for f in self.rootdir.glob(f"{self.stem}*"):
+            if f in self._files:
+                pass
+            self.add_file(f)
+
     def get_file(self, name):
         # can expand this to different methods for getting different files, with various checks
         # Can add more logic such as checking if file exists, file size, creation time, etc
+        self.update_files()
 
         return self._file_mappings.get(name)
 
