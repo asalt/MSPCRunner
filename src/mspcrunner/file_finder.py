@@ -18,13 +18,18 @@ class FileFinder:  # receiver
         "_MSPCRunner_a1",
     ]
 
-    def run(self, file=None, path=None, depth=5, **kws) -> List[RunContainer]:
+    def run(self, file: List=None, path=None, depth=5, **kws) -> List[RunContainer]:
         # res = li()
         res = defaultdict(RunContainer)
         observed_files = list()
+        #import ipdb; ipdb.set_trace()
+        if file is not None:
+            for f in file:
+                basename = f.stem
+                res[basename].add_file(f.resolve())
 
         if path is None:
-            return tuple()
+            return res.values()
 
         for pat in self.PATTERNS:
             for i in range(depth):
