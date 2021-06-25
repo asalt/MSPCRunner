@@ -61,12 +61,14 @@ class RunContainer:
         if self._rootdir is None:
             parents = {x.parent for x in self._files}
             if len(parents) > 1:
+
                 raise ValueError("cannot handle, but easily fixed")
             self._rootdir = list(parents)[0]
         return self._rootdir
 
     def add_file(self, f):
         # keep a record of all files
+
         self._files.append(f)
 
         # always store raw files in "raw"
@@ -124,7 +126,8 @@ class RunContainer:
                 continue
 
             new_file = new_dir / file.parts[-1]
-            if not file == new_file:
+
+            if not file.resolve() == new_file.resolve():
                 logger.info(f"{file} -> {new_file}")
                 relocated_obj = file.rename(new_file)
                 self._file_mappings[filetype] = relocated_obj

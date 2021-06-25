@@ -35,8 +35,11 @@ class MSFragger(Command):
         self.configfile = None
 
         config = self.read_config(paramfile)
+
         # todo put in separate methods
-        config["top"]["database_name"] = refseq
+        if refseq is not None:
+            config["top"]["database_name"] = refseq
+
         config_out = f"{paramfile.name}"
         with open(config_out, "w") as fh:
             logger.info(f"Writing {config_out}")

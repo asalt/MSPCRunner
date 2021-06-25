@@ -582,6 +582,8 @@ class MokaPotConsole(Command):
                 x.get_file("pinfile") for x in self.inputfiles
             ]  # the values are RawFile instances
             # pinfiles = [x for x in pinfiles if x is not None]
+        if pinfiles[0] is None:
+            raise ValueError("!!")
 
         if self.basename is not None:
             file_root = self.basename

@@ -21,6 +21,7 @@ class FileFinder:  # receiver
     def run(self, file=None, path=None, depth=5, **kws) -> List[RunContainer]:
         # res = li()
         res = defaultdict(RunContainer)
+        observed_files = list()
 
         if path is None:
             return tuple()
@@ -28,6 +29,7 @@ class FileFinder:  # receiver
         for pat in self.PATTERNS:
             for i in range(depth):
                 globstr = "*/" * i + pat
+                # bug when depth == 1 and file has moved into its new home directory
                 for f in path.glob(globstr):  # TODO fix if path is None
                     if not f.is_file():
                         continue
@@ -38,6 +40,8 @@ class FileFinder:  # receiver
                     # name=parse_rawname(f.name)
                     # full_name =  f"{recno}_{runno}_{searchno}"
 
+                    if f.name in observed_files:
+                        continue
                     basename = f.stem
                     for ext in self.FILE_EXTENSIONS:
                         if basename.endswith(ext):
@@ -48,7 +52,8 @@ class FileFinder:  # receiver
                         basename = f.stem
                     # find .tsv files
 
-                    res[basename].add_file(f)
+                    res[basename].add_file(f.resolve())
+                    observed_files.append(f.name)
                     # run_container = RunContainer(stem=f.stem)
                     # res.append(run_container)
         # we really only need the RunContainers,

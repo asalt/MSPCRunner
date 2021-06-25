@@ -1,3 +1,4 @@
+from .containers import RunContainer
 from .utils import confirm_param_or_exit
 from .predefined_params import (
     Predefined_Search,
@@ -310,7 +311,7 @@ def search(
     worker = ctx.obj.get("worker")
 
     paramfile = confirm_param_or_exit(paramfile, preset, PREDEFINED_SEARCH_PARAMS)
-    refseq = PREDEFINED_REFSEQ_PARAMS.get(refseq)
+    refseq = PREDEFINED_REFSEQ_PARAMS.get(refseq, refseq)
 
     msfragger = MSFragger(
         cmd_runner,
@@ -382,6 +383,16 @@ def percolate(
         worker._output.get("experiment_finder", tuple())
     ):
 
+        file_maybe_exists = run_container.get_file("mokapot-psms")
+
+        if run_container.get_file("pinfile") is None:
+            logger.info(f"{file_maybe_exists} does not have associated pin file")
+            continue
+
+        if isinstance(file_maybe_exists, Path) and file_maybe_exists.exists():
+            logger.info(f"{file_maybe_exists} already present")
+            continue
+
         mokapot = MokaPotConsole(
             cmd_runner,
             # inputfiles=(rawfile,),
@@ -409,6 +420,7 @@ def merge_psms():
     ):
 
         # psm_merger = PSM_Merger()
+        # if run_container
 
         merge_psms = PythonCommand(
             PSM_Merger(),
