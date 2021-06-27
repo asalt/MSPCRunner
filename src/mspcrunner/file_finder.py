@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import List
+from typing import List, Collection
 
 from .containers import RunContainer
 
@@ -18,7 +18,7 @@ class FileFinder:  # receiver
         "_MSPCRunner_a1",
     ]
 
-    def run(self, file=None, path=None, depth=5, **kws) -> List[RunContainer]:
+    def run(self, file=None, path=None, depth=5, **kws) -> Collection[RunContainer]:
         # res = li()
         res = defaultdict(RunContainer)
         observed_files = list()
