@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import ipdb
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -69,7 +68,6 @@ class RunContainer:
     def add_file(self, f):
         # keep a record of all files
 
-        self._files.append(f)
 
         # always store raw files in "raw"
         if f.name.endswith("raw"):
@@ -98,17 +96,18 @@ class RunContainer:
         # elif f.name.endswith('MSPCRunner'):
         # self._file_mappings['ReporterIons'] = f
         else:
-            pass
+            return
             # logger.info(f"Unknown file {f}")
+        self._files.append(f)
 
-    def update_files(self):
+    def update_files(self) -> None:
         """"""
         for f in self.rootdir.glob(f"{self.stem}*"):
             if f in self._files:
                 pass
             self.add_file(f)
 
-    def get_file(self, name):
+    def get_file(self, name: Path):
         # can expand this to different methods for getting different files, with various checks
         # Can add more logic such as checking if file exists, file size, creation time, etc
         self.update_files()
