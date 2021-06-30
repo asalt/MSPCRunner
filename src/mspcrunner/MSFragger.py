@@ -6,16 +6,27 @@ from time import time
 from configparser import ConfigParser
 
 from .logger import get_logger
-from .commands import Command
+from .commands import Command, MSFRAGGER_EXE
 
 logger = get_logger(__name__)
 
 BASEDIR = os.path.split(__file__)[0]
 
-MSFRAGGER_EXE = os.path.abspath(
-    os.path.join(BASEDIR, "../../ext/MSFragger/MSFragger-3.2/MSFragger-3.2.jar")
-)
-MSFRAGGER_EXE = Path(MSFRAGGER_EXE)
+# MSFRAGGER_EXE = os.path.abspath(
+#     os.path.join(BASEDIR, "../../ext/MSFragger/MSFragger-3.2/MSFragger-3.2.jar")
+# )
+# MSFRAGGER_EXE = Path(MSFRAGGER_EXE)
+
+from .config import get_msfragger_exe
+
+_MSFRAGGER_EXE = None
+
+
+def get_exe():
+    global _MSFRAGGER_EXE
+    if _MSFRAGGER_EXE is None:
+        return get_msfragger_exe()
+    return _MSFRAGGER_EXE
 
 
 class MSFragger(Command):
@@ -89,6 +100,7 @@ class MSFragger(Command):
     def CMD(self):
         # spectra_files = "<not set>"
         spectra_files = tuple()
+        MSFRAGGER_EXE = get_exe()
         if self.inputfiles:
             spectra_files = [
                 x.get_file("spectra") for x in self.inputfiles

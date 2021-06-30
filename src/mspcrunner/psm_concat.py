@@ -47,8 +47,9 @@ class PSM_Concat:
             recrun = find_rec_run(container.stem)
             # print(recrun)
             if not recrun:
-                print(f"Could not get group for f{container}")
-                continue
+                recrun = container.stem[:10]
+                print(f"Could not get group for {container}, using {recrun}")
+                # continue
             if recrun:
                 group = f"{recrun[0]}_{recrun[1]}"
                 filegroups[group].append(mspcfile)

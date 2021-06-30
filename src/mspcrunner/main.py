@@ -43,7 +43,18 @@ from typing import Optional, List, Tuple
 import click
 import typer
 
-app = typer.Typer(chain=True)
+from .config import config_app
+
+app = typer.Typer()
+run_app = typer.Typer(chain=True)
+app.add_typer(run_app, name="run")
+app.add_typer(
+    config_app,
+    name="config",
+    help="Help",
+    short_help="subcommand for setting up application",
+)
+
 
 # from folderstats import get_folderstats
 BASEDIR = Path(os.path.split(__file__)[0])
@@ -98,6 +109,16 @@ def get_current_context():
 
 
 # move all the database checking logic to central server
+
+
+def set_outdir(outdir, path):
+    # TODO add test
+    if outdir is None and path is None:
+        # outdir = Path(os.path.abspath(os.path.dirname(sys.argv[0])))
+        outdir = Path(os.getcwd())
+    elif outdir is None and path is not None:
+        outdir = path
+    return outdir
 
 
 def _survey(workdir=WORKDIR):
@@ -198,7 +219,7 @@ def worker_run(*args, **kwargs):
     return
 
 
-@app.callback(
+@run_app.callback(
     invoke_without_command=True, no_args_is_help=True, result_callback=worker_run
 )
 def main(
@@ -211,7 +232,7 @@ def main(
         help="Path with raw files to process. Will process all raw files in path.",
     ),
     outdir: Optional[Path] = typer.Option(
-        default=Path("."),
+        default=None,
         help="Root directory to store results. Defaults to current directory.",
     ),
     depth: Optional[int] = typer.Option(
@@ -245,6 +266,8 @@ def main(
     # import ipdb; ipdb.set_trace()
 
     worker = Worker()
+
+    outdir = set_outdir(outdir, path)
 
     file_finder = FileFinder()
     collect_experiments = PythonCommand(
@@ -293,7 +316,7 @@ def main(
     # worker = Worker()
 
 
-@app.command()
+@run_app.command()
 def search(
     preset: Predefined_Search = typer.Option(None, case_sensitive=False),
     paramfile: Optional[Path] = typer.Option(None),
@@ -326,7 +349,7 @@ def search(
     worker.register("msfragger", msfragger)
 
 
-@app.command()
+@run_app.command()
 def quant(
     preset: Predefined_Quant = typer.Option(None, case_sensitive=False),
     paramfile: Optional[Path] = typer.Option(None),
@@ -359,7 +382,7 @@ def quant(
         worker.register(f"masic-cmd-{ix}", masic)
 
 
-@app.command()
+@run_app.command()
 def percolate(
     train_fdr: Optional[float] = typer.Option(default=0.01, help="train fdr"),
     test_fdr: Optional[float] = typer.Option(default=0.01, help="test fdr"),
@@ -409,7 +432,7 @@ def percolate(
         worker.register(f"mokapot-{ix}", mokapot)
 
 
-@app.command()
+@run_app.command()
 def merge_psms():
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
@@ -433,7 +456,7 @@ def merge_psms():
         # worker.register(f"PSM-Merger", psm_merger)
 
 
-@app.command()
+@run_app.command()
 def concat_psms():
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
@@ -454,75 +477,77 @@ def concat_psms():
     worker.register(f"concat_psms_0", concat_psms)
 
 
-@app.command()
-def run(
-    dry: bool = typer.Option(
-        False, "--dry", help="Dry run, do not actually execute commands"
-    ),
-    fasta_db: Optional[Path] = typer.Option(default=Path("test.fa")),
-    masic_conf: Optional[Path] = typer.Option(MASIC_DEFAULT_CONF),
-    msfragger_conf: Optional[Path] = typer.Option(MSFRAGGER_DEFAULT_CONF),
-    rawfiles: List[Path] = typer.Argument(..., exists=True),
-):
-    """
-    run MSPC pipeline: raw -> MASIC -> MSFragger -> Percolator
+# @app.command()
+# def run(
+#     dry: bool = typer.Option(
+#         False, "--dry", help="Dry run, do not actually execute commands"
+#     ),
+#     fasta_db: Optional[Path] = typer.Option(default=Path("test.fa")),
+#     masic_conf: Optional[Path] = typer.Option(MASIC_DEFAULT_CONF),
+#     msfragger_conf: Optional[Path] = typer.Option(MSFRAGGER_DEFAULT_CONF),
+#     rawfiles: List[Path] = typer.Argument(..., exists=True),
+# ):
+#     """
+#     run MSPC pipeline: raw -> MASIC -> MSFragger -> Percolator
+#
+#     """
+#
+#     logger.info("Starting search")
+#
+#     # receivers
+#     if dry:
+#         cmd_runner = CMDRunner_Tester(production_receiver=CMDRunner)
+#         file_mover = CMDRunner_Tester(production_receiver=FileMover)
+#         file_realtor = CMDRunner_Tester(production_receiver=FileRealtor)
+#     else:
+#         cmd_runner = CMDRunner()
+#         file_mover = FileMover()
+#         file_realtor = FileRealtor()
+#
+#     worker = Worker()
+#
+#     calc_outdirs = PythonCommand(
+#         file_realtor,
+#         inputfiles=rawfiles,
+#         outdir=PROCESSING_DIR,
+#         name="file-folder-mapping",
+#     )
+#
+#     # stage_files = PythonCommand(
+#     #     file_mover, inputfiles=rawfiles, outdir=PROCESSING_DIR, name="filestager"
+#     # )
+#     # worker.register("stage_files", stage_files)
+#     # staged_rawfiles = worker.execute("stage_files")
+#     # import ipdb; ipdb.set_trace()
+#
+#     # masic = MASIC(cmd_runner, inputfiles=staged_rawfiles, paramfile=masic_conf, outdir=PROCESSING_DIR)
+#     # worker.register("masic", masic)
+#     msfragger = MSFragger(
+#         cmd_runner,
+#         inputfiles=rawfiles,
+#         paramfile=msfragger_conf.absolute(),
+#         ramalloc=ramalloc,
+#         name="msfragger-cmd",
+#     )
+#     worker.register("msfragger", msfragger)
+#
+#     # mokapot_cmd = MokaPotRunner(cmd_runner, input_files'*pin files calculate')
+#
+#     # worker.execute("masic")
+#     worker.execute("msfragger")
+#
+#     results = PROCESSING_DIR.glob
+#     route_files = PythonCommand(
+#         file_mover,
+#     )
+#
+#     logger.info("End of search routine\n")
+#
 
-    """
 
-    logger.info("Starting search")
-
-    # receivers
-    if dry:
-        cmd_runner = CMDRunner_Tester(production_receiver=CMDRunner)
-        file_mover = CMDRunner_Tester(production_receiver=FileMover)
-        file_realtor = CMDRunner_Tester(production_receiver=FileRealtor)
-    else:
-        cmd_runner = CMDRunner()
-        file_mover = FileMover()
-        file_realtor = FileRealtor()
-
-    worker = Worker()
-
-    calc_outdirs = PythonCommand(
-        file_realtor,
-        inputfiles=rawfiles,
-        outdir=PROCESSING_DIR,
-        name="file-folder-mapping",
-    )
-
-    # stage_files = PythonCommand(
-    #     file_mover, inputfiles=rawfiles, outdir=PROCESSING_DIR, name="filestager"
-    # )
-    # worker.register("stage_files", stage_files)
-    # staged_rawfiles = worker.execute("stage_files")
-    # import ipdb; ipdb.set_trace()
-
-    # masic = MASIC(cmd_runner, inputfiles=staged_rawfiles, paramfile=masic_conf, outdir=PROCESSING_DIR)
-    # worker.register("masic", masic)
-    msfragger = MSFragger(
-        cmd_runner,
-        inputfiles=rawfiles,
-        paramfile=msfragger_conf.absolute(),
-        ramalloc=ramalloc,
-        name="msfragger-cmd",
-    )
-    worker.register("msfragger", msfragger)
-
-    # mokapot_cmd = MokaPotRunner(cmd_runner, input_files'*pin files calculate')
-
-    # worker.execute("masic")
-    worker.execute("msfragger")
-
-    results = PROCESSING_DIR.glob
-    route_files = PythonCommand(
-        file_mover,
-    )
-
-    logger.info("End of search routine\n")
-
-
-@app.command()
+@run_app.command()
 def test():
+    """do not use"""
 
     cmd_runner = CMDRunner_Tester()
 

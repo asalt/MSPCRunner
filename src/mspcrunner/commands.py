@@ -10,7 +10,7 @@ import sys
 from collections import OrderedDict, defaultdict
 from pathlib import Path
 from time import time
-from typing import Any, Dict, Iterable, List, Mapping, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Tuple, Collection
 from .worker import Worker
 from .file_finder import FileFinder
 from .containers import RunContainer
@@ -37,6 +37,9 @@ def parse_rawname(name: str) -> Tuple[str, str, str]:
     """yield up to the first 3 numbers in a string separated by underscore
     returns None when number is missing / interrupted
     """
+    if name is None:
+        name = ""
+
     namesplit = name.split("_")
     yield_counter = 0
     for x in namesplit:
@@ -479,7 +482,10 @@ class FileRealtor:  # receiver
     NAME = "FileRealtor"
 
     def run(
-        self, inputfiles: Dict[str, RunContainer] = None, outdir: Path = None, **kwargs
+        self,
+        inputfiles: Collection[RunContainer] = tuple(),
+        outdir: Path = None,
+        **kwargs,
     ) -> Dict[Path, List[Path]]:
         """
         :inputfiles: Path objects of files to

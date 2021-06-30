@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import ipdb
+
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -69,14 +71,17 @@ class RunContainer:
             # if len(stems) > 1:
             #   raise ValueError('!!')
             self._stem = _stem
+        # elif self._stem is None and not self._files:
+        #     self._stem = "None"
         return self._stem
 
     @property
     def rootdir(self):
         if self._rootdir is None:
             parents = {x.parent for x in self._files}
+            if not parents:
+                return
             if len(parents) > 1:
-
                 raise ValueError("cannot handle, but easily fixed")
             self._rootdir = list(parents)[0]
         return self._rootdir
@@ -85,7 +90,7 @@ class RunContainer:
         # keep a record of all files
 
         # always store raw files in "raw"
-        print(f)
+        # print(f)
         if f.name.endswith("raw"):
             self._file_mappings["raw"] = f
 
@@ -119,6 +124,8 @@ class RunContainer:
 
     def update_files(self) -> None:
         """"""
+        if self.rootdir is None:
+            return  # nothing to do
         for f in self.rootdir.glob(f"{self.stem}*"):
             if f in self._files:
                 pass
@@ -137,6 +144,8 @@ class RunContainer:
         # return self.attrs.get(name, lambda x: x)()
 
     def relocate(self, new_dir: Path):
+
+        self.update_files()
 
         for filetype, fileref in self._file_mappings.items():
             file = self.get_file(filetype)
@@ -158,9 +167,8 @@ class RunContainer:
                     self._file_mappings["raw"].suffix
                     == self._file_mappings["spectra"].suffix
                 ):
-                    self._file_mappings["raw"] = self._file_mappings[
-                        "spectra"
-                    ] = new_file
+                    self._file_mappings["raw"] = new_file
+                    self._file_mappings["spectra"] = new_file
 
         # if filetype in ("raw", "spectra"):
         #     self._file_mappings['raw'] = new_file

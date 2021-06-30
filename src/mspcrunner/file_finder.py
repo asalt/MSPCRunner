@@ -23,7 +23,7 @@ class FileFinder:  # receiver
         # res = li()
         res = defaultdict(RunContainer)
         observed_files = list()
-        #import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         if file is not None:
             for f in file:
                 basename = f.stem

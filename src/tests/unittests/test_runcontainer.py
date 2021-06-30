@@ -19,6 +19,13 @@ def test_stem_default_none():
     assert run_container.stem is None
 
 
+def test_stem_nofiles():
+    run_container = RunContainer(stem=None)
+    assert run_container.stem == None
+    assert run_container.rootdir == None
+    assert run_container.update_files() is None
+
+
 def test_stem_add_irrelevant_file():
     run_container = RunContainer(stem=None)
     run_container.add_file(Path("not-interesting-file"))
@@ -71,7 +78,7 @@ def test_stem_creation():
     run_container.add_file(f1)
     run_container.add_file(f2)
 
-    print(run_container.stem)
+    # print(run_container.stem)
     assert run_container.stem == "12345_1_1"
 
     run_container.add_file(Path("irrelevant-file"))
@@ -117,3 +124,10 @@ def test_rootdir_valueerror(tmp_path):
     run_container.add_file(f2)
     with pytest.raises(ValueError):
         run_container.rootdir
+
+
+def test_updatefile_noroot():
+    ...
+    # ...run_container = RunContainer()
+    # ...run_container._rootdir = None
+    # assert run_container.update_files()

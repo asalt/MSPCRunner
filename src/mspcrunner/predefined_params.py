@@ -21,7 +21,7 @@ PREDEFINED_REFSEQ_PARAMS = {
 
 class Predefined_Search(str, Enum):
 
-    OTIT = ("OTIT",)
+    OTIT = "OTIT"
     OTIT_hs = "OTIT-hs"
     OTOT = "OTOT"
     TMT6_OTOT = "TMT6-OTOT"
@@ -46,6 +46,7 @@ PREDEFINED_SEARCH_PARAMS = {
 
 class Predefined_Quant(str, Enum):
     LF = "LF"
+    TMT10 = "TMT10"
     TMT11 = "TMT11"
     TMT16 = "TMT16"
 
@@ -54,6 +55,7 @@ PREDEFINED_QUANT_PARAMS = {
     #'OTIT' : Path('../params/MSfragger_OTIT.conf'),
     # "TMT11": PARAMDIR / Path("MASIC_TMT11.xml"),
     "LF": PARAMDIR / "MASIC_LF_10ppm.xml",
+    "TMT10": PARAMDIR / "MASIC_TMT10_10ppm_ReporterTol0.003Da.xml",
     "TMT11": PARAMDIR / "MASIC_TMT11_10ppm_ReporterTol0.003Da.xml",
     "TMT16": PARAMDIR / Path("MASIC_TMT16.xml"),
 }

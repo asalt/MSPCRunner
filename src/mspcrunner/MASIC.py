@@ -8,11 +8,22 @@ from .commands import Command
 
 logger = get_logger(__name__)
 
+from .config import get_masic_exe
 
-BASEDIR = os.path.split(__file__)[0]
-# MSFRAGGER_EXE = os.path.join(BASEDIR, "..\ext\MSFragger\MSFragger-3.2\MSFragger-3.2.jar")
-MASIC_EXE = os.path.abspath(os.path.join(BASEDIR, "../../ext/MASIC/MASIC_Console.exe"))
-MASIC_EXE = Path(MASIC_EXE)
+_EXE = None
+
+
+def get_exe():
+    global _EXE
+    if _EXE is None:
+        return get_masic_exe()
+    return _EXE
+
+
+# BASEDIR = os.path.split(__file__)[0]
+# # MSFRAGGER_EXE = os.path.join(BASEDIR, "..\ext\MSFragger\MSFragger-3.2\MSFragger-3.2.jar")
+# MASIC_EXE = os.path.abspath(os.path.join(BASEDIR, "../../ext/MASIC/MASIC_Console.exe"))
+# MASIC_EXE = Path(MASIC_EXE)
 
 
 class MASIC(Command):
@@ -54,6 +65,7 @@ class MASIC(Command):
         #     f"/I:{inputfile.resolve()}",
         # ]
         # for inputfile in spectra_files:
+        MASIC_EXE = get_exe()
         return [
             "mono",
             MASIC_EXE,
