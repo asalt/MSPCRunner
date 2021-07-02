@@ -67,7 +67,6 @@ BASEDIR = Path(os.path.split(__file__)[0])
 # WORKDIR = Path("E:\MSPCRunner\processing\tmp")
 # PROCESSING_DIR = Path("E:\MSPCRunner\processing")
 # WORKDIR = Path('.')
-WORKDIR = Path("D:\MSPCworkdir")
 PROCESSING_DIR = Path(".")
 # need to have LF, TMT10, 11, 16..
 MASIC_DEFAULT_CONF = Path("masic_default.xml")
@@ -121,75 +120,76 @@ def set_outdir(outdir, path):
     return outdir
 
 
-def _survey(workdir=WORKDIR):
-    if isinstance(workdir, str):
-        workdir = Path(workdir)
-
-    for rawfile in workdir.glob("*raw"):
-
-        rawobj = RawObj(rawfile)
-        identifiers = rawobj.parse_rawname()
-        if len(identifiers) == 2:  # rec and run
-            recno, runno = (int(x) for x in identifiers)
-
-        exp_selector = db.Experiment.select().where(recno == recno)
-
-        label, _ = db.Label.get_or_create(name="none")
-        if not exp_selector.exists():  # new exp
-            experiment = db.Experiment.create(recno=recno, label=label)
-            logger.info("Created {experiment}")
-        else:
-            experiment = exp_selector.first()
-
-        # rec_run = db.Experiment.join(ExpRun)
-        if len(experiment.runs) == 0 or not [x.runno == runno for x in experiment.runs]:
-            exprun = db.ExpRun.create(runno=runno, recno=experiment)
-            logger.info(f"Created {exprun}")
-        # TODO handle search
-        # if len(experiment.runs) == 0 or not [x.recno=runno for x in experiment.searches]:
-        if len(experiment.searches) == 0:  # no run
-            searchno = 1
-        else:
-            searchno = max(x.searchno for x in experiment.searches)
-        expsearch = db.ExpSearch.create(searchno=searchno, recno=experiment)
-        logger.info(f"Created {expsearch}")
-
-        rawfile_record = db.RawFile.create(
-            filename=rawfile.name,
-            exprec=experiment,
-            exprun=exprun,
-            birth=rawfile.stat().st_size,
-            size=rawfile.stat().st_ctime,
-        )
-        logger.info(f"Created {rawfile_record}")
-
-        # rec_run_sel = (Experiment.select().join(ExpRun)
-        #            .where((Experiment.recno==recno) & (ExpRun.runno==runno))
-        # )
-        # rec_run = rec_run_sel.first()
-
-        # do_search(rawfile_record)
-        do_search(rawfile.name, CMDRunner=CMDRunner_Tester)
-
-
-def do_search(*rawfiles, paramf=MASIC_DEFAULT_CONF, CMDRunner=CMDRunner):
-
-    if isinstance(paramf, str):
-        paramf = Path(paramf)
-
-    cmd_runner = CMDRunner()
-
-    masic = MASIC(cmd_runner, paramf, *rawfiles, name="alex-test")
-    # TODO make msfragger.conf
-    msfragger = MSFragger(
-        cmd_runner, "msfragger.conf", *rawfiles, ramalloc="20G", name="alex-test"
-    )
-
-    worker = Worker()
-    worker.register("masic", masic)
-    worker.register("msfragger", msfragger)
-    worker.execute("masic")
-    worker.execute("msfragger")
+# def _survey(workdir=WORKDIR):
+#     if isinstance(workdir, str):
+#         workdir = Path(workdir)
+#
+#     for rawfile in workdir.glob("*raw"):
+#
+#         rawobj = RawObj(rawfile)
+#         identifiers = rawobj.parse_rawname()
+#         if len(identifiers) == 2:  # rec and run
+#             recno, runno = (int(x) for x in identifiers)
+#
+#         exp_selector = db.Experiment.select().where(recno == recno)
+#
+#         label, _ = db.Label.get_or_create(name="none")
+#         if not exp_selector.exists():  # new exp
+#             experiment = db.Experiment.create(recno=recno, label=label)
+#             logger.info("Created {experiment}")
+#         else:
+#             experiment = exp_selector.first()
+#
+#         # rec_run = db.Experiment.join(ExpRun)
+#         if len(experiment.runs) == 0 or not [x.runno == runno for x in experiment.runs]:
+#             exprun = db.ExpRun.create(runno=runno, recno=experiment)
+#             logger.info(f"Created {exprun}")
+#         # TODO handle search
+#         # if len(experiment.runs) == 0 or not [x.recno=runno for x in experiment.searches]:
+#         if len(experiment.searches) == 0:  # no run
+#             searchno = 1
+#         else:
+#             searchno = max(x.searchno for x in experiment.searches)
+#         expsearch = db.ExpSearch.create(searchno=searchno, recno=experiment)
+#         logger.info(f"Created {expsearch}")
+#
+#         rawfile_record = db.RawFile.create(
+#             filename=rawfile.name,
+#             exprec=experiment,
+#             exprun=exprun,
+#             birth=rawfile.stat().st_size,
+#             size=rawfile.stat().st_ctime,
+#         )
+#         logger.info(f"Created {rawfile_record}")
+#
+#         # rec_run_sel = (Experiment.select().join(ExpRun)
+#         #            .where((Experiment.recno==recno) & (ExpRun.runno==runno))
+#         # )
+#         # rec_run = rec_run_sel.first()
+#
+#         # do_search(rawfile_record)
+#         do_search(rawfile.name, CMDRunner=CMDRunner_Tester)
+#
+#
+# def do_search(*rawfiles, paramf=MASIC_DEFAULT_CONF, CMDRunner=CMDRunner):
+#
+#     if isinstance(paramf, str):
+#         paramf = Path(paramf)
+#
+#     cmd_runner = CMDRunner()
+#
+#     masic = MASIC(cmd_runner, paramf, *rawfiles, name="alex-test")
+#     # TODO make msfragger.conf
+#     msfragger = MSFragger(
+#         cmd_runner, "msfragger.conf", *rawfiles, ramalloc="20G", name="alex-test"
+#     )
+#
+#     worker = Worker()
+#     worker.register("masic", masic)
+#     worker.register("msfragger", msfragger)
+#     worker.execute("masic")
+#     worker.execute("msfragger")
+#
 
 
 def worker_run(*args, **kwargs):
