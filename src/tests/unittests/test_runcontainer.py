@@ -111,7 +111,7 @@ def test_relocate(tmp_path):
     dnew = tmp_path / "new"
     dnew.mkdir()
     assert dnew.exists()
-    print(dnew, list(dnew.glob("*")))
+    # print(dnew, list(dnew.glob("*")))
     run_container.relocate(dnew)
 
 

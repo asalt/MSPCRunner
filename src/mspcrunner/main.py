@@ -58,8 +58,6 @@ app.add_typer(
 
 # from folderstats import get_folderstats
 BASEDIR = Path(os.path.split(__file__)[0])
-
-
 # import db
 # from db import get_database_conn
 

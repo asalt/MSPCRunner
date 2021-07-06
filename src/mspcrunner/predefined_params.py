@@ -3,20 +3,33 @@ from enum import Enum
 from pathlib import Path
 from re import I
 
+from .config import get_conf
 
 BASEDIR = Path(os.path.split(__file__)[0]).resolve()
 PARAMDIR = (Path(os.path.split(__file__)[0]).parent.parent / "params").resolve()
 
+conf = get_conf()
+
 
 class Predefined_RefSeq(str, Enum):
-    Human2020 = "Human2020"
-    HSMM2020 = "HSMM2020"
+    pass
+    # def
+    # HS2020 = "HS2020"
+    # HSMM2020 = "HSMM2020"
 
 
 PREDEFINED_REFSEQ_PARAMS = {
-    "Human2020": "/mnt/e/reference_databases/2020-11-23-decoys-contam-gpGrouper_Homo_sapiens_2020_03_24_refseq_GCF_000001405.39_GRCh38.p13_protein.fa.fas",
-    "HSMM2020": "/mnt/e/reference_databases/2020-10-29-decoys-contam-gpGrouper_HS_MM_2020_03_24_refseq_GCF_000001405.39_GRCh38.p13_GCF_000001635.26_GRCm38.p6.fa.fas",
+    "hs2020": "/mnt/e/reference_databases/2020-11-23-decoys-contam-gpGrouper_Homo_sapiens_2020_03_24_refseq_GCF_000001405.39_GRCh38.p13_protein.fa.fas",
+    "hsmm2020": "/mnt/e/reference_databases/2020-10-29-decoys-contam-gpGrouper_HS_MM_2020_03_24_refseq_GCF_000001405.39_GRCh38.p13_GCF_000001635.26_GRCm38.p6.fa.fas",
 }
+
+# for k,v in conf['refdb'].items():
+PREDEFINED_REFSEQ_PARAMS.update({k: v for k, v in conf["refdb"].items() if v})
+# PREDEFINED_REFSEQ_PARAMS.update(conf['refdb'].items())
+
+Predefined_RefSeq = Predefined_RefSeq(
+    "Predefined_RefSeq", {v: k for k, v in PREDEFINED_REFSEQ_PARAMS.items()}
+)
 
 
 class Predefined_Search(str, Enum):

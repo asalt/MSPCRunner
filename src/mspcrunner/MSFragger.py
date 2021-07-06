@@ -17,6 +17,7 @@ BASEDIR = os.path.split(__file__)[0]
 # )
 # MSFRAGGER_EXE = Path(MSFRAGGER_EXE)
 
+
 from .config import get_msfragger_exe
 
 _MSFRAGGER_EXE = None
@@ -25,7 +26,12 @@ _MSFRAGGER_EXE = None
 def get_exe():
     global _MSFRAGGER_EXE
     if _MSFRAGGER_EXE is None:
-        return get_msfragger_exe()
+        _MSFRAGGER_EXE = get_msfragger_exe()
+        return _MSFRAGGER_EXE
+        # print(x, x is None)
+        # if x is None:
+        #     raise ValueError("MSFRAGGER EXE does not exist")
+        # return x
     return _MSFRAGGER_EXE
 
 

@@ -1,5 +1,5 @@
-import sys
 from configparser import ConfigParser
+from genericpath import exists
 from pathlib import Path
 import click
 import typer
@@ -38,72 +38,133 @@ config_app = typer.Typer(name="config", result_callback=None)
 
 _CONFIG = None
 
+SECTIONS = {
+    "ext": {
+        "basepath": "",
+        "msfragger-path": "",
+        "masic-path": "",
+        "msfragger-executable": "",
+        "masic-executable": "",
+    },
+    "refdb": {
+        "HS2020": "",
+        "HSMM2020": "",
+    },
+    "params": {
+        "masic-params": "",
+        "msfragger-params": "",
+    },
+}
 
-def get_conf():
+
+def get_conf() -> ConfigParser:
     """get_conf return MSPCRunner ConfigParser object
     read from file if exists
     else make a new one
     """
     global _CONFIG
 
-    if _CONFIG is None:
-        _CONFIG = ConfigParser()
-
     if isinstance(_CONFIG, ConfigParser):
         return _CONFIG
     return load_config()
 
 
-def load_config():
+def load_config(APPCONF=APPCONF) -> ConfigParser:
+    """
+    Load CONFIG object located at [APPCONF] if exists,
+    else create a new one.
+
+    :returns: ConfigParser
+    """
     global _CONFIG
+
     if _CONFIG is None:
         _CONFIG = ConfigParser()
 
     if APPCONF.exists():
-        return _CONFIG.read_file(APPCONF)
+        _CONFIG.read_file(APPCONF.open("r"))
+        return _CONFIG
 
-    _CONFIG["paths"] = {
-        "basepath": "",
-        "msfragger-path": "",
-        "masic-path": "",
-        "msfragger-executable": "",
-        "masic-executable": "",
-    }
+    _CONFIG["ext"] = SECTIONS["ext"]
+    _CONFIG["refdb"] = SECTIONS["refdb"]
     return _CONFIG
 
 
-def write_config():
+def write_config(conf: ConfigParser = None, APPCONF=APPCONF) -> None:
+    if conf is None:
+        conf = get_conf()
+    if not APPCONF.parent.exists():
+        APPCONF.parent.mkdir()
+    with APPCONF.open("w") as f:
+        conf.write(f)
+
+
+@config_app.command("set-ref")
+def set_ref(name: str, file: Path = typer.Argument(".", exists=True, file_okay=True)):
+    """
+    Set reference fasta database [dir] to attribute [name]
+    """
     conf = get_conf()
-    conf.write(APPCONF)
+    conf["refdb"][name] = str(file.resolve())  # does this work for Path objects?
+    write_config()
 
 
-@config_app.command("set-dir")
-def set_dir(dir: Path):
+config_app.command("set-dir")
+
+
+def set_dir(dir: Path = typer.Argument(".", exists=True, file_okay=True)):
     """set_dir directory that contains subdirectories for MASIC, MSFragger, etc
 
     Update mspcrunner configuration
     """
 
-    conf = get_conf()
+    conf = get_conf()  # there is an easy way to do this with PyDantic?
+    # conf["ext"] = dir
+    # TODO look for other executables
 
-    typer.echo("set all")
+    typer.echo("set all. WIP")
+    write_config()
 
 
 @config_app.command("set-msfragger-dir")
-def set_msfragger_dir():
-    typer.echo("msfragger dir")
+def set_msfragger_dir(file: Path = typer.Argument(".", exists=True, file_okay=True)):
+    conf = get_conf()
+    conf["ext"]["msfragger-executable"] = str(file.resolve())
+    # typer.echo("msfragger dir. WIP")
+    write_config()
 
 
 @config_app.command("set-masic-dir")
-def set_masic_dir():
-    typer.echo("masic dir")
+def set_masic_dir(file: Path = typer.Argument(".", exists=True, file_okay=True)):
+    print(file)
+    conf = get_conf()
+    conf["ext"]["masic-executable"] = str(
+        file.resolve()
+    )  # does this work for Path objects?
+    # typer.echo("masic dir, WIP")
+    write_config()
+
+
+@config_app.command("show")
+def show():
+    conf = get_conf()
+    # import ipdb; ipdb.set_trace()
+    for key in conf.sections():
+        typer.echo(f"\n{'='*40}\n~~~ {key} ~~~")
+        for k, v in conf[key].items():
+            typer.echo(f"{k}:\t{v}")
+            # typer.echo(k,v)
+        typer.echo("-" * 40)
 
 
 def get_msfragger_exe():
+    conf = get_conf()
+    return conf["ext"]["msfragger-executable"] or None
     return (
         Path.home() / "Documents/MSPCRunner/MSFragger/MSFragger-3.2/MSFragger-3.2.jar"
     ).resolve()
 
 
 def get_masic_exe():
-    return (Path.home() / "Documents/MASIC/MASIC_Console.exe").resolve()
+    conf = get_conf()
+    return conf["ext"]["masic-executable"] or None
