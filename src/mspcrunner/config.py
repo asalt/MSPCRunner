@@ -50,9 +50,15 @@ SECTIONS = {
         "HS2020": "",
         "HSMM2020": "",
     },
-    "params": {
-        "masic-params": "",
-        "msfragger-params": "",
+    # "params": {
+    # "masic-params": "",
+    # "msfragger-params": "",
+    # },
+    "search-params": {
+        "OTOT": "",
+    },
+    "quant-params": {
+        "LF": "",
     },
 }
 
@@ -83,6 +89,9 @@ def load_config(APPCONF=APPCONF) -> ConfigParser:
 
     if APPCONF.exists():
         _CONFIG.read_file(APPCONF.open("r"))
+        for section in SECTIONS:
+            if section not in _CONFIG.sections():
+                _CONFIG[section] = {"default": ""}
         return _CONFIG
 
     _CONFIG["ext"] = SECTIONS["ext"]
@@ -109,9 +118,31 @@ def set_ref(name: str, file: Path = typer.Argument(".", exists=True, file_okay=T
     write_config()
 
 
-config_app.command("set-dir")
+@config_app.command("set-search")
+def set_ref(name: str, file: Path = typer.Argument(".", exists=True, file_okay=True)):
+    """
+    Set reference fasta database [dir] to attribute [name]
+    """
+    conf = get_conf()
+    conf["search-params"][name] = str(
+        file.resolve()
+    )  # does this work for Path objects?
+    write_config()
 
 
+@config_app.command("set-quant")
+def set_ref(name: str, file: Path = typer.Argument(".", exists=True, file_okay=True)):
+    """
+    Set reference fasta database [dir] to attribute [name]
+    """
+    conf = get_conf()
+    conf["search-params"][name] = str(
+        file.resolve()
+    )  # does this work for Path objects?
+    write_config()
+
+
+@config_app.command("set-dir")
 def set_dir(dir: Path = typer.Argument(".", exists=True, file_okay=True)):
     """set_dir directory that contains subdirectories for MASIC, MSFragger, etc
 
@@ -159,7 +190,7 @@ def show():
 
 def get_msfragger_exe():
     conf = get_conf()
-    return conf["ext"]["msfragger-executable"] or None
+    return Path(conf["ext"]["msfragger-executable"]) or None
     return (
         Path.home() / "Documents/MSPCRunner/MSFragger/MSFragger-3.2/MSFragger-3.2.jar"
     ).resolve()
@@ -167,4 +198,4 @@ def get_msfragger_exe():
 
 def get_masic_exe():
     conf = get_conf()
-    return conf["ext"]["masic-executable"] or None
+    return Path(conf["ext"]["masic-executable"]) or None

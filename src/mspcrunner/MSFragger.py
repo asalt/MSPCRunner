@@ -111,7 +111,7 @@ class MSFragger(Command):
             spectra_files = [
                 x.get_file("spectra") for x in self.inputfiles
             ]  # the values are RawFile instances
-            spectra_files = [str(x.resolve()) for x in spectra_files if x is not None]
+            spectra_files = [str(x.absolute()) for x in spectra_files if x is not None]
         return [
             "java",
             f"-Xmx{self.ramalloc}G",

@@ -37,7 +37,8 @@ class FileFinder:  # receiver
                 globstr = "*/" * i + pat
                 # bug when depth == 1 and file has moved into its new home directory
                 for f in path.glob(globstr):  # TODO fix if path is None
-                    if not f.is_file():
+                    # if (not f.is_file()) and (not f.is_symlink()):
+                    if f.is_dir():
                         continue
                     # print(f)
                     # recno, runno, searchno = parse_rawname(f.stem)
@@ -58,7 +59,11 @@ class FileFinder:  # receiver
                         basename = f.stem
                     # find .tsv files
 
-                    res[basename].add_file(f.resolve())
+                    if f.is_symlink():
+                        _name = f.absolute()
+                    else:
+                        _name = f.resolve()
+                    res[basename].add_file(_name)
                     observed_files.append(f.name)
                     # run_container = RunContainer(stem=f.stem)
                     # res.append(run_container)

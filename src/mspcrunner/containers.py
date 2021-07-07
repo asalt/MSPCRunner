@@ -155,9 +155,10 @@ class RunContainer:
 
             new_file = new_dir / file.parts[-1]
 
-            print("===*** ", filetype, file.resolve(), new_file.resolve())
+            # print("===*** ", filetype, file.resolve(), new_file.resolve())
+            print("===*** ", filetype, file.absolute(), new_file.absolute())
 
-            if not file.resolve() == new_file.resolve():
+            if not file.absolute() == new_file.absolute():
                 logger.info(f"{file} -> {new_file}")
                 relocated_obj = file.rename(new_file)
                 self._file_mappings[filetype] = relocated_obj

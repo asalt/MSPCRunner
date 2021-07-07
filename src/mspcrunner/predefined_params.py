@@ -33,15 +33,16 @@ Predefined_RefSeq = Predefined_RefSeq(
 
 
 class Predefined_Search(str, Enum):
+    pass
 
-    OTIT = "OTIT"
-    OTIT_hs = "OTIT-hs"
-    OTOT = "OTOT"
-    TMT6_OTOT = "TMT6-OTOT"
-    TMT6_OTOT_PHOS = "TMT6-OTOT-PHOS"
-    TMT6_OTOT_QC = "TMT6-OTOT-QC"
-    TMT16_OTOT = "TMT16-OTOT"
-    TMT16_OTOT_QC = "TMT16-OTOT-QC"
+    # OTIT = "OTIT"
+    # OTIT_hs = "OTIT-hs"
+    # OTOT = "OTOT"
+    # TMT6_OTOT = "TMT6-OTOT"
+    # TMT6_OTOT_PHOS = "TMT6-OTOT-PHOS"
+    # TMT6_OTOT_QC = "TMT6-OTOT-QC"
+    # TMT16_OTOT = "TMT16-OTOT"
+    # TMT16_OTOT_QC = "TMT16-OTOT-QC"
 
 
 PREDEFINED_SEARCH_PARAMS = {
@@ -56,12 +57,22 @@ PREDEFINED_SEARCH_PARAMS = {
     "TMT16-OTOT-QC": PARAMDIR / Path("MSFragger_OTOT.conf"),
 }
 
+PREDEFINED_SEARCH_PARAMS.update(
+    {k: Path(v) for k, v in conf["search-params"].items() if v}
+)
+
+Predefined_Search = Predefined_Search(
+    "Predefined_Search",
+    {str(v.absolute()): k for k, v in PREDEFINED_SEARCH_PARAMS.items()},
+)
+
 
 class Predefined_Quant(str, Enum):
-    LF = "LF"
-    TMT10 = "TMT10"
-    TMT11 = "TMT11"
-    TMT16 = "TMT16"
+    pass
+    # LF = "LF"
+    # TMT10 = "TMT10"
+    # TMT11 = "TMT11"
+    # TMT16 = "TMT16"
 
 
 PREDEFINED_QUANT_PARAMS = {
@@ -72,3 +83,11 @@ PREDEFINED_QUANT_PARAMS = {
     "TMT11": PARAMDIR / "MASIC_TMT11_10ppm_ReporterTol0.003Da.xml",
     "TMT16": PARAMDIR / Path("MASIC_TMT16.xml"),
 }
+
+PREDEFINED_QUANT_PARAMS.update(
+    {k: Path(v) for k, v in conf["quant-params"].items() if v}
+)
+Predefined_Quant = Predefined_Quant(
+    "Predefined_QUANT",
+    {str(v.absolute()): k for k, v in PREDEFINED_QUANT_PARAMS.items()},
+)

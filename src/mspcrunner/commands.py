@@ -463,6 +463,7 @@ class FileMover:  # receiver
         logger.info(f"Outdir set to {outdir}")
 
         newfiles = list()
+
         for inputfile in inputfiles:
             logger.info(f"{inputfile} --> {newfile}")
             newfile = inputfile.rename(outdir / inputfile.name)
