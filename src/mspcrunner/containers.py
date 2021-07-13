@@ -165,7 +165,7 @@ class RunContainer:
 
             if filetype in ("raw", "spectra"):
                 if (
-                    self._file_mappings["raw"].suffix
+                    self._file_mappings.get("raw") and self._file_mappings['raw'].suffix
                     == self._file_mappings["spectra"].suffix
                 ):
                     self._file_mappings["raw"] = new_file

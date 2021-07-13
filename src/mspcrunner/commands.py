@@ -402,7 +402,8 @@ class Command:
         self._CMD = None
         self.inputfiles = inputfiles
         self.paramfile = paramfile
-        self.outdir = outdir or Path(".")
+        #self.outdir = outdir or Path(".")
+        self.outdir = outdir  # let it stay as none if not given
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -503,10 +504,14 @@ class FileRealtor:  # receiver
             if searchno is None:
                 searchno = "6"
             outname = "_".join(filter(None, (recno, runno, searchno)))
+            if outdir is None:
+                _outdir = run_container.rootdir
+            else:
+                _outdir = outdir
 
-            new_home = outdir / outname
-            if outdir.resolve().parts[-1] == new_home.parts[0]:  #  already created
-                new_home = outdir
+            new_home = _outdir / outname
+            if _outdir.resolve().parts[-1] == new_home.parts[-1]:  #  already created
+                new_home = _outdir
             if not new_home.exists():
                 logger.info(f"Creating {new_home}")
                 new_home.mkdir(exist_ok=False)
@@ -559,10 +564,13 @@ class MokaPotConsole(Command):
         test_fdr=0.05,
         seed=888,
         folds=3,
-        outdir=".",
-        basename=None,  # will get from pinfile if not defined
+        outdir=None,
+        basename=None,
         **kws,
     ):
+        """
+            base_name basename of file e.g. 12345_x_x
+        """
 
         super().__init__(*args, **kws)
         self.decoy_prefix = decoy_prefix
@@ -572,7 +580,7 @@ class MokaPotConsole(Command):
         self.folds = folds
         self.outdir = outdir
         self.pinfiles = tuple()
-        self.basename = basename
+        self.basename = basename # not using
         self._cmd = None
 
     @property
@@ -592,12 +600,20 @@ class MokaPotConsole(Command):
         if pinfiles[0] is None:
             raise ValueError("!!")
 
+
+        if self.outdir is None and len(pinfiles) == 1:
+            outdir = pinfiles[0].parent
+        elif self.outdir is not None and len(pinfiles) > 1:
+            raise NotImplementedError("Have not resolved multiple file case yet")
+        else:
+            outdir = self.outdir
+
         if self.basename is not None:
             file_root = self.basename
         elif len(pinfiles) == 1:
             file_root = pinfiles[0].stem
         elif len(pinfiles) > 1 and self.basename is None:
-            raise NotImplementedError("")
+            raise NotImplementedError("Have not resolved multiple file case")
 
         # parse_rawname
         res = [
@@ -607,7 +623,7 @@ class MokaPotConsole(Command):
             "--missed_cleavages",
             "2",
             "--dest_dir",
-            self.outdir,
+            outdir,
             "--file_root",
             f"{file_root}",
             "--train_fdr",

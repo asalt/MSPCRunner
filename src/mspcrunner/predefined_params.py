@@ -24,7 +24,8 @@ PREDEFINED_REFSEQ_PARAMS = {
 }
 
 # for k,v in conf['refdb'].items():
-PREDEFINED_REFSEQ_PARAMS.update({k: v for k, v in conf["refdb"].items() if v})
+if "refdb" in conf.sections():
+    PREDEFINED_REFSEQ_PARAMS.update({k: v for k, v in conf["refdb"].items() if v})
 # PREDEFINED_REFSEQ_PARAMS.update(conf['refdb'].items())
 
 Predefined_RefSeq = Predefined_RefSeq(
@@ -57,9 +58,10 @@ PREDEFINED_SEARCH_PARAMS = {
     "TMT16-OTOT-QC": PARAMDIR / Path("MSFragger_OTOT.conf"),
 }
 
-PREDEFINED_SEARCH_PARAMS.update(
-    {k: Path(v) for k, v in conf["search-params"].items() if v}
-)
+if "search-params" in conf.sections():
+    PREDEFINED_SEARCH_PARAMS.update(
+        {k: Path(v) for k, v in conf["search-params"].items() if v}
+    )
 
 Predefined_Search = Predefined_Search(
     "Predefined_Search",
@@ -84,9 +86,10 @@ PREDEFINED_QUANT_PARAMS = {
     "TMT16": PARAMDIR / Path("MASIC_TMT16.xml"),
 }
 
-PREDEFINED_QUANT_PARAMS.update(
-    {k: Path(v) for k, v in conf["quant-params"].items() if v}
-)
+if "quant-params" in conf.sections():
+    PREDEFINED_QUANT_PARAMS.update(
+        {k: Path(v) for k, v in conf["quant-params"].items() if v}
+    )
 Predefined_Quant = Predefined_Quant(
     "Predefined_QUANT",
     {str(v.absolute()): k for k, v in PREDEFINED_QUANT_PARAMS.items()},

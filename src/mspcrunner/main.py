@@ -263,15 +263,17 @@ def main(
     # print(rawfiles)
     # import ipdb; ipdb.set_trace()
 
+    rawfiles = rawfile # a list of 0 or more
     worker = Worker()
 
-    outdir = set_outdir(outdir, path)
+    #outdir = set_outdir(outdir, path)
 
     file_finder = FileFinder()
     collect_experiments = PythonCommand(
         file_finder,
-        file=rawfile,
+        file=rawfiles,
         path=path,
+        outdir=outdir,
         depth=depth,
         name="experiment_finder",
     )
@@ -404,6 +406,7 @@ def percolate(
         worker._output.get("experiment_finder", tuple())
     ):
 
+        # THIS does not work when path is not specified at start
         file_maybe_exists = run_container.get_file("mokapot-psms")
 
         if run_container.get_file("pinfile") is None:
@@ -419,6 +422,7 @@ def percolate(
             # inputfiles=(rawfile,),
             # outdir=rawfile.parent.resolve(),
             # inputfiles=worker._output.get("experiment_finder"),
+            outdir=None, # can add later
             inputfiles=run_container,
             train_fdr=train_fdr,
             test_fdr=test_fdr,
