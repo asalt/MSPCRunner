@@ -17,6 +17,8 @@ from .containers import RunContainer
 
 import click
 
+import pandas as pd
+
 BASEDIR = os.path.split(__file__)[0]
 
 MSFRAGGER_EXE = os.path.abspath(
@@ -402,7 +404,7 @@ class Command:
         self._CMD = None
         self.inputfiles = inputfiles
         self.paramfile = paramfile
-        #self.outdir = outdir or Path(".")
+        # self.outdir = outdir or Path(".")
         self.outdir = outdir  # let it stay as none if not given
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -473,7 +475,59 @@ class FileMover:  # receiver
         return newfiles
 
 
-RECRUN_REGEX = re.compile("(\d{5})_(\d+)_(\d+)")
+REGX = "(.*[f|F]?\\d)(?=\\.\\d+\\.\\d+\\.\\d+)"
+
+
+def extract_file_from_scan_header(s: pd.Series):
+    return s.str.extract(REGX)
+
+
+class CleanFor01:  # receiver
+    """
+    class to clean up file header and values for grouping on 01
+    """
+
+    NAME = "01 Cleaner"
+
+    # def run(self, inputfiles=None, outdir=None, CMD=None, **kws) -> Iterable[Path]:
+    def run(self, runcontainer=None, **kws):
+
+        logger.info(f"starting {self}")
+
+        mspcfile = runcontainer.get_file("MSPCRunner")
+        if mspcfile is None:
+            logger.info(f"Nothing to do. No MSPCRunner files found for {runcontainer}")
+            return
+
+        logger.info(f"Starting file cleanup for {mspcfile}")
+        df = pd.read_table(mspcfile)
+        df.rename(
+            columns={
+                "scannum": "First Scan",
+                "parent_charge": "Charge",
+                "mokapot q-value": "q_value",
+                "hyperscore": "Hyperscore",
+                "deltaRank1Rank2Score": "DeltaScore",
+                "Calibrated Observed M/Z": "mzDa",
+                "tot_num_ions": "TotalIons",
+                "hit_rank": "Rank",
+            }
+        )
+        # fix specid
+
+        regx = "(.*[f|F]?\\d)(?=\\.\\d+\\.\\d+\\.\\d+)"
+        df["SpectrumFile"] = extract_file_from_scan_header(df["SpecId"])
+        df.to_csv(mspcfile, sep="\t", index=False)
+
+        # if outdir is None:
+        #    outdir = Path(".")
+        #    return inputfiles
+        # logger.info(f"Outdir set to {outdir}")
+
+        #    return inputfiles
+
+
+RECRUN_REGEX = re.compile(r"(\d{5})_(\d+)_(\d+)")
 
 
 class FileRealtor:  # receiver
@@ -493,6 +547,7 @@ class FileRealtor:  # receiver
         :inputfiles: Path objects of files to
         """
         results = defaultdict(list)
+
         # print(inputfiles[[x for x in inputfiles.keys()][0]])
         for (
             run_container
@@ -510,6 +565,7 @@ class FileRealtor:  # receiver
                 _outdir = outdir
 
             new_home = _outdir / outname
+            # check if new home already made
             if _outdir.resolve().parts[-1] == new_home.parts[-1]:  #  already created
                 new_home = _outdir
             if not new_home.exists():
@@ -520,6 +576,8 @@ class FileRealtor:  # receiver
                 pass
 
             # logger.info(f"{inputfile} -> {new_home}")
+
+            # move to new home no matter what
             run_container.relocate(new_home)
 
             results[new_home].append(run_container)
@@ -569,7 +627,7 @@ class MokaPotConsole(Command):
         **kws,
     ):
         """
-            base_name basename of file e.g. 12345_x_x
+        base_name basename of file e.g. 12345_x_x
         """
 
         super().__init__(*args, **kws)
@@ -580,7 +638,7 @@ class MokaPotConsole(Command):
         self.folds = folds
         self.outdir = outdir
         self.pinfiles = tuple()
-        self.basename = basename # not using
+        self.basename = basename  # not using
         self._cmd = None
 
     @property
@@ -599,7 +657,6 @@ class MokaPotConsole(Command):
             # pinfiles = [x for x in pinfiles if x is not None]
         if pinfiles[0] is None:
             raise ValueError("!!")
-
 
         if self.outdir is None and len(pinfiles) == 1:
             outdir = pinfiles[0].parent

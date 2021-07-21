@@ -1,3 +1,4 @@
+import ipdb
 from .containers import RunContainer
 from .utils import confirm_param_or_exit
 from .predefined_params import (
@@ -8,7 +9,7 @@ from .predefined_params import (
     PREDEFINED_REFSEQ_PARAMS,
     PREDEFINED_QUANT_PARAMS,
 )
-from .commands import CMDRunner_Tester
+from .commands import CMDRunner_Tester, CleanFor01
 from .commands import get_logger
 from .MASIC import MASIC
 from .MSFragger import MSFragger
@@ -200,7 +201,7 @@ def worker_run(*args, **kwargs):
     worker = ctx.obj["worker"]
 
     for name, cmd in worker._commands.items():
-        print(name)
+        logger.info(name)
         # filecontainers = worker._output.get("experiment_finder", None)
 
         logger.info(
@@ -263,10 +264,10 @@ def main(
     # print(rawfiles)
     # import ipdb; ipdb.set_trace()
 
-    rawfiles = rawfile # a list of 0 or more
+    rawfiles = rawfile  # a list of 0 or more
     worker = Worker()
 
-    #outdir = set_outdir(outdir, path)
+    # outdir = set_outdir(outdir, path)
 
     file_finder = FileFinder()
     collect_experiments = PythonCommand(
@@ -409,9 +410,13 @@ def percolate(
         # THIS does not work when path is not specified at start
         file_maybe_exists = run_container.get_file("mokapot-psms")
 
-        if run_container.get_file("pinfile") is None:
-            logger.info(f"{file_maybe_exists} does not have associated pin file")
-            continue
+        # run_container.update_files()
+        # import ipdb
+
+        # ipdb.set_trace()
+        # if run_container.get_file("pinfile") is None:
+        #     logger.info(f"{file_maybe_exists} does not have associated pin file")
+        #     continue
 
         if isinstance(file_maybe_exists, Path) and file_maybe_exists.exists():
             logger.info(f"{file_maybe_exists} already present")
@@ -422,7 +427,7 @@ def percolate(
             # inputfiles=(rawfile,),
             # outdir=rawfile.parent.resolve(),
             # inputfiles=worker._output.get("experiment_finder"),
-            outdir=None, # can add later
+            outdir=None,  # can add later
             inputfiles=run_container,
             train_fdr=train_fdr,
             test_fdr=test_fdr,
@@ -448,7 +453,7 @@ def merge_psms():
         # if run_container
 
         merge_psms = PythonCommand(
-            PSM_Merger(),
+            PSM_M475ggerger(),
             runcontainer=run_container,
             # psm_merger,
             name=f"merge_psms_{ix}",
@@ -456,6 +461,25 @@ def merge_psms():
         worker.register(f"merge_psms_{ix}", merge_psms)
 
         # worker.register(f"PSM-Merger", psm_merger)
+
+
+@run_app.command()
+def clean_for_01():
+    ctx = get_current_context()
+    cmd_runner = ctx.obj["cmd_runner"]
+    worker = ctx.obj["worker"]
+
+    for (ix, run_container) in enumerate(
+        worker._output.get("experiment_finder", tuple())
+    ):
+
+        file_cleaner = PythonCommand(
+            CleanFor01(),
+            runcontainer=run_container,
+            # psm_merger,
+            name=f"01_cleaner_{ix}",
+        )
+        worker.register(f"clean_for_01{ix}", file_cleaner)
 
 
 @run_app.command()

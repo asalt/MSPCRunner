@@ -105,13 +105,27 @@ class MSFragger(Command):
     @property
     def CMD(self):
         # spectra_files = "<not set>"
-        spectra_files = tuple()
+        spectra_files = list()
         MSFRAGGER_EXE = get_exe()
-        if self.inputfiles:
-            spectra_files = [
-                x.get_file("spectra") for x in self.inputfiles
-            ]  # the values are RawFile instances
-            spectra_files = [str(x.absolute()) for x in spectra_files if x is not None]
+        if not self.inputfiles:
+            raise ValueError("then why are we here?")
+
+        for run_container in self.inputfiles:
+
+            spectraf = run_container.get_file("spectra")
+            search_res = run_container.get_file("tsv_searchres")
+            if search_res is not None:
+                logger.info(f"{search_res} exists for {run_container}")
+                continue
+
+            if spectraf is not None:
+                spectra_files.append(spectraf)
+            else:
+                logger.info(f"cannot find spectra file {run_container}")
+        if len(spectra_files) == 0:
+            logger.debug(f"no new files found for search")
+            return
+
         return [
             "java",
             f"-Xmx{self.ramalloc}G",

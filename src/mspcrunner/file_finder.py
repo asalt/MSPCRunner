@@ -1,7 +1,14 @@
 from collections import defaultdict
 from typing import List, Collection
+from pathlib import Path
 
+import ipdb
+
+from .logger import get_logger
 from .containers import RunContainer
+
+
+logger = get_logger(__name__)
 
 
 class FileFinder:  # receiver
@@ -18,9 +25,12 @@ class FileFinder:  # receiver
         "_MSPCRunner_a1",
     ]
 
-    def run(self, file=None, path=None, depth=5, **kws) -> Collection[RunContainer]:
+    def run(
+        self, file=None, path: Path = None, depth=5, **kws
+    ) -> Collection[RunContainer]:
 
         # res = li()
+        logger.debug(f"file:{file} path:{path}")
         res = defaultdict(RunContainer)
         observed_files = list()
         # import ipdb; ipdb.set_trace()
@@ -31,6 +41,7 @@ class FileFinder:  # receiver
 
         if path is None:
             return res.values()
+        logger.debug([x for x in path.glob("*")])
 
         for pat in self.PATTERNS:
             for i in range(depth):
@@ -38,6 +49,8 @@ class FileFinder:  # receiver
                 # bug when depth == 1 and file has moved into its new home directory
                 for f in path.glob(globstr):  # TODO fix if path is None
                     # if (not f.is_file()) and (not f.is_symlink()):
+
+                    logger.debug(f"pat:{pat}, file:{f}")
                     if f.is_dir():
                         continue
                     # print(f)
@@ -70,4 +83,7 @@ class FileFinder:  # receiver
         # we really only need the RunContainers,
         # the defaultdict collection made it convienent to keep adding
         # files to the same "base" file
+
+        logger.debug(f"{res}")
+
         return [x for x in res.values()]

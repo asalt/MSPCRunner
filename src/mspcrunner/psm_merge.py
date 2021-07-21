@@ -247,7 +247,10 @@ class PSM_Merger:
             search_result_f=search_res, sic_f=sic_f, percpsm_f=percpsm_f, ri_f=ri_f
         )
         # outname = f"{basename}_percolator_MASIC.txt"
-        outname = f"{runcontainer.stem}_MSPCRunner_a1.txt"
+        outname = os.path.join(
+            runcontainer.rootdir,
+            f"{runcontainer.stem}_MSPCRunner_a1.txt",
+        )
 
         maybe_calc_labeling_efficiency(df, outname)
 

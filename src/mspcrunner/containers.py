@@ -75,15 +75,24 @@ class RunContainer:
         #     self._stem = "None"
         return self._stem
 
+    def update_rootdir(self):
+        parents = {x.parent for x in self._file_mappings.values()}
+
+        if not parents:
+            return
+        if len(parents) > 1:
+            # take the "last" parent, final home?
+            # FUTURE what if custom dir is set?
+            parents = sorted(parents, reverse=True)
+            # probably not most ideal way of picking parent
+
+        self._rootdir = list(parents)[0]
+        return self._rootdir
+
     @property
     def rootdir(self):
         if self._rootdir is None:
-            parents = {x.parent for x in self._files}
-            if not parents:
-                return
-            if len(parents) > 1:
-                raise ValueError("cannot handle, but easily fixed")
-            self._rootdir = list(parents)[0]
+            self.update_rootdir()
         return self._rootdir
 
     def add_file(self, f):
@@ -165,12 +174,15 @@ class RunContainer:
 
             if filetype in ("raw", "spectra"):
                 if (
-                    self._file_mappings.get("raw") and self._file_mappings['raw'].suffix
+                    self._file_mappings.get("raw")
+                    and self._file_mappings["raw"].suffix
                     == self._file_mappings["spectra"].suffix
                 ):
                     self._file_mappings["raw"] = new_file
                     self._file_mappings["spectra"] = new_file
 
+        self.update_rootdir()
+        self.update_files()
         # if filetype in ("raw", "spectra"):
         #     self._file_mappings['raw'] = new_file
 
