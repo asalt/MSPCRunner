@@ -66,8 +66,9 @@ class MASIC(Command):
         #     f"/I:{inputfile.resolve()}",
         # ]
         # for inputfile in spectra_files:
+        
         MASIC_EXE = get_exe()
-        return [
+        return filter(None, [
             "mono" if platform.system() == "Linux" else "",
             MASIC_EXE,
             f"/P:{self.paramfile}",
@@ -75,7 +76,7 @@ class MASIC(Command):
             f"/I:{inputfile}",
             # f"/O:{inputfile.parent.resolve()}",
             # f"/I:{inputfile.resolve()}",
-        ]
+        ])
         # return [MASIC_EXE, f"/P:{self.paramfile}", f"/O:{self.outdir}", f"/I:{inputfile}"]
         # return [MASIC_EXE, f"/P:\"{self.paramfile}\"", f"/O:{self.outdir}", f"/I:{inputfile}"]
 

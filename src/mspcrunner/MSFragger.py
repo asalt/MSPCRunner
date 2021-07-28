@@ -54,8 +54,9 @@ class MSFragger(Command):
         config = self.read_config(paramfile)
 
         # todo put in separate methods
+
         if refseq is not None:
-            config["top"]["database_name"] = refseq
+            config["top"]["database_name"] = str(refseq)
 
         config_out = f"{paramfile.name}"
         with open(config_out, "w") as fh:
@@ -77,7 +78,11 @@ class MSFragger(Command):
         parser.optionxform = str  # preserve case
 
         with open(conf) as stream:
-            parser.read_string("[top]\n" + stream.read())  # create dummy header
+            # print(stream.read().strip(r"\x08"))
+            string = stream.read().strip(
+                "\x08"
+            )  # have to strip these bytes that sometimes exist
+            parser.read_string("[top]\n" + string)  # create dummy header
         return parser
 
     # @property

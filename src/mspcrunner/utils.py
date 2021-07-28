@@ -1,8 +1,23 @@
+import os
 import csv
 import operator
 from configparser import ConfigParser
 from pathlib import Path
 import logging
+import re
+
+
+def find_rec_run(target):
+    "Try to get record, run, and search numbers with regex of a target string with pattern \d+_\d+_\d+"
+
+    _, target = os.path.split(target)  # ensure just searching on filename
+    rec_run_search = re.compile(r"^(\d+)_(\d+)_?")
+
+    match = rec_run_search.search(target)
+    if match:
+        recno, runno = match.groups()
+        return recno, runno
+    return
 
 
 def confirm_param_or_exit(paramfile, preset, PRESET_DICT) -> Path:

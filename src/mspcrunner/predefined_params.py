@@ -3,6 +3,7 @@ from enum import Enum
 from pathlib import Path
 from re import I
 
+
 from .config import get_conf
 
 BASEDIR = Path(os.path.split(__file__)[0]).resolve()
@@ -94,3 +95,7 @@ Predefined_Quant = Predefined_Quant(
     "Predefined_QUANT",
     {str(v.absolute()): k for k, v in PREDEFINED_QUANT_PARAMS.items()},
 )
+
+
+class Predefined_gpG(str, Enum):
+    default = PARAMDIR / "gpgrouper.conf"

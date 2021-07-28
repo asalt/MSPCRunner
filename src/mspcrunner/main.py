@@ -1,19 +1,21 @@
 import ipdb
+from mspcrunner.gpGrouper import gpGrouper
 from .containers import RunContainer
-from .utils import confirm_param_or_exit
+from .utils import confirm_param_or_exit, find_rec_run
 from .predefined_params import (
     Predefined_Search,
     Predefined_Quant,
     Predefined_RefSeq,
+    Predefined_gpG,
     PREDEFINED_SEARCH_PARAMS,
     PREDEFINED_REFSEQ_PARAMS,
     PREDEFINED_QUANT_PARAMS,
 )
-from .commands import CMDRunner_Tester, CleanFor01
 from .commands import get_logger
-from .MASIC import MASIC
-from .MSFragger import MSFragger
 from .commands import (
+    PrepareForiSPEC,
+    MSPC_Rename,
+    AddPhosBoolean,
     CMDRunner,
     FileFinder,
     MokaPotRunner,
@@ -26,6 +28,8 @@ from .commands import (
     FileRealtor,
     MokaPotConsole,
 )
+from .MASIC import MASIC
+from .MSFragger import MSFragger
 from .psm_merge import PSM_Merger
 from .psm_concat import PSM_Concat
 import logging
@@ -318,10 +322,32 @@ def main(
 
 
 @run_app.command()
+def add_phos_boolean():
+
+    ctx = get_current_context()
+
+    cmd_runner = ctx.obj.get("cmd_runner")
+    worker = ctx.obj.get("worker")
+
+    for (ix, run_container) in enumerate(
+        worker._output.get("experiment_finder", tuple())
+    ):
+        name = (f"add-phos-boolean-{ix}",)
+        cmd = PythonCommand(
+            AddPhosBoolean(),
+            runcontainer=run_container,
+            inputfiles=worker._output.get("experiment_finder"),
+            name=name,
+        )
+        worker.register(name, cmd)
+
+
+@run_app.command()
 def search(
     preset: Predefined_Search = typer.Option(None, case_sensitive=False),
     paramfile: Optional[Path] = typer.Option(None),
     refseq: Predefined_RefSeq = typer.Option(None),
+    local_refseq: Optional[Path] = typer.Option(None),
     ramalloc: Optional[int] = typer.Option(
         default=10, help="Amount of memory (in GB) for msfragger"
     ),
@@ -335,7 +361,10 @@ def search(
     worker = ctx.obj.get("worker")
 
     paramfile = confirm_param_or_exit(paramfile, preset, PREDEFINED_SEARCH_PARAMS)
-    refseq = PREDEFINED_REFSEQ_PARAMS.get(refseq, refseq)
+    if local_refseq is None:
+        refseq = PREDEFINED_REFSEQ_PARAMS.get(refseq, refseq)
+    else:
+        refseq = local_refseq
 
     msfragger = MSFragger(
         cmd_runner,
@@ -440,7 +469,7 @@ def percolate(
 
 
 @run_app.command()
-def merge_psms():
+def concat_psms():
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
@@ -453,7 +482,7 @@ def merge_psms():
         # if run_container
 
         merge_psms = PythonCommand(
-            PSM_M475ggerger(),
+            PSM_Merger(),
             runcontainer=run_container,
             # psm_merger,
             name=f"merge_psms_{ix}",
@@ -464,7 +493,7 @@ def merge_psms():
 
 
 @run_app.command()
-def clean_for_01():
+def mspc_rename():
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
@@ -474,16 +503,37 @@ def clean_for_01():
     ):
 
         file_cleaner = PythonCommand(
-            CleanFor01(),
+            MSPC_Rename(),
             runcontainer=run_container,
             # psm_merger,
-            name=f"01_cleaner_{ix}",
+            name=f"renamer_{ix}",
         )
-        worker.register(f"clean_for_01{ix}", file_cleaner)
+        worker.register(f"renamer_{ix}", file_cleaner)
 
 
 @run_app.command()
-def concat_psms():
+def prepare_ispec_import():
+    ctx = get_current_context()
+    cmd_runner = ctx.obj["cmd_runner"]
+    worker = ctx.obj["worker"]
+
+    rcs = worker._output.get("experiment_finder", tuple())
+    for (ix, run_container) in enumerate(
+        worker._output.get("experiment_finder", tuple())
+    ):
+
+        file_cleaner = PythonCommand(
+            PrepareForiSPEC(),
+            runcontainer=run_container,
+            # psm_merger,
+            name=f"renamer_{ix}",
+        )
+        worker.register(f"renamer_{ix}", file_cleaner)
+    ...
+
+
+@run_app.command()
+def merge_psms():
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
@@ -501,6 +551,65 @@ def concat_psms():
         name=f"concat_psms_0",
     )
     worker.register(f"concat_psms_0", concat_psms)
+
+
+@run_app.command()
+def gpgroup(
+    local_refseq: Optional[Path] = typer.Option(None),
+    # paramfile: Optional[Path] = typer.Option(None),
+    # preset: Predefined_Search = typer.Option(None, case_sensitive=False),
+    labeltype: Optional[str] = typer.Option(None),
+    refseq: Predefined_RefSeq = typer.Option(None),
+    phospho: Optional[bool] = typer.Option(False),
+):
+    ctx = get_current_context()
+    cmd_runner = ctx.obj["cmd_runner"]
+    worker = ctx.obj["worker"]
+
+    if local_refseq is None:
+        refseq = PREDEFINED_REFSEQ_PARAMS.get(refseq, refseq)
+    else:
+        refseq = local_refseq
+
+    psm_files = dict()
+    for (ix, run_container) in enumerate(
+        worker._output.get("experiment_finder", tuple())
+    ):
+
+        recrun = find_rec_run(run_container.stem)
+
+        if recrun is None or len(recrun) != 2:
+            raise ValueError(f"find_rec_run returned {recrun} from {run_container}")
+        record_no, run_no = recrun
+        search_no = "6"
+
+        key = f"{record_no}_{run_no}_{search_no}"
+        # quick fix, do not keep gpgrouper output files
+        if run_container.stem.startswith(key):
+            continue
+        if key not in psm_files:
+            psm_files[key] = run_container
+
+        # psms_file = run_container.get_file("for-gpg")
+    for ix, (psm_stem, run_container) in enumerate(psm_files.items()):
+
+        gpgrouper = gpGrouper(
+            cmd_runner,
+            phospho=phospho,
+            # inputfiles=(rawfile,),
+            # outdir=rawfile.parent.resolve(),
+            # inputfiles=worker._output.get("experiment_finder"),
+            labeltype=labeltype,
+            outdir=None,  # can add later
+            inputfiles=run_container,
+            refseq=refseq,
+            paramfile=Predefined_gpG.default,
+            # decoy_prefix=decoy_prefix,
+            name=f"gpgrouper-{ix}"
+            # outdir=WORKDIR
+        )
+
+        worker.register(f"gpgrouper-{ix}", gpgrouper)
 
 
 # @app.command()

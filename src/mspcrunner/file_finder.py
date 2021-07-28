@@ -7,7 +7,6 @@ import ipdb
 from .logger import get_logger
 from .containers import RunContainer
 
-
 logger = get_logger(__name__)
 
 
@@ -25,10 +24,13 @@ class FileFinder:  # receiver
         "_MSPCRunner_a1",
     ]
 
+    RESULT_FILES = ["psms_all.txt", "e2g_QUAL.tsv", "e2g_QUANT.tsv"]
+
     def run(
         self, file=None, path: Path = None, depth=5, **kws
     ) -> Collection[RunContainer]:
 
+        RESULT_FILES = self.RESULT_FILES
         # res = li()
         logger.debug(f"file:{file} path:{path}")
         res = defaultdict(RunContainer)
@@ -53,6 +55,9 @@ class FileFinder:  # receiver
                     logger.debug(f"pat:{pat}, file:{f}")
                     if f.is_dir():
                         continue
+                    if f.name in observed_files:
+                        continue
+
                     # print(f)
                     # recno, runno, searchno = parse_rawname(f.stem)
                     # if searchno is None:
@@ -60,30 +65,37 @@ class FileFinder:  # receiver
                     # name=parse_rawname(f.name)
                     # full_name =  f"{recno}_{runno}_{searchno}"
 
-                    if f.name in observed_files:
-                        continue
                     basename = f.stem
                     for ext in self.FILE_EXTENSIONS:
                         if basename.endswith(ext):
                             basename = basename.split(ext)[0]
-                            break
+                            # break
                     # else:
                     if f.suffix == ".tsv":
                         basename = f.stem
                     # find .tsv files
+                    # adds rec_run_search where rec_run match
+                    if any(str(f).endswith(x) for x in RESULT_FILES):
+                        for k in res:
+                            # TODO fix
+                            if k.startswith(basename[:7]):
+                                res[k].add_file(f)
 
                     if f.is_symlink():
                         _name = f.absolute()
                     else:
                         _name = f.resolve()
-                    res[basename].add_file(_name)
+
+                    if not any(x in f.name for x in RESULT_FILES):
+                        res[basename].add_file(_name)
                     observed_files.append(f.name)
+                    # weird behavior fix later
+
                     # run_container = RunContainer(stem=f.stem)
                     # res.append(run_container)
         # we really only need the RunContainers,
         # the defaultdict collection made it convienent to keep adding
         # files to the same "base" file
 
-        logger.debug(f"{res}")
-
-        return [x for x in res.values()]
+        ret = [x for x in res.values() if len(x._files) > 0]
+        return ret

@@ -6,18 +6,7 @@ from glob import glob
 from pathlib import Path
 import pandas as pd
 
-
-def find_rec_run(target):
-    "Try to get record, run, and search numbers with regex of a target string with pattern \d+_\d+_\d+"
-
-    _, target = os.path.split(target)  # ensure just searching on filename
-    rec_run_search = re.compile(r"^(\d+)_(\d+)_")
-
-    match = rec_run_search.search(target)
-    if match:
-        recno, runno = match.groups()
-        return recno, runno
-    return
+from .utils import find_rec_run
 
 
 class PSM_Concat:
