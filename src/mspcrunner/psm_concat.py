@@ -56,7 +56,7 @@ class PSM_Concat:
 
         for group, files in filegroups.items():
             print(group)
-            for f in files:
+            for f in sorted(files):
                 print(f)
             print(len(files))
             df = pd.concat(pd.read_table(f) for f in files)

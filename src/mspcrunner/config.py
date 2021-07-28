@@ -86,6 +86,8 @@ def load_config(APPCONF=APPCONF) -> ConfigParser:
 
     if _CONFIG is None:
         _CONFIG = ConfigParser()
+        _CONFIG = ConfigParser(inline_comment_prefixes="#")
+        _CONFIG.optionxform = str  # preserve case
 
     if APPCONF.exists():
         _CONFIG.read_file(APPCONF.open("r"))
@@ -119,12 +121,13 @@ def set_ref(name: str, file: Path = typer.Argument(".", exists=True, file_okay=T
 
 
 @config_app.command("set-search")
-def set_search(name: str, file: Path = typer.Argument(".", exists=True, file_okay=True)):
+def set_search(
+    name: str, file: Path = typer.Argument(".", exists=True, file_okay=True)
+):
     """
     Set reference fasta database [dir] to attribute [name]
     """
     conf = get_conf()
-    import ipdb; ipdb.set_trace()
     conf["search-params"][name] = str(
         file.resolve()
     )  # does this work for Path objects?
@@ -137,9 +140,7 @@ def set_quant(name: str, file: Path = typer.Argument(".", exists=True, file_okay
     Set reference fasta database [dir] to attribute [name]
     """
     conf = get_conf()
-    conf["quant-params"][name] = str(
-        file.resolve()
-    )  # does this work for Path objects?
+    conf["quant-params"][name] = str(file.resolve())  # does this work for Path objects?
     write_config()
 
 

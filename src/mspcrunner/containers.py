@@ -57,9 +57,10 @@ class RunContainer:
 
             name = ""
             for ix, char in enumerate(self._files[0].stem):
-                if all(
-                    self._files[x].name[ix] == char for x in range(len(self._files))
-                ):
+                file_list = [
+                    x for x in self._file_mappings.keys() if isinstance(x, Path)
+                ]
+                if all(file_list[x].name[ix] == char for x in range(len(file_list))):
                     name += char
                 else:  # stop once we've found a difference
                     break
@@ -105,11 +106,13 @@ class RunContainer:
 
         if f.name.endswith("mzML"):
             self._file_mappings["spectra"] = f
+        elif f.name.endswith("psms_all.txt"):
+            self._file_mappings["for-gpg"] = f
         elif f.name.endswith("raw") and self._file_mappings.get("spectra") is None:
             self._file_mappings["spectra"] = f
         elif f.name.endswith("pin"):
             self._file_mappings["pinfile"] = f
-        elif f.name.endswith("tsv"):
+        elif f.name.endswith("tsv") and not any(x in f.name for x in ("psm", "e2g")):
             self._file_mappings["tsv_searchres"] = f
         elif f.name.endswith("pepXML"):
             self._file_mappings["pepxml"] = f
@@ -123,6 +126,13 @@ class RunContainer:
             self._file_mappings["ReporterIons"] = f
         elif "MSPCRunner" in f.name:
             self._file_mappings["MSPCRunner"] = f
+
+        # gpgroup
+        elif "e2g_QUAL" in f.name:
+            self._file_mappings["e2g_QUAL"] = f
+        elif "e2g_QUANT" in f.name:
+            self._file_mappings["e2g_QUANT"] = f
+
         # elif f.name.endswith('MSPCRunner'):
         # self._file_mappings['ReporterIons'] = f
         else:
@@ -165,9 +175,10 @@ class RunContainer:
             new_file = new_dir / file.parts[-1]
 
             # print("===*** ", filetype, file.resolve(), new_file.resolve())
-            print("===*** ", filetype, file.absolute(), new_file.absolute())
+            # print("===*** ", filetype, file.absolute(), new_file.absolute())
 
             if not file.absolute() == new_file.absolute():
+
                 logger.info(f"{file} -> {new_file}")
                 relocated_obj = file.rename(new_file)
                 self._file_mappings[filetype] = relocated_obj

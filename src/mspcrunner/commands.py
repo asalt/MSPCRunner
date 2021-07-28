@@ -482,7 +482,35 @@ def extract_file_from_scan_header(s: pd.Series):
     return s.str.extract(REGX)
 
 
-class CleanFor01:  # receiver
+class PrepareForiSPEC:
+
+    NAME = ""
+
+    def run(self, *args, runcontainer=None, **kwargs):
+        import ipdb
+
+        "e2g_QUANT"
+        "e2g_QUAL"
+        e2g_qual = runcontainer.get_file("e2g_QUAL")
+        e2g_quant = runcontainer.get_file("e2g_QUANT")
+
+        # TODO be smart, don't just count 9 characters
+        outf = e2g_qual.parent / Path(f"{e2g_qual.name[:9]}_e2g_iSPEC_import.tsv")
+        if outf.exists():
+            return  # already done
+
+        df_ql = pd.read_table(e2g_qual)
+        df_ql = df_ql[[x for x in df_ql if x != "LabelFLAG"]]
+        df_qt = pd.read_table(e2g_quant)
+        df = pd.merge(
+            df_qt, df_ql, on=["EXPRecNo", "EXPRunNo", "EXPSearchNo", "GeneID", "SRA"]
+        )
+        df = df.rename(columns={x: f"e2g_{x}" for x in df.columns})
+        logging.info(f"Writing {outf}")
+        df.to_csv(outf, index=False, sep="\t")
+
+
+class MSPC_Rename:  # receiver
     """
     class to clean up file header and values for grouping on 01
     """
@@ -517,6 +545,7 @@ class CleanFor01:  # receiver
 
         regx = "(.*[f|F]?\\d)(?=\\.\\d+\\.\\d+\\.\\d+)"
         df["SpectrumFile"] = extract_file_from_scan_header(df["SpecId"])
+        logger.info(f"rewriting {mspcfile}")
         df.to_csv(mspcfile, sep="\t", index=False)
 
         # if outdir is None:
@@ -525,6 +554,37 @@ class CleanFor01:  # receiver
         # logger.info(f"Outdir set to {outdir}")
 
         #    return inputfiles
+
+
+class AddPhosBoolean:  # receiver
+    """
+    Add phospho boolean to a pin file
+
+    """
+
+    NAME = "AddPhosBoolean"
+
+    def run(self, runcontainer=None, **kws):
+
+        logger.info(f"starting {self}")
+
+        file = runcontainer.get_file("pinfile")
+        if file is None:
+            logger.info(f"Nothing to do. No pinfile found for {runcontainer}")
+            return
+
+        from mokapot import read_pin
+
+        if isinstance(file, Path):
+            file = str(file)
+
+        df = read_pin(file, to_df=True)
+
+        df["Phos"] = 0
+        df.loc[df["Peptide"].str.contains("[79.966", regex=False), "Phos"] = 1
+        df = df[[x for x in df if x != "Proteins"] + ["Proteins"]]
+        df.to_csv(file, sep="\t", index=False)
+        print(f"Added phos bool to {file}")
 
 
 RECRUN_REGEX = re.compile(r"(\d{5})_(\d+)_(\d+)")
