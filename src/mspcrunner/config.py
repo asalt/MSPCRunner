@@ -124,7 +124,6 @@ def set_search(name: str, file: Path = typer.Argument(".", exists=True, file_oka
     Set reference fasta database [dir] to attribute [name]
     """
     conf = get_conf()
-    import ipdb; ipdb.set_trace()
     conf["search-params"][name] = str(
         file.resolve()
     )  # does this work for Path objects?

@@ -1,3 +1,4 @@
+import platform
 from collections import OrderedDict
 import sys
 import os
@@ -67,7 +68,7 @@ class MASIC(Command):
         # for inputfile in spectra_files:
         MASIC_EXE = get_exe()
         return [
-            "mono",
+            "mono" if platform.system() == "Linux" else "",
             MASIC_EXE,
             f"/P:{self.paramfile}",
             f"/O:{os.path.dirname(inputfile)}",
