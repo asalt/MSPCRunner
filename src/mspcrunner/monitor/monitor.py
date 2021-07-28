@@ -12,7 +12,7 @@ _DEFAULT_IP = "10.16.1.24"
 @app.command('receive')
 def receive(
     PORT : int = 5556,
-    IP : str = "*"
+    IP : str = "*",
 ):
     logging.info("Starting server")
     pairserver.run_server(IP=IP, PORT=PORT)
@@ -21,6 +21,7 @@ def receive(
 def watch(
     path : Path =  '.',
     PORT : int = 5556,
-    IP : str = _DEFAULT_IP
+    IP : str = _DEFAULT_IP,
+    ext: str = "raw",
 ):
-    pairclient.watch(path=path, IP=IP, PORT=PORT)
+    pairclient.watch(path=path, IP=IP, PORT=PORT, ext=ext)
