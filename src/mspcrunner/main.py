@@ -61,9 +61,8 @@ app.add_typer(
 )
 
 from .monitor import monitor
-app.add_typer(monitor.app, name='monitor',
-              short_help="watch / receive raw files"
-)
+
+app.add_typer(monitor.app, name="monitor", short_help="watch / receive raw files")
 
 # from folderstats import get_folderstats
 BASEDIR = Path(os.path.split(__file__)[0])

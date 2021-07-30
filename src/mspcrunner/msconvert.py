@@ -10,7 +10,7 @@ from .commands import Command
 
 logger = get_logger(__name__)
 
-#from .config import get_masic_exe
+# from .config import get_masic_exe
 
 _EXE = None
 
@@ -67,10 +67,17 @@ class MSConvert(Command):
         #     f"/I:{inputfile.resolve()}",
         # ]
         # for inputfile in spectra_files:
-        #MASIC_EXE = get_exe()
+        # MASIC_EXE = get_exe()
 
-        return [ 'docker', 'run', '-it', '--rm',  '-v', "($pwd):/data",
-         "chambm/pwiz-skyline-i-agree-to-the-vendor-licenses",
-          "wine", "msconvert",
-          inputfile
+        return [
+            "docker",
+            "run",
+            "-it",
+            "--rm",
+            "-v",
+            "($pwd):/data",
+            "chambm/pwiz-skyline-i-agree-to-the-vendor-licenses",
+            "wine",
+            "msconvert",
+            inputfile,
         ]

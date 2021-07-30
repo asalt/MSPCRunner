@@ -22,7 +22,6 @@ PORT = "5556"
 
 # watchdog newfile send
 class NewFile(FileSystemEventHandler):
-
     def __init__(self, *args, IP=IP, PORT=PORT, ext=None, **kws):
         super().__init__(*args, **kws)
         self.IP = IP
@@ -38,8 +37,8 @@ class NewFile(FileSystemEventHandler):
         if self.ext and not event.src_path.endswith(self.ext):
             logging.info(f"ignoring {event}")
             return
-        
-        logging.info('conecting socket')
+
+        logging.info("conecting socket")
 
         context = zmq.Context()
         socket = context.socket(zmq.PAIR)
@@ -47,26 +46,25 @@ class NewFile(FileSystemEventHandler):
         print(addr)
         socket.connect(addr)
 
-        logging.info(f'socket {addr}')
+        logging.info(f"socket {addr}")
 
         # see if we are connected
         # or not
         # msg = socket.recv()
         # logging.info(msg)
 
-        #print(msg)
+        # print(msg)
 
         file = Path(event.src_path)
 
         socket.send_string(file.name)
 
-        socket.send(
-            file.read_bytes()
-        )
+        socket.send(file.read_bytes())
 
         print("done sending")
 
         socket.close()
+
 
 def test():
     while True:
@@ -75,27 +73,30 @@ def test():
         print(msg)
         # socket.send(b"client message to server1")
         # socket.send(b"client message to server2")
-        f = '/mnt/f/45873_1_6/45873_1_MSPCL_559_TMT16_prof_1ug_F24.raw'
-        #socket.send(b'test')
+        f = "/mnt/f/45873_1_6/45873_1_MSPCL_559_TMT16_prof_1ug_F24.raw"
+        # socket.send(b'test')
 
-        #socket.send_json(f, zmq.SNDMORE)
+        # socket.send_json(f, zmq.SNDMORE)
         logging.info("Sending metadata")
         socket.send_string(os.path.split(f)[-1], zmq.SNDMORE)
 
         logging.info("reading file")
-        raw = open(f, 'rb')
+        raw = open(f, "rb")
         logging.info("sending file")
         socket.send(raw.read())
 
     time.sleep(1)
 
-def watch(path='.', IP=IP, PORT=PORT, ext=None):
 
-    logging.basicConfig(level=logging.INFO,
-                            format='%(asctime)s - %(message)s',
-                            datefmt='%Y-%m-%d %H:%M:%S')
-    #path = sys.argv[1] if len(sys.argv) > 1 else '.'
-    #event_handler = LoggingEventHandler()
+def watch(path=".", IP=IP, PORT=PORT, ext=None):
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    # path = sys.argv[1] if len(sys.argv) > 1 else '.'
+    # event_handler = LoggingEventHandler()
     event_handler = NewFile(IP=IP, PORT=PORT, ext=ext)
     observer = Observer()
     observer.schedule(event_handler, str(path), recursive=True)
@@ -106,12 +107,15 @@ def watch(path='.', IP=IP, PORT=PORT, ext=None):
     finally:
         observer.stop()
 
+
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s - %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S')
-    path = sys.argv[1] if len(sys.argv) > 1 else '.'
-    #event_handler = LoggingEventHandler()
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    path = sys.argv[1] if len(sys.argv) > 1 else "."
+    # event_handler = LoggingEventHandler()
     event_handler = NewFile()
     observer = Observer()
     observer.schedule(event_handler, path, recursive=True)
