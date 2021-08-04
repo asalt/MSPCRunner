@@ -6,10 +6,14 @@ from pathlib import Path
 import pandas as pd
 from typing import Collection, List
 
-from .containers import RunContainer
+from .containers import RunContainer, SampleRunContainer
+
+from .logger import get_logger
+
+logger = get_logger(__name__)
 
 
-def find_rec_run(target):
+def find_rec_run(target: str):
     "Try to get record, run, and search numbers with regex of a target string with pattern \d+_\d+_\d+"
 
     _, target = os.path.split(target)  # ensure just searching on filename
@@ -33,38 +37,84 @@ class PSM_Concat:
         outdir: Path = None,
         **kwargs,
     ) -> str:
+        """
+        We can use this procedure to create SampleRunContainers
+        """
 
         if runcontainers is None:
-            raise ValueError("No input")
+            logger.error(f"no runcontainers passed")
+            # this is bad
+            return
+            # raise ValueError("No input")
 
+        logger.debug(f"{self}")
         filegroups = defaultdict(list)
         # for f in sorted(files):
         for container in runcontainers:
             mspcfile = container.get_file("MSPCRunner")
             if mspcfile is None:
+                logger.debug(f"No MSPCRunner file for {container}")
                 continue
 
+            # this is where search could be designated
             recrun = find_rec_run(container.stem)
             # print(recrun)
             if not recrun:
                 recrun = container.stem[:10]
-                print(f"Could not get group for {container}, using {recrun}")
+                logger.warn(f"Could not get group for {container}, using {recrun}")
                 # continue
+
             if recrun:
                 group = f"{recrun[0]}_{recrun[1]}"
-                filegroups[group].append(mspcfile)
+                # populate all of our "filegroups"
+                # filegroups[group].append(mspcfile)
+                filegroups[group].append(container)
 
-        for group, files in filegroups.items():
+        sample_run_containers = list()
+
+        # create run containers
+        for group, runcontainers in filegroups.items():
+
+            # recrun = find_rec_run(container.stem)
+            # if not recrun:  # ..
+            #     continue
+
+            recrun = {find_rec_run(container.stem) for container in runcontainers}
+            rootdir = {container.rootdir for container in runcontainers}
+            assert len(recrun) == 1
+            recrun = list(recrun)[0]
+            assert len(rootdir) == 1
+            rootdir = list(rootdir)[0]
+
+            record_no = recrun[0]
+            run_no = recrun[1]
+            rootdir = rootdir
+
+            samplerun = SampleRunContainer(
+                name=group,
+                rootdir=rootdir,
+                runcontainers=runcontainers,
+                record_no=record_no,
+                run_no=run_no,
+            )
+
+            sample_run_containers.append(samplerun)
             print(group)
-            for f in sorted(files):
-                print(f)
-            print(len(files))
-            df = pd.concat(pd.read_table(f) for f in files)
-            outname = f"{group}_6_psms_all.txt"
-            df.to_csv(outname, sep="\t", index=False)
-            print(f"Wrote {outname}")
 
-        return "s"
+            # # move this?
+            # for f in sorted(files):
+            #     print(f)
+            # print(len(files))
+            # df = pd.concat(pd.read_table(f) for f in files)
+            # outname = f"{group}_6_psms_all.txt"
+            # df.to_csv(outname, sep="\t", index=False)
+            # print(f"Wrote {outname}")
+
+        for samplerun in sample_run_containers:
+            samplerun.check_psms_files()
+            samplerun.concat()
+
+        return sample_run_containers
 
 
 if __name__ == "__main__":

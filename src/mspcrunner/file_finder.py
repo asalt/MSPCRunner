@@ -45,12 +45,20 @@ class FileFinder:  # receiver
             return res.values()
         logger.debug([x for x in path.glob("*")])
 
+        # IDEA turn into a factory?
+        # return Container(**).construct()
+
         for pat in self.PATTERNS:
             for i in range(depth):
                 globstr = "*/" * i + pat
                 # bug when depth == 1 and file has moved into its new home directory
                 for f in path.glob(globstr):  # TODO fix if path is None
                     # if (not f.is_file()) and (not f.is_symlink()):
+
+                    # if f.name.startswith("46119"):
+                    #    import ipdb
+
+                    #    ipdb.set_trace()
 
                     logger.debug(f"pat:{pat}, file:{f}")
                     if f.is_dir():
@@ -66,28 +74,32 @@ class FileFinder:  # receiver
                     # full_name =  f"{recno}_{runno}_{searchno}"
 
                     basename = f.stem
+                    logger.debug(f"0) {basename}")
                     for ext in self.FILE_EXTENSIONS:
                         if basename.endswith(ext):
                             basename = basename.split(ext)[0]
                             # break
+                    logger.debug(f"1) {basename}")
+
                     # else:
                     if f.suffix == ".tsv":
                         basename = f.stem
                     # find .tsv files
                     # adds rec_run_search where rec_run match
-                    if any(str(f).endswith(x) for x in RESULT_FILES):
-                        for k in res:
-                            # TODO fix
-                            if k.startswith(basename[:7]):
-                                res[k].add_file(f)
+                    # if any(str(f).endswith(x) for x in RESULT_FILES):
+                    #     for k in res:
+                    #         # TODO fix
+                    #         if k.startswith(basename[:7]):
+                    #             res[k].add_file(f)
 
                     if f.is_symlink():
                         _name = f.absolute()
                     else:
                         _name = f.resolve()
 
-                    if not any(x in f.name for x in RESULT_FILES):
+                    if any(x not in f.name for x in RESULT_FILES):
                         res[basename].add_file(_name)
+                        # add files to RunContainers with a matching `_name`
                     observed_files.append(f.name)
                     # weird behavior fix later
 
@@ -97,5 +109,5 @@ class FileFinder:  # receiver
         # the defaultdict collection made it convienent to keep adding
         # files to the same "base" file
 
-        ret = [x for x in res.values() if len(x._files) > 0]
+        ret = [x for x in res.values() if x.n_files > 0]
         return ret

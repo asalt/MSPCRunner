@@ -27,7 +27,14 @@ class gpGrouper(Command):
     NAME = "gpGrouper"
 
     def __init__(
-        self, receiver, inputfiles, paramfile, outdir, name, refseq=None, **kwargs
+        self,
+        receiver,
+        samplerun_container,
+        paramfile,
+        outdir,
+        name,
+        refseq=None,
+        **kwargs
     ):
         super().__init__(
             receiver,
@@ -48,20 +55,17 @@ class gpGrouper(Command):
 
     @property
     def CMD(self):
-        psms_file = self.inputfiles[0].get_file("for-gpg")
-        print(self.inputfiles[0])
-        print(self.inputfiles[0].stem)
-        print(psms_file)
+        "property that returns psms file info from a `SampleRunContainer` object for gpGrouper"
+        # psms_file = self.inputfiles[0].get_file("for-gpg")
+        # print(self.inputfiles[0])
+        # print(self.inputfiles[0].stem)
+        # print(psms_file)
 
-        if psms_file is None:
-            return tuple(
-                "",
-            )
+        psms_file = self.samplerun_container.psms_filePath
+        import ipdb
 
-        recrun = find_rec_run(psms_file)
-        if len(recrun) != 2:
-            raise ValueError(f"find_rec_run returned {recrun} from {psms_file}")
-        record_no, run_no = recrun
+        ipdb.set_trace()
+
         BASE = [
             "gpgrouper",
             "run",
@@ -84,11 +88,11 @@ class gpGrouper(Command):
             self.labeltype,
             #
             "--record-no",
-            record_no,
+            self.record_no,
             "--run-no",
-            run_no,
+            self.run_no,
             "--search-no",
-            6,
+            self.search_no,
             "--taxonid",
             #
             "9606",

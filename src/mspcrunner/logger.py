@@ -22,7 +22,10 @@ def get_logger(name=__name__):
     # fh.setLevel(logging.DEBUG)
     # create console handler with a higher log level
     ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.INFO)
+
+    # ch.setLevel(logging.INFO)
+    ch.setLevel(logging.DEBUG)
+
     # ch.flush = sys.stdout.flush
     # ch = logging.StreamHandler()
 

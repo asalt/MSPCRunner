@@ -623,6 +623,13 @@ class FileRealtor:  # receiver
                 _outdir = run_container.rootdir
             else:
                 _outdir = outdir
+            if _outdir is None:
+                logger.error(
+                    f"problem in run container construction for {run_container}"
+                )
+                import ipdb
+
+                ipdb.set_trace()
 
             new_home = _outdir / outname
             # check if new home already made

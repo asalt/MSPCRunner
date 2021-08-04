@@ -8,6 +8,8 @@ from mokapot import read_pin
 from typing import Any, Dict, Iterable, List, Mapping, Tuple
 from .commands import RunContainer
 
+# from .containers import SampleRun
+
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -212,7 +214,7 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
 # MASS_SHIFTS = ['229.1629', '286.184']
 MASS_SHIFTS = "229\.1629|286\.184"
 
-
+# could consider incorporating in containers.SampleRunContainer
 class PSM_Merger:
 
     NAME = "PSM-Merger"
@@ -256,6 +258,8 @@ class PSM_Merger:
 
         print(f"Writing {outname}")
         df.to_csv(outname, sep="\t", index=False)
+        # here we shoudl create and return a SampleRun object?
+        # sr = SampleRun()
         return 0
 
 

@@ -477,22 +477,30 @@ def concat_psms():
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
 
-    for (ix, run_container) in enumerate(
-        worker._output.get("experiment_finder", tuple())
-    ):
+    psm_obj = PythonCommand(
+        PSM_Concat(),
+        runcontainers=worker._output.get("experiment_finder", tuple()),
+        # psm_merger,
+        name=f"concat_psms_0",
+    )
+    worker.register(f"concat_psms", psm_obj)
 
-        # psm_merger = PSM_Merger()
-        # if run_container
+    # for (ix, runcontainer) in enumerate(
+    #     worker._output.get("experiment_finder", tuple())
+    # ):
 
-        merge_psms = PythonCommand(
-            PSM_Merger(),
-            runcontainer=run_container,
-            # psm_merger,
-            name=f"merge_psms_{ix}",
-        )
-        worker.register(f"merge_psms_{ix}", merge_psms)
+    #     # psm_merger = PSM_Merger()
+    #     # if run_container
 
-        # worker.register(f"PSM-Merger", psm_merger)
+    #     psm_concat = PythonCommand(
+    #         PSM_Concat(),
+    #         runcontainer=runcontainer,
+    #         # psm_merger,
+    #         name=f"psm_concat_{ix}",
+    #     )
+    #     worker.register(f"psm_concat_{ix}", psm_concat)
+
+    # worker.register(f"PSM-Merger", psm_merger)
 
 
 @run_app.command()
@@ -541,19 +549,38 @@ def merge_psms():
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
 
-    # for (ix, run_container) in enumerate(
-    #     worker._output.get("experiment_finder", tuple())
-    # ):
+    for (ix, runcontainer) in enumerate(
+        worker._output.get("experiment_finder", tuple())
+    ):
 
-    # psm_merger = PSM_Merger()
+        # psm_merger = PSM_Merger()
+        # if run_container
 
-    concat_psms = PythonCommand(
-        PSM_Concat(),
-        runcontainers=worker._output.get("experiment_finder", tuple()),
-        # psm_merger,
-        name=f"concat_psms_0",
-    )
-    worker.register(f"concat_psms_0", concat_psms)
+        psm_merger = PythonCommand(
+            PSM_Merger(),
+            runcontainer=runcontainer,
+            # psm_merger,
+            name=f"psm_concat_{ix}",
+        )
+        worker.register(f"psm-merger_{ix}", psm_merger)
+
+    # worker.register(f"PSM-Merger", psm_merger)
+
+    # # for (ix, run_container) in enumerate(
+    # #     worker._output.get("experiment_finder", tuple())
+    # # ):
+
+    # # psm_merger = PSM_Merger()
+    # worker._output.get("experiment_finder", tuple())
+    # # create SampleRun objects
+
+    # psm_obj = PythonCommand(
+    #     PSM_Merger(),
+    #     runcontainers=worker._output.get("experiment_finder", tuple()),
+    #     # psm_merger,
+    #     name=f"concat_psms_0",
+    # )
+    # worker.register(f"concat_psms_0", psm_obj)
 
 
 @run_app.command()
@@ -574,37 +601,31 @@ def gpgroup(
     else:
         refseq = local_refseq
 
-    psm_files = dict()
-    for (ix, run_container) in enumerate(
-        worker._output.get("experiment_finder", tuple())
+    import ipdb
+
+    ipdb.set_trace()
+    samplerun_containers = get_containers_from_concat_res_or_other_mechanism()
+    # here
+
+    # get rid of this
+    for (ix, samplerun_container) in enumerate(
+        worker._output.get("psm-concat", tuple())
     ):
-
-        recrun = find_rec_run(run_container.stem)
-
-        if recrun is None or len(recrun) != 2:
-            raise ValueError(f"find_rec_run returned {recrun} from {run_container}")
-        record_no, run_no = recrun
-        search_no = "6"
-
-        key = f"{record_no}_{run_no}_{search_no}"
-        # quick fix, do not keep gpgrouper output files
-        if run_container.stem.startswith(key):
-            continue
-        if key not in psm_files:
-            psm_files[key] = run_container
-
-        # psms_file = run_container.get_file("for-gpg")
-    for ix, (psm_stem, run_container) in enumerate(psm_files.items()):
 
         gpgrouper = gpGrouper(
             cmd_runner,
+            samplerun_container=samplerun_container,
+            record_no=samplerun_container.record_no,
+            run_no=samplerun_container.run_no,
+            search_no=samplerun_container.search_no,
             phospho=phospho,
             # inputfiles=(rawfile,),
             # outdir=rawfile.parent.resolve(),
             # inputfiles=worker._output.get("experiment_finder"),
             labeltype=labeltype,
             outdir=None,  # can add later
-            inputfiles=run_container,
+            #
+            #
             refseq=refseq,
             paramfile=Predefined_gpG.default,
             # decoy_prefix=decoy_prefix,
