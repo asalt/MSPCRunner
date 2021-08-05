@@ -12,14 +12,26 @@ from dataclasses import dataclass
 import typing
 import attr
 
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
+
+
+class AbstractContainer(metaclass=ABCMeta):
+    @abstractmethod
+    def add_file(self, input, **kwargs):
+        """
+        abstract method for populating a container with files
+        """
+
+    @property
+    def n_files(self):
+        return len(self._file_mappings)
 
 
 class AbstractBaseFactory:
     ...
 
 
-class RunContainer:
+class RunContainer(AbstractContainer):
     """
     Container for 1 ms run (raw/mzml/perc/ionquant/reporterionquant/...)
 
@@ -118,6 +130,9 @@ class RunContainer:
         return self._rootdir
 
     def add_file(self, f):
+
+        if isinstance(f, str):
+            f = Path(f)
         # keep a record of all files
 
         # always store raw files in "raw"
@@ -149,18 +164,18 @@ class RunContainer:
             self._file_mappings["ReporterIons"] = f
         elif "MSPCRunner" in f.name:
             self._file_mappings["MSPCRunner"] = f
+        else:
+            pass
 
-        # gpgroup
-        elif "e2g_QUAL" in f.name:
-            self._file_mappings["e2g_QUAL"] = f
-        elif "e2g_QUANT" in f.name:
-            self._file_mappings["e2g_QUANT"] = f
+        # # gpgroup
+        # elif "e2g_QUAL" in f.name:
+        #     self._file_mappings["e2g_QUAL"] = f
+        # elif "e2g_QUANT" in f.name:
+        #     self._file_mappings["e2g_QUANT"] = f
 
         # elif f.name.endswith('MSPCRunner'):
         # self._file_mappings['ReporterIons'] = f
-        else:
-            pass
-            # logger.info(f"Unknown file {f}")
+        # logger.info(f"Unknown file {f}")
         self._files.append(f)
         self.reset_properties()
 
@@ -205,10 +220,9 @@ class RunContainer:
                 logger.info(f"{fileref} -> {new_file}")
                 try:
                     relocated_obj = fileref.rename(new_file)
-                except:
-                    import ipdb
+                except Exception as e:
+                    raise e
 
-                    ipdb.set_trace()
                 self._file_mappings[filetype] = relocated_obj
 
             if filetype in ("raw", "spectra"):
@@ -227,9 +241,12 @@ class RunContainer:
 
         # file = self.get_file(filetype)
 
+    def load(self):
+        pass
+
 
 @attr.s()
-class SampleRunContainer:
+class SampleRunContainer(AbstractContainer):
     """
     Container for final mass spec psms, proteins, gpgroups,
     etc, results
@@ -239,6 +256,7 @@ class SampleRunContainer:
     name: str = attr.ib(default=None)
     stem = attr.ib(default=None)
     runcontainers = attr.ib(default=(RunContainer(),))
+    _file_mappings = dict()
     psms_file = attr.ib(default=None)
 
     rootdir = attr.ib(default=Path("."))
@@ -311,3 +329,21 @@ class SampleRunContainer:
 
     def _check_stem(self, attribute, value):
         return
+
+    def add_file(self, f):
+
+        if isinstance(f, str):
+            f = Path(f)
+        # keep a record of all files
+
+        # always store raw files in "raw"
+        # print(f)
+        # if f.name.endswith("raw"):
+        #     self._file_mappings["raw"] = f
+        if "psms_all" in f.name:
+            self._file_mappings["input_psms"] = f
+
+        elif "e2g_QUAL" in f.name:
+            self._file_mappings["e2g_QUAL"] = f
+        elif "e2g_QUANT" in f.name:
+            self._file_mappings["e2g_QUANT"] = f

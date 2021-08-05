@@ -1,11 +1,11 @@
+import re
 from collections import defaultdict
 from typing import List, Collection
 from pathlib import Path
 
-import ipdb
 
 from .logger import get_logger
-from .containers import RunContainer
+from .containers import AbstractContainer, RunContainer
 
 logger = get_logger(__name__)
 
@@ -14,6 +14,7 @@ class FileFinder:  # receiver
     NAME = "FileFinder Receiver"
 
     PATTERNS = ["*raw", "*mzML", "*txt", "*pin", "*tsv"]
+    # use these to trim
     FILE_EXTENSIONS = [
         ".mokapot.psms",
         ".mokapot.peptides",
@@ -27,13 +28,29 @@ class FileFinder:  # receiver
     RESULT_FILES = ["psms_all.txt", "e2g_QUAL.tsv", "e2g_QUANT.tsv"]
 
     def run(
-        self, file=None, path: Path = None, depth=5, **kws
+        self,
+        file=None,
+        path: Path = None,
+        container_obj: AbstractContainer = None,
+        depth=5,
+        **kws,
     ) -> Collection[RunContainer]:
+        """
+        Finds files and creates `contaner_obj: AbstractContainer`
+        `container_obj` has an "add_file" method for collecting files it deems relevant.
+        """
+
+        assert isinstance(container_obj(), AbstractContainer)
+        # we need the add_file method
+
+        if path is None:
+            path = Path(".")
 
         RESULT_FILES = self.RESULT_FILES
         # res = li()
-        logger.debug(f"file:{file} path:{path}")
-        res = defaultdict(RunContainer)
+        # logger.debug(f"file:{file} path:{path}")
+        # res = defaultdict(RunContainer)
+        res = defaultdict(container_obj)
         observed_files = list()
         # import ipdb; ipdb.set_trace()
         if file is not None:
@@ -43,7 +60,7 @@ class FileFinder:  # receiver
 
         if path is None:
             return res.values()
-        logger.debug([x for x in path.glob("*")])
+        # logger.debug([x for x in path.glob("*")])
 
         # IDEA turn into a factory?
         # return Container(**).construct()
@@ -54,11 +71,6 @@ class FileFinder:  # receiver
                 # bug when depth == 1 and file has moved into its new home directory
                 for f in path.glob(globstr):  # TODO fix if path is None
                     # if (not f.is_file()) and (not f.is_symlink()):
-
-                    # if f.name.startswith("46119"):
-                    #    import ipdb
-
-                    #    ipdb.set_trace()
 
                     logger.debug(f"pat:{pat}, file:{f}")
                     if f.is_dir():
@@ -74,12 +86,15 @@ class FileFinder:  # receiver
                     # full_name =  f"{recno}_{runno}_{searchno}"
 
                     basename = f.stem
-                    logger.debug(f"0) {basename}")
+                    logger.debug(f"before 0) {basename}")
+
                     for ext in self.FILE_EXTENSIONS:
-                        if basename.endswith(ext):
-                            basename = basename.split(ext)[0]
-                            # break
-                    logger.debug(f"1) {basename}")
+                        if re.search(ext, basename):
+                            basename = re.sub(f"{ext}.*", "", basename)
+                            # basename = basename.split(ext)[0]
+                        # if basename.endswith(ext):
+                        # break
+                    logger.debug(f"after 1) {basename}")
 
                     # else:
                     if f.suffix == ".tsv":
@@ -109,5 +124,13 @@ class FileFinder:  # receiver
         # the defaultdict collection made it convienent to keep adding
         # files to the same "base" file
 
-        ret = [x for x in res.values() if x.n_files > 0]
+        if len(res) > 0:  # for debugging
+            _key = list(res.keys())[0]
+            _first = res[_key]
+
+            ret = {
+                f"{self.NAME}": {
+                    str(container_obj): [x for x in res.values() if x.n_files > 0]
+                }
+            }
         return ret

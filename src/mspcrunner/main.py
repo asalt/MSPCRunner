@@ -1,6 +1,9 @@
 import ipdb
+
+from collections import defaultdict
+
 from mspcrunner.gpGrouper import gpGrouper
-from .containers import RunContainer
+from .containers import AbstractContainer, RunContainer, SampleRunContainer
 from .utils import confirm_param_or_exit, find_rec_run
 from .predefined_params import (
     Predefined_Search,
@@ -43,7 +46,7 @@ from time import time
 import subprocess
 import shutil
 import ctypes
-from typing import Optional, List, Tuple
+from typing import Container, Optional, List, Tuple
 
 import click
 import typer
@@ -211,13 +214,39 @@ def worker_run(*args, **kwargs):
         logger.info(name)
         # filecontainers = worker._output.get("experiment_finder", None)
 
+        ## ==========================================================
+        # {cmd.NAME} : {cmd._receiver.NAME} with {cmd.CMD}
         logger.info(
             f"""
-        {cmd.NAME} : {cmd._receiver.NAME} with {cmd.CMD}
+        {cmd.NAME} : {cmd.CMD}
         """
         )
         res = worker.execute(name)
-        # import ipdb; ipdb.set_trace()
+        ## ==========================================================
+        if not isinstance(res, dict):
+            # wrong type
+            raise ValueError(f"Wrong type returned for {name}")
+        # k is key that names the class where the result came from
+        # v is a dict of name:value pairs that we can store based on criteria of name, for example
+        for k, v in res.items():
+            for obj in v:
+                if "RunContainer" in v:
+                    # make a defaultdict(dict)
+                    worker._runcontainers[k] = res[k][obj]  # good?
+                if "SampleRu" in v:
+                    worker._runcontainers = res[k][obj]
+
+        ipdb.set_trace()
+        if isinstance(res, Container):
+            worker._runcontainers = res
+        # if isinstance(res, defaultdict):
+
+        #     worker._runcontainers = [x for y in res for x in y]
+
+        # elif hasattr(res, "__iter__"):
+        #     for entry in res:
+        #         if isinstance(entry, Container):
+        #             worker._runcontainers.append(res)
     # import ipdb; ipdb.set_trace()
 
     # msfragger= worker._commands['msfragger']
@@ -281,11 +310,16 @@ def main(
         file_finder,
         file=rawfiles,
         path=path,
+        container_obj=RunContainer,
         outdir=outdir,
         depth=depth,
         name="experiment_finder",
     )
     worker.register("experiment_finder", collect_experiments)
+    worker.set_file(rawfiles)
+    worker.set_path(path)
+
+    # perhaps we do not need this here anymore
     inputfiles = worker.execute("experiment_finder")
 
     if dry:
@@ -604,36 +638,50 @@ def gpgroup(
     import ipdb
 
     ipdb.set_trace()
-    samplerun_containers = get_containers_from_concat_res_or_other_mechanism()
+
+    collect_psms = PythonCommand(
+        FileFinder(),
+        # file=rawfiles,
+        path=worker.path,
+        # outdir=outdir,
+        container_obj=SampleRunContainer,
+        # depth=depth,
+        name="experiment_finder",
+    )
+
+    worker.register(f"collect-psms", collect_psms)
+
+    # samplerun_containers = get_containers_from_concat_res_or_other_mechanism()
     # here
+    # gpgrouper_inputs = FileFinder(contain)
 
     # get rid of this
-    for (ix, samplerun_container) in enumerate(
-        worker._output.get("psm-concat", tuple())
-    ):
+    # for (ix, samplerun_container) in enumerate(
+    #     worker._output.get("psm-concat", tuple())
+    # ):
 
-        gpgrouper = gpGrouper(
-            cmd_runner,
-            samplerun_container=samplerun_container,
-            record_no=samplerun_container.record_no,
-            run_no=samplerun_container.run_no,
-            search_no=samplerun_container.search_no,
-            phospho=phospho,
-            # inputfiles=(rawfile,),
-            # outdir=rawfile.parent.resolve(),
-            # inputfiles=worker._output.get("experiment_finder"),
-            labeltype=labeltype,
-            outdir=None,  # can add later
-            #
-            #
-            refseq=refseq,
-            paramfile=Predefined_gpG.default,
-            # decoy_prefix=decoy_prefix,
-            name=f"gpgrouper-{ix}"
-            # outdir=WORKDIR
-        )
+    #     gpgrouper = gpGrouper(
+    #         cmd_runner,
+    #         samplerun_container=samplerun_container,
+    #         record_no=samplerun_container.record_no,
+    #         run_no=samplerun_container.run_no,
+    #         search_no=samplerun_container.search_no,
+    #         phospho=phospho,
+    #         # inputfiles=(rawfile,),
+    #         # outdir=rawfile.parent.resolve(),
+    #         # inputfiles=worker._output.get("experiment_finder"),
+    #         labeltype=labeltype,
+    #         outdir=None,  # can add later
+    #         #
+    #         #
+    #         refseq=refseq,
+    #         paramfile=Predefined_gpG.default,
+    #         # decoy_prefix=decoy_prefix,
+    #         name=f"gpgrouper-{ix}"
+    #         # outdir=WORKDIR
+    #     )
 
-        worker.register(f"gpgrouper-{ix}", gpgrouper)
+    #     worker.register(f"gpgrouper-{ix}", gpgrouper)
 
 
 # @app.command()

@@ -1,6 +1,9 @@
 from collections import OrderedDict
+from pathlib import Path
 import sys
 from time import time
+
+from mspcrunner.containers import RunContainer, SampleRunContainer
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -17,6 +20,35 @@ class Worker:  # invoker
         self._history = list()
         self._commands = dict()
         self._output = OrderedDict()
+
+        self._file = None
+        self._path = None
+        self._runcontainers = list()
+        self._sampleruncontainers = list()
+
+    # def __new__(self):
+    #     self._runcontainers = list()
+    #     return self
+
+    def add_sampleruncontainer(self, container):
+        if isinstance(container, SampleRunContainer):
+            self._runcontainers.append(container)
+        else:
+            raise ValueError(f"{container} must be of type {SampleRunContainer}")
+
+    def add_runcontainer(self, container):
+        if isinstance(container, RunContainer):
+            self._runcontainers.append(container)
+        else:
+            raise ValueError(f"{container} must be of type {RunContainer}")
+
+    def add_container(self, container):
+        if isinstance(container, SampleRunContainer):
+            self.add_sampleruncontainer(container)
+        elif isinstance(container, RunContainer):
+            self.add_sampleruncontainer(container)
+        else:
+            raise ValueError(f"{container} must be of type {SampleRunContainer}")
 
     def register(self, command_name, command):
         self._commands[command_name] = command
@@ -59,7 +91,20 @@ class Worker:  # invoker
     # def context(self, context: Context) -> None:
     #    self._context = context
 
-    def something_else(self):
+    @property
+    def file(self):
+        return self._file
+
+    @property
+    def path(self):
+        return self._path
+
+    def set_file(self, p: Path):
+        self._file = p
+        pass
+
+    def set_path(self, p: Path):
+        self._path = p
         pass
 
     def set_on_start(self, command):
