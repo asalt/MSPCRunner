@@ -322,7 +322,14 @@ class SampleRunContainer(AbstractContainer):
     #     self.runcontainers = None
 
     def __init__(
-        self, rootdir=Path("."), record_no=None, stem=None, runcontainers=None, **kws
+        self,
+        rootdir=Path("."),
+        record_no=None,
+        run_no=1,
+        search_no=6,
+        stem=None,
+        runcontainers=None,
+        **kws,
     ) -> None:
         super().__init__()
 
@@ -339,8 +346,8 @@ class SampleRunContainer(AbstractContainer):
         self.rootdir = rootdir
 
         self.record_no: int = record_no
-        self.run_no: int = "1"
-        self.search_no: int = "6"
+        self.run_no: int = run_no
+        self.search_no: int = search_no
 
         self.phospho: bool = False
         self.labeltype: str = "none"
@@ -410,6 +417,9 @@ class SampleRunContainer(AbstractContainer):
             logger.info(f"{outpath} already exists, not writing")
             return
 
+        import ipdb
+
+        ipdb.set_trace()
         df = pd.concat(pd.read_table(f) for f in self.mspcfiles)
         df.to_csv(outpath, sep="\t", index=False)
         logger.info(f"Wrote {outpath}")

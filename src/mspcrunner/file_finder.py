@@ -72,7 +72,7 @@ class FileFinder:  # receiver
                 for f in path.glob(globstr):  # TODO fix if path is None
                     # if (not f.is_file()) and (not f.is_symlink()):
 
-                    logger.debug(f"pat:{pat}, file:{f}")
+                    # logger.debug(f"pat:{pat}, file:{f}")
                     if f.is_dir():
                         continue
                     if f.name in observed_files:
@@ -86,7 +86,7 @@ class FileFinder:  # receiver
                     # full_name =  f"{recno}_{runno}_{searchno}"
 
                     basename = f.stem
-                    logger.debug(f"before 0) {basename}")
+                    # logger.debug(f"before 0) {basename}")
 
                     for ext in self.FILE_EXTENSIONS:
                         if re.search(ext, basename):
@@ -94,7 +94,7 @@ class FileFinder:  # receiver
                             # basename = basename.split(ext)[0]
                         # if basename.endswith(ext):
                         # break
-                    logger.debug(f"after 1) {basename}")
+                    # logger.debug(f"after 1) {basename}")
 
                     # else:
                     if f.suffix == ".tsv":
