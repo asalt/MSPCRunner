@@ -31,6 +31,7 @@ from .commands import (
     FileRealtor,
     MokaPotConsole,
 )
+from .commands import make_psms_collect_object
 from .MASIC import MASIC
 from .MSFragger import MSFragger
 from .psm_merge import PSM_Merger
@@ -223,18 +224,18 @@ def worker_run(*args, **kwargs):
         )
         res = worker.execute(name)
         ## ==========================================================
-        if not isinstance(res, dict):
-            # wrong type
-            raise ValueError(f"Wrong type returned for {name}")
-        # k is key that names the class where the result came from
-        # v is a dict of name:value pairs that we can store based on criteria of name, for example
-        for k, v in res.items():
-            for obj in v:
-                if "RunContainer" in v:
-                    # make a defaultdict(dict)
-                    worker._runcontainers[k] = res[k][obj]  # good?
-                if "SampleRu" in v:
-                    worker._runcontainers = res[k][obj]
+
+        # for k, v in res.items():
+        #     for obj in v:
+        #         if "RunContainer" in v:
+        #             # make a defaultdict(dict)
+        #             worker._runcontainers[k] = res[k][obj]  # good?
+        #         if "SampleRu" in v:
+        #             worker._runcontainers = res[k][obj]
+        if isinstance(res, RunContainer):
+            self.update_runcontainers(res)
+        elif isinstance(res, SampleRunContainer):
+            self.update_sampleruncontainers(res)
 
         ipdb.set_trace()
         if isinstance(res, Container):
@@ -321,6 +322,7 @@ def main(
 
     # perhaps we do not need this here anymore
     inputfiles = worker.execute("experiment_finder")
+    ipdb.set_trace()
 
     if dry:
         cmd_runner = CMDRunner_Tester(production_receiver=CMDRunner)
@@ -331,6 +333,7 @@ def main(
         file_mover = FileMover()
         file_realtor = FileRealtor()
 
+    #
     calc_outdirs = PythonCommand(
         file_realtor,
         inputfiles=inputfiles,
@@ -543,6 +546,11 @@ def mspc_rename():
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
 
+    psms_collector = make_psms_collect_object(
+        container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
+    )
+    worker.register(f"collect-psms", psms_collector)
+
     for (ix, run_container) in enumerate(
         worker._output.get("experiment_finder", tuple())
     ):
@@ -561,6 +569,10 @@ def prepare_ispec_import():
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
+
+    psms_collector = make_psms_collect_object(
+        container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
+    )
 
     rcs = worker._output.get("experiment_finder", tuple())
     for (ix, run_container) in enumerate(
@@ -639,17 +651,10 @@ def gpgroup(
 
     ipdb.set_trace()
 
-    collect_psms = PythonCommand(
-        FileFinder(),
-        # file=rawfiles,
-        path=worker.path,
-        # outdir=outdir,
-        container_obj=SampleRunContainer,
-        # depth=depth,
-        name="experiment_finder",
+    psms_collector = make_psms_collect_object(
+        container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
     )
-
-    worker.register(f"collect-psms", collect_psms)
+    worker.register(f"collect-psms", psms_collector)
 
     # samplerun_containers = get_containers_from_concat_res_or_other_mechanism()
     # here

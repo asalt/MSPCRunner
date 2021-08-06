@@ -127,10 +127,11 @@ class FileFinder:  # receiver
         if len(res) > 0:  # for debugging
             _key = list(res.keys())[0]
             _first = res[_key]
+        ret = [x for x in res.values() if x.n_files > 0]
 
-            ret = {
-                f"{self.NAME}": {
-                    str(container_obj): [x for x in res.values() if x.n_files > 0]
-                }
-            }
+        # ret = {
+        #     f"{self.NAME}": {
+        #         str(container_obj): [x for x in res.values() if x.n_files > 0]
+        #     }
+        # }
         return ret

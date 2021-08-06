@@ -41,6 +41,8 @@ TEST_CASES = [
     [("raw", "pin", "tsv"), 3],
 ]
 
+from mspcrunner.containers import RunContainer
+
 # contents of test_image.py
 @pytest.mark.parametrize("exts,num_found", TEST_CASES)
 def test_find_some_file(tmp_path_factory, exts, num_found):
@@ -51,12 +53,15 @@ def test_find_some_file(tmp_path_factory, exts, num_found):
         f.touch()
 
     filefinder = FileFinder()
-    results = filefinder.run(path=path)
-    assert len(results) == 1
-    assert isinstance(results[0], RunContainer)
+    results = filefinder.run(path=path, container_obj=RunContainer)  # ->dict
+    assert len(results) == 1  # should return a dict
 
-    runcontainer = results[0]
-    assert len(runcontainer._files) == num_found
+    r1 = results[filefinder.NAME]
+    should_be_run_container = r1[str(RunContainer)][0]
+    assert isinstance(should_be_run_container, RunContainer)
+
+    # runcontainer = results[0]
+    assert len(should_be_run_container._files) == num_found
 
     # img = load_image(image_file)
     # compute and test histogram

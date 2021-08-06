@@ -5,7 +5,7 @@ import pytest
 
 import mspcrunner
 from mspcrunner import containers
-from mspcrunner.containers import RunContainer
+from mspcrunner.containers import AbstractContainer, RunContainer, SampleRunContainer
 
 
 @pytest.fixture
@@ -115,15 +115,17 @@ def test_relocate(tmp_path):
     run_container.relocate(dnew)
 
 
-def test_rootdir_valueerror(tmp_path):
-    f1 = tmp_path / "testfile.raw"
-    f2 = tmp_path / "loc" / "testfile.tsv"
-
-    run_container = RunContainer()
-    run_container.add_file(f1)
-    run_container.add_file(f2)
-    with pytest.raises(ValueError):
-        run_container.rootdir
+# def test_rootdir_valueerror(tmp_path):
+#    ""
+#    f1 = tmp_path / "testfile.raw"
+#    f2 = tmp_path / "loc" / "testfile.tsv"
+#
+#    run_container = RunContainer()
+#    run_container.add_file(f1)
+#    run_container.add_file(f2)
+#    assert run_container.rootdir is None
+#    # with pytest.raises(ValueError):
+#    #     run_container.rootdir
 
 
 def test_updatefile_noroot():
@@ -131,3 +133,28 @@ def test_updatefile_noroot():
     # ...run_container = RunContainer()
     # ...run_container._rootdir = None
     # assert run_container.update_files()
+
+
+def test_equal_with_no_files():
+    assert RunContainer(rootdir=Path(".")) == RunContainer(rootdir=Path(".aefaef"))
+
+
+def test_not_equal_with_different_files():
+    rc1 = RunContainer()
+    rc2 = RunContainer()
+    rc1.add_file("test.raw")
+    assert rc1 != rc2
+
+    rc2.add_file("test.raw")
+    assert rc1 == rc2
+
+    rc2.add_file("test.mzML")
+    assert rc1 != rc2
+
+
+def test_not_equal_different_containers():
+    assert RunContainer() != SampleRunContainer()
+
+
+def test_not_equal_different_containers():
+    assert RunContainer() != SampleRunContainer()

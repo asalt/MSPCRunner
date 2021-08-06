@@ -10,12 +10,18 @@ logger = get_logger(__name__)
 
 from dataclasses import dataclass
 import typing
+from typing import List, Collection, Dict
 import attr
 
-from abc import ABCMeta, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 
 
-class AbstractContainer(metaclass=ABCMeta):
+class AbstractContainer(ABC):
+    def __init__(self) -> None:
+        super().__init__()
+        self._file_mappings = dict()
+        self._files_added: List[Path] = list()
+
     @abstractmethod
     def add_file(self, input, **kwargs):
         """
@@ -25,6 +31,25 @@ class AbstractContainer(metaclass=ABCMeta):
     @property
     def n_files(self):
         return len(self._file_mappings)
+
+    def __hash__(self) -> int:
+        # return super().__hash__()
+        s = [f"{k}:{v}" for k, v in self._file_mappings.items()]
+        val = hash(tuple([hash(x) for x in sorted(s)]))
+        return val
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, self.__class__):
+            return False
+        if len(self._file_mappings) != len(other._file_mappings):
+            return False
+        if set(self._file_mappings.keys()) != set(other._file_mappings.keys()):
+            return False
+        for k, v in self._file_mappings.items():
+            # right now just check if files are same
+            if other._file_mappings[k].name != v.name:
+                return False
+        return True
 
 
 class AbstractBaseFactory:
@@ -83,16 +108,29 @@ class RunContainer(AbstractContainer):
     def __str__(self) -> str:
         return f"RunContainer <{self.stem}>"
 
+    # def __hash__(self) -> int:
+    #     return super().__hash__()
+
     @property
     def stem(self):
-        if self._stem is None and self._files:
+        """stem
+
+        this property is updated if stem is None and file_mappings has at least one entry
+        else it returns current stem value
+
+        Returns:
+            [str]: [common component of all file names]
+        """
+        if self._stem is None and self._file_mappings:
 
             name = ""
-            for ix, char in enumerate(self._files[0].stem):
-                file_list = [
-                    x for x in self._file_mappings.keys() if isinstance(x, Path)
-                ]
-                if all(file_list[x].name[ix] == char for x in range(len(file_list))):
+            valid_files = self._file_mappings.values()
+            valid_files = list(valid_files)
+            # for ix, char in enumerate(self._files[0].stem):
+            for ix, char in enumerate(list(valid_files)[0].stem):
+                if all(
+                    valid_files[x].name[ix] == char for x in range(len(valid_files))
+                ):
                     name += char
                 else:  # stop once we've found a difference
                     break
@@ -179,6 +217,8 @@ class RunContainer(AbstractContainer):
         self._files.append(f)
         self.reset_properties()
 
+        return self
+
     def update_files(self) -> None:
         """"""
         if self.rootdir is None:
@@ -255,8 +295,8 @@ class SampleRunContainer(AbstractContainer):
 
     name: str = attr.ib(default=None)
     stem = attr.ib(default=None)
-    runcontainers = attr.ib(default=(RunContainer(),))
-    _file_mappings = dict()
+    runcontainers: Collection[RunContainer] = attr.ib(default=(RunContainer(),))
+    _file_mappings: Dict[str, Path] = dict()
     psms_file = attr.ib(default=None)
 
     rootdir = attr.ib(default=Path("."))
@@ -347,3 +387,5 @@ class SampleRunContainer(AbstractContainer):
             self._file_mappings["e2g_QUAL"] = f
         elif "e2g_QUANT" in f.name:
             self._file_mappings["e2g_QUANT"] = f
+
+        return self

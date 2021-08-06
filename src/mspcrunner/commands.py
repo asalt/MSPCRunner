@@ -486,13 +486,15 @@ class PrepareForiSPEC:
 
     NAME = ""
 
-    def run(self, *args, runcontainer=None, **kwargs):
+    def run(self, *args, e2g_qual, e2g_quant, **kwargs):
         import ipdb
 
         "e2g_QUANT"
         "e2g_QUAL"
-        e2g_qual = runcontainer.get_file("e2g_QUAL")
-        e2g_quant = runcontainer.get_file("e2g_QUANT")
+        # e2g_qual = runcontainer.get_file("e2g_QUAL")
+        # e2g_quant = runcontainer.get_file("e2g_QUANT")
+        e2g_qual = Path(e2g_qual)
+        e2g_quant = Path(e2g_quant)
 
         # TODO be smart, don't just count 9 characters
         outf = e2g_qual.parent / Path(f"{e2g_qual.name[:9]}_e2g_iSPEC_import.tsv")
@@ -798,3 +800,23 @@ class FinalFormatter(Command):
     """
 
     pass
+
+
+from .containers import AbstractContainer
+
+
+def make_psms_collect_object(container_cls, name=None, path=None):
+
+    if not isinstance(container_cls, AbstractContainer):
+        raise ValueError(f"wrong type for {container_cls}")
+
+    collect_psms = PythonCommand(
+        FileFinder(),
+        # file=rawfiles,
+        path=path,
+        # outdir=outdir,
+        container_obj=container_cls,
+        # depth=depth,
+        name=name,
+    )
+    return collect_psms

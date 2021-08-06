@@ -23,8 +23,8 @@ class Worker:  # invoker
 
         self._file = None
         self._path = None
-        self._runcontainers = list()
-        self._sampleruncontainers = list()
+        self._runcontainers = set()
+        self._sampleruncontainers = set()
 
     # def __new__(self):
     #     self._runcontainers = list()
@@ -32,13 +32,14 @@ class Worker:  # invoker
 
     def add_sampleruncontainer(self, container):
         if isinstance(container, SampleRunContainer):
-            self._runcontainers.append(container)
+            # self._runcontainers.append(container)
+            self._runcontainers.add(container)
         else:
             raise ValueError(f"{container} must be of type {SampleRunContainer}")
 
     def add_runcontainer(self, container):
         if isinstance(container, RunContainer):
-            self._runcontainers.append(container)
+            self._runcontainers.add(container)
         else:
             raise ValueError(f"{container} must be of type {RunContainer}")
 
@@ -49,6 +50,12 @@ class Worker:  # invoker
             self.add_sampleruncontainer(container)
         else:
             raise ValueError(f"{container} must be of type {SampleRunContainer}")
+
+    def get_runcontainers(self):
+        return self._runcontainers
+
+    def get_sampleruncontainers(self):
+        return self._sampleruncontainers
 
     def register(self, command_name, command):
         self._commands[command_name] = command
@@ -69,6 +76,9 @@ class Worker:  # invoker
             # cmd.set_files(the_files)
 
             self._history.append((time(), command_name))
+            import ipdb
+
+            ipdb.set_trace()
             output = cmd.execute()
             self._output[command_name] = output
             return output
