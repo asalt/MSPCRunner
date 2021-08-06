@@ -13,7 +13,7 @@ from time import time
 from typing import Any, Dict, Iterable, List, Mapping, Tuple, Collection
 from .worker import Worker
 from .file_finder import FileFinder
-from .containers import RunContainer
+from .containers import RunContainer, SampleRunContainer
 
 import click
 
@@ -409,9 +409,16 @@ class Command:
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-    def set_files(self, inputfiles: dict):
+        # def set_files(self, inputfiles: dict):
         logger.info(f"Updating inputfiles on {self}")
         self.inputfiles = inputfiles
+
+    def update_inputfiles(self, *objs):
+        self.inputfiles = list()
+
+        for obj in objs:
+            if isinstance(obj, (RunContainer, SampleRunContainer)):
+                self.inputfiles.append(obj)
 
     def __repr__(self):
         return f"{self.NAME} | {self.name}"
@@ -434,9 +441,10 @@ class Command:
     def CMD(self):
         return None
 
-    def execute(self):
+    def execute(self, **kwargs):
         "execute"
         # return self._receiver.action("run", self.CMD)
+
         if not self.CMD:  # CMD lazy loads, can end up empty if all jobs completed
             return
         if isinstance(self.CMD, (list, tuple)) and isinstance(
@@ -449,6 +457,7 @@ class Command:
                 all_return.append(ret)
         else:
             all_return = self._receiver.run(CMD=self.CMD)
+        return all_return
 
 
 class FileMover:  # receiver
@@ -629,9 +638,6 @@ class FileRealtor:  # receiver
                 logger.error(
                     f"problem in run container construction for {run_container}"
                 )
-                import ipdb
-
-                ipdb.set_trace()
 
             new_home = _outdir / outname
             # check if new home already made
@@ -650,7 +656,7 @@ class FileRealtor:  # receiver
             run_container.relocate(new_home)
 
             results[new_home].append(run_container)
-        return results
+        return inputfiles
 
 
 class PythonCommand(Command):
@@ -807,7 +813,8 @@ from .containers import AbstractContainer
 
 def make_psms_collect_object(container_cls, name=None, path=None):
 
-    if not isinstance(container_cls, AbstractContainer):
+    # if not isinstance(container_cls, AbstractContainer):
+    if not type(container_cls) == type(AbstractContainer):
         raise ValueError(f"wrong type for {container_cls}")
 
     collect_psms = PythonCommand(

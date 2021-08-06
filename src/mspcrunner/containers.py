@@ -15,6 +15,22 @@ import attr
 
 from abc import ABC, ABCMeta, abstractmethod
 
+import re
+
+RECRUN_REGEX = re.compile(r"(\d{5})_(\d+)_(\d+)")
+
+
+def parse_rawname(s):
+    res = RECRUN_REGEX.match(s)
+    # logger.debug(f"regex {RECRUN} on {name} returns {res}")
+    recno, runno, searchno = None, None, None
+    if res is None:
+        return None, None, None
+    recno = res.group(1)
+    runno = res.group(2)
+    searchno = res.group(3)
+    return recno, runno, searchno
+
 
 class AbstractContainer(ABC):
     def __init__(self) -> None:
@@ -180,8 +196,8 @@ class RunContainer(AbstractContainer):
 
         if f.name.endswith("mzML"):
             self._file_mappings["spectra"] = f
-        elif f.name.endswith("psms_all.txt"):
-            self._file_mappings["for-gpg"] = f
+        # elif f.name.endswith("psms_all.txt"):
+        #     self._file_mappings["for-gpg"] = f
         elif f.name.endswith("raw") and self._file_mappings.get("spectra") is None:
             self._file_mappings["spectra"] = f
         elif f.name.endswith("pin"):
@@ -285,7 +301,7 @@ class RunContainer(AbstractContainer):
         pass
 
 
-@attr.s()
+# @attr.s()
 class SampleRunContainer(AbstractContainer):
     """
     Container for final mass spec psms, proteins, gpgroups,
@@ -293,25 +309,58 @@ class SampleRunContainer(AbstractContainer):
 
     """
 
-    name: str = attr.ib(default=None)
-    stem = attr.ib(default=None)
-    runcontainers: Collection[RunContainer] = attr.ib(default=(RunContainer(),))
-    _file_mappings: Dict[str, Path] = dict()
-    psms_file = attr.ib(default=None)
+    # def __init__(self, stem=None, rootdir: Path = None) -> None:
+    #     """
+    #     can set the stem explicitly or let it self-calculate
+    #     :see self.stem:
+    #     """
+    #     self._stem = stem
+    #     self._files = list()
+    #     self._file_mappings = dict()
+    #     self._rootdir = rootdir
+    #     self._files_added = 0
+    #     self.runcontainers = None
 
-    rootdir = attr.ib(default=Path("."))
+    def __init__(
+        self, rootdir=Path("."), record_no=None, stem=None, runcontainers=None, **kws
+    ) -> None:
+        super().__init__()
 
-    record_no: int = attr.ib(default=None)
-    run_no: int = attr.ib(default="1")
-    search_no: int = attr.ib(default="6")
+        self.runcontainers = runcontainers
+        self.name: str = ""
+        self.stem = None
+        # self.runcontainers: Collection[RunContainer] = attr.ib(
+        #     default=(RunContainer(),)
+        # )
+        self._file_mappings: Dict[str, Path] = dict()
+        self.psms_file = None
 
-    phospho: bool = attr.ib(default=False)
-    labeltype: str = attr.ib(default="none")
-    refseq: Path = None
+        # self.rootdir = attr.ib(default=Path("."))
+        self.rootdir = rootdir
 
-    _psms_file: Path = None
+        self.record_no: int = record_no
+        self.run_no: int = "1"
+        self.search_no: int = "6"
+
+        self.phospho: bool = False
+        self.labeltype: str = "none"
+        self.refseq: Path = None
+
+        self._psms_file: Path = None
 
     # @stem.validator
+
+    def set_recrunsearch(self):
+
+        psms_file = self._file_mappings.get("input_psms")
+        self.psms_file = psms_file  # fix this
+        rec, run, search = parse_rawname(psms_file.name)
+        self.record_no = rec
+        self.run_no = run
+        self.search_no = search
+
+    def set_runno(self):
+        ...
 
     def reset_mspc_files(self):
         self.runcontainers = None
@@ -389,3 +438,23 @@ class SampleRunContainer(AbstractContainer):
             self._file_mappings["e2g_QUANT"] = f
 
         return self
+
+    # would be better to inherit?
+    def __hash__(self) -> int:
+        # return super().__hash__()
+        s = [f"{k}:{v}" for k, v in self._file_mappings.items()]
+        val = hash(tuple([hash(x) for x in sorted(s)]))
+        return val
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, self.__class__):
+            return False
+        if len(self._file_mappings) != len(other._file_mappings):
+            return False
+        if set(self._file_mappings.keys()) != set(other._file_mappings.keys()):
+            return False
+        for k, v in self._file_mappings.items():
+            # right now just check if files are same
+            if other._file_mappings[k].name != v.name:
+                return False
+        return True

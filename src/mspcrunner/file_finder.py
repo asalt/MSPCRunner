@@ -134,4 +134,5 @@ class FileFinder:  # receiver
         #         str(container_obj): [x for x in res.values() if x.n_files > 0]
         #     }
         # }
+
         return ret

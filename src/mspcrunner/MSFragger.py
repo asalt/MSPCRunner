@@ -5,6 +5,8 @@ from pathlib import Path
 from time import time
 from configparser import ConfigParser
 
+from mspcrunner.containers import RunContainer
+
 from .logger import get_logger
 from .commands import Command, MSFRAGGER_EXE
 
@@ -48,12 +50,11 @@ class MSFragger(Command):
         self.ramalloc = ramalloc
         self._params = None
         self.inputfiles = inputfiles
+        # self.runcontainers = runcontainers
         self.refseq = refseq
         self.configfile = None
 
         config = self.read_config(paramfile)
-
-        # todo put in separate methods
 
         if refseq is not None:
             config["top"]["database_name"] = str(refseq)
@@ -112,8 +113,13 @@ class MSFragger(Command):
         # spectra_files = "<not set>"
         spectra_files = list()
         MSFRAGGER_EXE = get_exe()
+        import ipdb
+
+        # inputfile = self.inputfiles[0].get_file("spectra")
+
         if not self.inputfiles:
-            raise ValueError("then why are we here?")
+            return
+            # raise ValueError("then why are we here?")
 
         for run_container in self.inputfiles:
 
@@ -127,6 +133,7 @@ class MSFragger(Command):
                 spectra_files.append(spectraf)
             else:
                 logger.info(f"cannot find spectra file {run_container}")
+
         if len(spectra_files) == 0:
             logger.debug(f"no new files found for search")
             return

@@ -1,10 +1,14 @@
-from collections import OrderedDict
+import ipdb
+from ipdb import set_trace
+from collections import OrderedDict, defaultdict
 from pathlib import Path
 import sys
 from time import time
+import typing
 
 from mspcrunner.containers import RunContainer, SampleRunContainer
 from .logger import get_logger
+import ipdb
 
 logger = get_logger(__name__)
 
@@ -23,8 +27,8 @@ class Worker:  # invoker
 
         self._file = None
         self._path = None
-        self._runcontainers = set()
-        self._sampleruncontainers = set()
+        self._runcontainers = defaultdict()
+        self._sampleruncontainers = defaultdict()
 
     # def __new__(self):
     #     self._runcontainers = list()
@@ -33,13 +37,13 @@ class Worker:  # invoker
     def add_sampleruncontainer(self, container):
         if isinstance(container, SampleRunContainer):
             # self._runcontainers.append(container)
-            self._runcontainers.add(container)
+            self._sampleruncontainers[hash(container)] = container
         else:
             raise ValueError(f"{container} must be of type {SampleRunContainer}")
 
     def add_runcontainer(self, container):
         if isinstance(container, RunContainer):
-            self._runcontainers.add(container)
+            self._runcontainers[hash(container)] = container
         else:
             raise ValueError(f"{container} must be of type {RunContainer}")
 
@@ -47,7 +51,7 @@ class Worker:  # invoker
         if isinstance(container, SampleRunContainer):
             self.add_sampleruncontainer(container)
         elif isinstance(container, RunContainer):
-            self.add_sampleruncontainer(container)
+            self.add_runcontainer(container)
         else:
             raise ValueError(f"{container} must be of type {SampleRunContainer}")
 
@@ -60,6 +64,13 @@ class Worker:  # invoker
     def register(self, command_name, command):
         self._commands[command_name] = command
 
+    def update_inputfiles(self, cmd):
+        """
+        do not use this right now
+        """
+        cmd.update_inputfiles(*[x for x in self.get_runcontainers().values()])
+        cmd.update_inputfiles(*[x for x in self.get_sampleruncontainers().values()])
+
     def execute(self, command_name):
         "Execute any registered commands"
 
@@ -71,16 +82,30 @@ class Worker:  # invoker
             # the_command = self._commands[command_name]
             # the_command.set_files(the_files)
 
+            print(command_name)
             cmd = self._commands[command_name]
+
+            # input files not dynamically found, but should be
+            # self.update_inputfiles(cmd)
 
             # cmd.set_files(the_files)
 
             self._history.append((time(), command_name))
-            import ipdb
 
-            ipdb.set_trace()
             output = cmd.execute()
             self._output[command_name] = output
+
+            if output is not None and isinstance(output, typing.Iterable):
+                for o in output:
+                    if o.n_files == 0:
+                        continue
+                    if isinstance(o, RunContainer):
+                        self.add_runcontainer(o)
+                    elif isinstance(o, SampleRunContainer):
+                        self.add_sampleruncontainer(o)
+                    else:
+                        pass
+
             return output
 
         else:
