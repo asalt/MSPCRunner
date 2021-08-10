@@ -639,6 +639,8 @@ def gpgroup(
         name="gpgrouper1",
         refseq=refseq,
         paramfile=Predefined_gpG.default,
+        labeltype=labeltype,
+        phospho=phospho,
     )
     worker.register(f"gpgrouper", gpgrouper)
 

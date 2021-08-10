@@ -56,10 +56,12 @@ class gpGrouper(Command):
         #     name=name,
         #     **kwargs,
         # )
-        self.phospho = kwargs.get("phospho", "False")
+        self.phospho = kwargs.get("phospho", False)
         # self.inputfiles = (inputfiles,)
         self.refseq = refseq
         self.labeltype = kwargs.get("labeltype", "none")
+        if self.labeltype is None:
+            self.labeltype = "none"
         self.paramfile = kwargs.get("paramfile", Predefined_gpG.default.value)
         # self.record_no = kwargs.get("record_no", "none")
         # self.run_no = kwargs.get("run_no", "none")
