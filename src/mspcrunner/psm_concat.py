@@ -1,3 +1,4 @@
+from ipdb import set_trace
 import re
 import os
 from collections import defaultdict
@@ -33,15 +34,16 @@ class PSM_Concat:
 
     def run(
         self,
-        runcontainers: List[RunContainer] = None,
+        inputfiles: List[RunContainer] = None,
         outdir: Path = None,
+        force=False,
         **kwargs,
     ) -> str:
         """
         We can use this procedure to create SampleRunContainers
         """
 
-        if runcontainers is None:
+        if inputfiles is None:
             logger.error(f"no runcontainers passed")
             # this is bad
             return
@@ -50,7 +52,9 @@ class PSM_Concat:
         logger.debug(f"{self}")
         filegroups = defaultdict(list)
         # for f in sorted(files):
-        for container in runcontainers:
+        for container in inputfiles:
+            if not isinstance(container, RunContainer):
+                continue  # wrong container
             mspcfile = container.get_file("MSPCRunner")
             if mspcfile is None:
                 logger.debug(f"No MSPCRunner file for {container}")
@@ -70,9 +74,10 @@ class PSM_Concat:
                 # filegroups[group].append(mspcfile)
                 filegroups[group].append(container)
 
-        sample_run_containers = list()
+        sampleruncontainers = list()
 
         # create run containers
+
         for group, runcontainers in filegroups.items():
 
             # recrun = find_rec_run(container.stem)
@@ -98,7 +103,7 @@ class PSM_Concat:
                 run_no=run_no,
             )
 
-            sample_run_containers.append(samplerun)
+            sampleruncontainers.append(samplerun)
             print(group)
 
             # # move this?
@@ -110,11 +115,11 @@ class PSM_Concat:
             # df.to_csv(outname, sep="\t", index=False)
             # print(f"Wrote {outname}")
 
-        for samplerun in sample_run_containers:
+        for samplerun in sampleruncontainers:
             samplerun.check_psms_files()
-            samplerun.concat()
+            samplerun.concat(force=force)
 
-        return sample_run_containers
+        return sampleruncontainers
 
 
 if __name__ == "__main__":

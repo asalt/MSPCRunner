@@ -1,6 +1,8 @@
-from os import initgroups
+from ipdb import set_trace
+import os
 from pathlib import Path
 import pandas as pd
+from warnings import warn
 
 import ipdb
 
@@ -21,6 +23,8 @@ RECRUN_REGEX = re.compile(r"(\d{5})_(\d+)_(\d+)")
 
 
 def parse_rawname(s):
+    if isinstance(s, Path):
+        s = s.name
     res = RECRUN_REGEX.match(s)
     # logger.debug(f"regex {RECRUN} on {name} returns {res}")
     recno, runno, searchno = None, None, None
@@ -33,6 +37,9 @@ def parse_rawname(s):
 
 
 class AbstractContainer(ABC):
+
+    FILE_EXTENSIONS = None
+
     def __init__(self) -> None:
         super().__init__()
         self._file_mappings = dict()
@@ -43,6 +50,10 @@ class AbstractContainer(ABC):
         """
         abstract method for populating a container with files
         """
+
+    @classmethod
+    def make_basename(file):
+        pass
 
     @property
     def n_files(self):
@@ -85,6 +96,17 @@ class RunContainer(AbstractContainer):
         reporterions="_reporterions",
         # TODO expand
     )
+    PATTERNS = ["*raw", "*mzML", "*txt", "*pin", "*tsv"]
+    # use these to trim
+    FILE_EXTENSIONS = [
+        ".mokapot.psms",
+        ".mokapot.peptides",
+        "_ReporterIons",
+        "_SICstats",
+        "_ScanStats",
+        "_ScanStatsConstant",
+        "_MSPCRunner_a1",
+    ]
 
     def __init__(self, stem=None, rootdir: Path = None) -> None:
         """
@@ -104,6 +126,25 @@ class RunContainer(AbstractContainer):
         # self._mokapot_peptides = None
         # self._sics = None
         # self._reporterions = None
+
+    @classmethod
+    def make_basename(self, f: Path):
+
+        basename = None
+        for ext in self.FILE_EXTENSIONS:
+            if re.search(ext, f.stem):
+                basename = re.sub(f"{ext}.*", "", f.stem)
+        # else:
+        # do this more cleanly
+        if (
+            f.suffix == ".tsv"
+            or f.suffix == ".raw"
+            or f.suffix == ".mzML"
+            or f.suffix == ".pin"
+        ):
+            basename = f.stem
+        # if basename is None:
+        return basename
 
     @property
     def n_files(self):
@@ -158,6 +199,8 @@ class RunContainer(AbstractContainer):
             # if len(stems) > 1:
             #   raise ValueError('!!')
             self._stem = _stem
+            if _stem.endswith("F1"):
+                pass
         # elif self._stem is None and not self._files:
         #     self._stem = "None"
         return self._stem
@@ -235,14 +278,21 @@ class RunContainer(AbstractContainer):
 
         return self
 
-    def update_files(self) -> None:
-        """"""
-        if self.rootdir is None:
-            return  # nothing to do
-        for f in self.rootdir.glob(f"{self.stem}*"):
-            if f in self._files:
-                pass
-            self.add_file(f)
+    # def update_files(self) -> None:
+    #     """"""
+    #     if self.rootdir is None:
+    #         return  # nothing to do
+    #     for f in self.rootdir.glob(f"{self.stem}*"):
+    #         if f in self._files:
+    #             pass
+    #         import ipdb
+
+    #         if f.stem.endswith("F1") and "F1" in f.name:
+    #             ipdb.set_trace()
+    #         self.add_file(f)
+
+    def update_files(self):
+        pass
 
     def get_file(self, name: Path):
         # can expand this to different methods for getting different files, with various checks
@@ -301,7 +351,6 @@ class RunContainer(AbstractContainer):
         pass
 
 
-# @attr.s()
 class SampleRunContainer(AbstractContainer):
     """
     Container for final mass spec psms, proteins, gpgroups,
@@ -320,6 +369,8 @@ class SampleRunContainer(AbstractContainer):
     #     self._rootdir = rootdir
     #     self._files_added = 0
     #     self.runcontainers = None
+    FILE_EXTENSIONS = ["tsv"]
+    PATTERNS = ["*tsv", "*txt"]
 
     def __init__(
         self,
@@ -343,9 +394,10 @@ class SampleRunContainer(AbstractContainer):
         self.psms_file = None
 
         # self.rootdir = attr.ib(default=Path("."))
+        self.record_no = record_no
         self.rootdir = rootdir
 
-        self.record_no: int = record_no
+        self._record_no: None
         self.run_no: int = run_no
         self.search_no: int = search_no
 
@@ -355,11 +407,13 @@ class SampleRunContainer(AbstractContainer):
 
         self._psms_file: Path = None
 
-    # @stem.validator
-
     def set_recrunsearch(self):
 
-        psms_file = self._file_mappings.get("input_psms")
+        # if self.psms_file is None:
+        #    warn("No psms file specified")
+        #    return
+        # psms_file = self._file_mappings.get("input_psms")
+        psms_file = self._file_mappings.get("input_psms", None)
         self.psms_file = psms_file  # fix this
         rec, run, search = parse_rawname(psms_file.name)
         self.record_no = rec
@@ -373,10 +427,10 @@ class SampleRunContainer(AbstractContainer):
         self.runcontainers = None
 
     def __str__(self):
-        return f"SampleRunContainer: {self.name}"
+        return f"SampleRunContainer: {self.record_no}_{self.run_no}_{self.search_no}"
 
     def __repr__(self):
-        return f"SampleRunContainer: {self.name}"
+        return f"SampleRunContainer: {self.record_no}_{self.run_no}_{self.search_no}"
 
     @property
     def mspcfiles(self):
@@ -394,8 +448,11 @@ class SampleRunContainer(AbstractContainer):
         could be a good place to extend checks
 
         """
-        files = [x.get_file("MSPCRunner") for x in self.runcontainers]
-        logger.info(f"{self}:")
+        files = set([x.get_file("MSPCRunner") for x in self.runcontainers])
+        allfiles = [x.get_file("MSPCRunner") for x in self.runcontainers]
+
+        logger.info(f"{self}: nfiles : {len(files)}")
+
         for f in sorted(files):
             logger.info("\b" * 20 + "\t" + str(f))
             # f"{"\b"*20}\t{f}")
@@ -410,17 +467,14 @@ class SampleRunContainer(AbstractContainer):
         outpath = self.rootdir / Path(outname)
         return outpath
 
-    def concat(self):
+    def concat(self, force=False):
 
         outpath = self.psms_filePath
-        if outpath.exists():
+        if outpath.exists() and not force:
             logger.info(f"{outpath} already exists, not writing")
             return
 
-        import ipdb
-
-        ipdb.set_trace()
-        df = pd.concat(pd.read_table(f) for f in self.mspcfiles)
+        df = pd.concat(pd.read_table(f).assign(rawfile=f.name) for f in self.mspcfiles)
         df.to_csv(outpath, sep="\t", index=False)
         logger.info(f"Wrote {outpath}")
 
@@ -441,6 +495,7 @@ class SampleRunContainer(AbstractContainer):
         #     self._file_mappings["raw"] = f
         if "psms_all" in f.name:
             self._file_mappings["input_psms"] = f
+            self.set_recrunsearch()
 
         elif "e2g_QUAL" in f.name:
             self._file_mappings["e2g_QUAL"] = f
@@ -448,6 +503,19 @@ class SampleRunContainer(AbstractContainer):
             self._file_mappings["e2g_QUANT"] = f
 
         return self
+
+    def get_file(self, name):
+        return self._file_mappings.get(name)
+
+    @classmethod
+    def make_basename(self, file) -> str:
+        res = parse_rawname(file.name)
+        res = [*filter(None, res)]
+
+        if len(res) < 3:  # or
+            return None
+
+        return f"{res[0]}_{res[1]}_{res[2]}"
 
     # would be better to inherit?
     def __hash__(self) -> int:

@@ -1,3 +1,4 @@
+from ipdb import set_trace
 import re
 from collections import defaultdict
 from typing import List, Collection
@@ -5,7 +6,7 @@ from pathlib import Path
 
 
 from .logger import get_logger
-from .containers import AbstractContainer, RunContainer
+from .containers import AbstractContainer, RunContainer, SampleRunContainer
 
 logger = get_logger(__name__)
 
@@ -41,6 +42,7 @@ class FileFinder:  # receiver
         """
 
         assert isinstance(container_obj(), AbstractContainer)
+
         # we need the add_file method
 
         if path is None:
@@ -53,9 +55,11 @@ class FileFinder:  # receiver
         res = defaultdict(container_obj)
         observed_files = list()
         # import ipdb; ipdb.set_trace()
-        if file is not None:
+        if file is not None:  # not working yet
             for f in file:
                 basename = f.stem
+
+                # if basename.endswith("F1"):
                 res[basename].add_file(f.resolve())
 
         if path is None:
@@ -65,7 +69,7 @@ class FileFinder:  # receiver
         # IDEA turn into a factory?
         # return Container(**).construct()
 
-        for pat in self.PATTERNS:
+        for pat in container_obj.PATTERNS:
             for i in range(depth):
                 globstr = "*/" * i + pat
                 # bug when depth == 1 and file has moved into its new home directory
@@ -85,36 +89,36 @@ class FileFinder:  # receiver
                     # name=parse_rawname(f.name)
                     # full_name =  f"{recno}_{runno}_{searchno}"
 
-                    basename = f.stem
+                    # basename = f.stem
+                    basename = container_obj.make_basename(f)
                     # logger.debug(f"before 0) {basename}")
 
-                    for ext in self.FILE_EXTENSIONS:
-                        if re.search(ext, basename):
-                            basename = re.sub(f"{ext}.*", "", basename)
-                            # basename = basename.split(ext)[0]
-                        # if basename.endswith(ext):
-                        # break
-                    # logger.debug(f"after 1) {basename}")
-
-                    # else:
-                    if f.suffix == ".tsv":
-                        basename = f.stem
-                    # find .tsv files
-                    # adds rec_run_search where rec_run match
-                    # if any(str(f).endswith(x) for x in RESULT_FILES):
-                    #     for k in res:
-                    #         # TODO fix
-                    #         if k.startswith(basename[:7]):
-                    #             res[k].add_file(f)
+                    # for ext in container_obj.FILE_EXTENSIONS:
+                    #     if re.search(ext, basename):
+                    #         basename = re.sub(f"{ext}.*", "", basename)
+                    # # else:
+                    # if f.suffix == ".tsv":
+                    #     basename = f.stem
 
                     if f.is_symlink():
-                        _name = f.absolute()
-                    else:
-                        _name = f.resolve()
+                        raise ValueError(f"No symlink allowed")
 
-                    if any(x not in f.name for x in RESULT_FILES):
-                        res[basename].add_file(_name)
-                        # add files to RunContainers with a matching `_name`
+                    # sampleruncontainer "basename" is rec_run_search
+                    if basename is not False and isinstance(
+                        container_obj(), SampleRunContainer
+                    ):
+                        logger.debug(f)
+
+                        1 + 1
+                        # set_trace()
+                    if basename is not None:
+                        res[basename].add_file(f)
+                    # if any(x not in f.name for x in RESULT_FILES):
+                    #     res[basename].add_file(
+                    #         _name
+                    #     )  # this is where construction takes place
+
+                    #     # add files to RunContainers with a matching `_name`
                     observed_files.append(f.name)
                     # weird behavior fix later
 
@@ -124,10 +128,14 @@ class FileFinder:  # receiver
         # the defaultdict collection made it convienent to keep adding
         # files to the same "base" file
 
+        # set_trace()
         if len(res) > 0:  # for debugging
             _key = list(res.keys())[0]
             _first = res[_key]
         ret = [x for x in res.values() if x.n_files > 0]
+        import random
+
+        random.shuffle(ret)
 
         # ret = {
         #     f"{self.NAME}": {

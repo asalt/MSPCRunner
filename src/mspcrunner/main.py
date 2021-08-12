@@ -485,16 +485,25 @@ def percolate(
 
 
 @run_app.command()
-def concat_psms():
+def concat_psms(
+    force: Optional[bool] = typer.Option(False),
+):
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
 
+    psms_collector = make_psms_collect_object(
+        container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
+    )
+    worker.register(f"psms_collector-for-concat", psms_collector)
+
+    worker.register(f"collect-psms", psms_collector)
     psm_obj = PythonCommand(
         PSM_Concat(),
-        runcontainers=worker._output.get("experiment_finder", tuple()),
+        # runcontainers=worker._output.get("experiment_finder", tuple()),
         # psm_merger,
         name=f"concat_psms_0",
+        force=force,
     )
     worker.register(f"concat_psms", psm_obj)
 
@@ -546,23 +555,18 @@ def prepare_ispec_import():
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
 
-    psms_collector = make_psms_collect_object(
+    find_sample_containers = make_psms_collect_object(
         container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
     )
+    worker.register(f"collect-psms", find_sample_containers)
 
-    rcs = worker._output.get("experiment_finder", tuple())
-    for (ix, run_container) in enumerate(
-        worker._output.get("experiment_finder", tuple())
-    ):
-
-        file_cleaner = PythonCommand(
-            PrepareForiSPEC(),
-            runcontainer=run_container,
-            # psm_merger,
-            name=f"renamer_{ix}",
-        )
-        worker.register(f"renamer_{ix}", file_cleaner)
-    ...
+    file_cleaner = PythonCommand(
+        PrepareForiSPEC(),
+        # runcontainer=run_container,
+        # psm_merger,
+        name=f"ispec-renamer",
+    )
+    worker.register(f"ispec-renamer", file_cleaner)
 
 
 @run_app.command()
@@ -606,10 +610,49 @@ def merge_psms():
 
 
 @run_app.command()
+def annotate_sites():
+    ctx = get_current_context()
+    cmd_runner = ctx.obj["cmd_runner"]
+    worker = ctx.obj["worker"]
+
+    if local_refseq is None:
+        refseq = PREDEFINED_REFSEQ_PARAMS.get(refseq, refseq)
+    else:
+        refseq = local_refseq
+
+    if refseq is None:
+        raise ValueError("No refseq specified")
+
+    psms_collector = make_psms_collect_object(
+        container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
+    )
+    worker.register(f"collect-psms", psms_collector)
+
+    # searchruncontainers = worker.execute("collect-psms")
+
+    # for ix, searchruncontainer in enumerate(searchruncontainers):
+
+    # TODO finish: this is incomplete
+    gpgrouper = AnnotateSite(
+        cmd_runner,
+        # inputfiles=searchruncontainer,
+        workers=workers,
+        name=f"gpgrouper-{ix}",
+        refseq=refseq,
+        paramfile=Predefined_gpG.default,
+        labeltype=labeltype,
+        phospho=phospho,
+    )
+
+    worker.register(f"gpgrouper-{ix}", gpgrouper)
+
+
+@run_app.command()
 def gpgroup(
     local_refseq: Optional[Path] = typer.Option(None),
     # paramfile: Optional[Path] = typer.Option(None),
     # preset: Predefined_Search = typer.Option(None, case_sensitive=False),
+    workers: Optional[int] = typer.Option(1),
     labeltype: Optional[str] = typer.Option(None),
     refseq: Predefined_RefSeq = typer.Option(None),
     phospho: Optional[bool] = typer.Option(False),
@@ -629,20 +672,26 @@ def gpgroup(
     psms_collector = make_psms_collect_object(
         container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
     )
+
     worker.register(f"collect-psms", psms_collector)
 
-    searchruncontainers = worker.execute("collect-psms")
+    # searchruncontainers = worker.execute("collect-psms")
+
+    # for ix, searchruncontainer in enumerate(searchruncontainers):
+    ix = 1
 
     gpgrouper = gpGrouper(
         cmd_runner,
-        inputfiles=searchruncontainers,
-        name="gpgrouper1",
+        # inputfiles=searchruncontainer,
+        workers=workers,
+        name=f"gpgrouper-{ix}",
         refseq=refseq,
         paramfile=Predefined_gpG.default,
         labeltype=labeltype,
         phospho=phospho,
     )
-    worker.register(f"gpgrouper", gpgrouper)
+
+    worker.register(f"gpgrouper-{ix}", gpgrouper)
 
     # gpgrouper = gpGrouper(
     #     cmd_runner,

@@ -1,4 +1,6 @@
 # commands
+from ipdb import set_trace
+from abc import abstractclassmethod, abstractmethod
 import logging
 import os
 import platform
@@ -207,7 +209,11 @@ def merge_pipes(**named_pipes):
             return
 
 
-class CMDRunner:  # receiver
+class Receiver:
+    input_required = None
+
+
+class CMDRunner(Receiver):  # receiver
     """
     receiver for running CMD via subprocess
     """
@@ -410,8 +416,19 @@ class Command:
             setattr(self, k, v)
 
         # def set_files(self, inputfiles: dict):
-        logger.info(f"Updating inputfiles on {self}")
+        logger.info(f"Adding inputfiles on {self}")
         self.inputfiles = inputfiles
+
+    def create(self, containers=None, **kws):
+        if containers is None:
+            yield self
+        else:
+            for container in containers:
+                d = self.__dict__.copy()
+                for kw in kws:
+                    if kw in d:
+                        d.update(kw, kws[kw])
+                yield self(**self.__dict__, inputfiles=container)
 
     def update_inputfiles(self, *objs):
         self.inputfiles = list()
@@ -424,7 +441,8 @@ class Command:
         return f"{self.NAME} | {self.name}"
 
     def announce(self) -> None:
-        logger.info(f"Setting up {self.NAME}")
+        # logger.info(f"Setting up {self.NAME}")
+        pass
 
     # def update_inputfiles(self, inputfiles) -> None:
     #     self.inputfiles = inputfiles
@@ -495,19 +513,45 @@ class PrepareForiSPEC:
 
     NAME = ""
 
-    def run(self, *args, e2g_qual, e2g_quant, **kwargs):
-        import ipdb
+    # def run(self, *args, e2g_qual, e2g_quant, **kwargs):
+    def run(self, *args, inputfiles: List[SampleRunContainer] = None, **kwargs):
 
-        "e2g_QUANT"
-        "e2g_QUAL"
+        force = False
+        if "force" in kwargs:
+            force = kwargs["force"]
+
+        if inputfiles is None:
+            logger.error(f"no sampleruncontainers passed")
+            # this is bad
+            return
+        inputfiles = [
+            container
+            for container in inputfiles
+            if isinstance(container, SampleRunContainer)
+        ]
+        if len(inputfiles) == 0:
+            logger.error(f"no sampleruncontainers passed")
+            # this is bad
+            return
+
+        for container in inputfiles:
+            if not isinstance(container, SampleRunContainer):
+                continue  # wrong container
+
+            e2g_qual = container.get_file("e2g_QUAL")
+            e2g_quant = container.get_file("e2g_QUANT")
+
+            if e2g_qual is None or e2g_quant is None:
+                logger.debug(f"missing e2g file for {container}")
+                continue
+
         # e2g_qual = runcontainer.get_file("e2g_QUAL")
         # e2g_quant = runcontainer.get_file("e2g_QUANT")
-        e2g_qual = Path(e2g_qual)
-        e2g_quant = Path(e2g_quant)
 
         # TODO be smart, don't just count 9 characters
         outf = e2g_qual.parent / Path(f"{e2g_qual.name[:9]}_e2g_iSPEC_import.tsv")
-        if outf.exists():
+        if outf.exists() and not force:
+            logger.info(f"{outf} already exists")
             return  # already done
 
         df_ql = pd.read_table(e2g_qual)
@@ -517,7 +561,7 @@ class PrepareForiSPEC:
             df_qt, df_ql, on=["EXPRecNo", "EXPRunNo", "EXPSearchNo", "GeneID", "SRA"]
         )
         df = df.rename(columns={x: f"e2g_{x}" for x in df.columns})
-        logging.info(f"Writing {outf}")
+        logger.info(f"Writing {outf}")
         df.to_csv(outf, index=False, sep="\t")
 
 
@@ -617,6 +661,8 @@ class FileRealtor:  # receiver
         """
         :inputfiles: Path objects of files to
         """
+        if inputfiles is None:
+            raise ValueError("no input")
         results = defaultdict(list)
 
         # print(inputfiles[[x for x in inputfiles.keys()][0]])
@@ -662,6 +708,61 @@ class FileRealtor:  # receiver
 class PythonCommand(Command):
 
     NAME = "PythonCommand"
+
+    def __init__(self, *args, **kws):
+        super().__init__(
+            *args, **kws
+        )  # this has to be called before we can access "args"
+
+    def create(self, runcontainers=None, sampleruncontainers=None, **kws):
+        # from ipdb import set_trace
+
+        # set_trace()
+        # if self._receiver.
+        if runcontainers is None and sampleruncontainers is None:
+            yield self
+        else:
+            if runcontainers is None:
+                runcontainers = tuple()
+            if sampleruncontainers is None:
+                sampleruncontainers = tuple()
+
+            containers = list(runcontainers) + list(sampleruncontainers)
+            d = self.__dict__.copy()
+
+            # quick fix
+            if "receiver" not in d and "_receiver" in d:
+                d["receiver"] = d["_receiver"]
+            # ================
+            for kw in kws:
+                if kw in d:
+                    d.update(kw, kws[kw])
+            if "inputfiles" in d:
+                inputfiles = d.pop("inputfiles")
+                if inputfiles is not None:
+                    pass
+
+            yield PythonCommand(**d, inputfiles=containers)
+
+    @property
+    def CMD(self):
+        """
+        Return the dictionary of attributes to pass to the receiver as kwargs.
+        """
+        self._cmd = self.__dict__
+        return self._cmd
+        # return dict(
+        #    inputfiles=self.inputfiles,
+        #    outdir=self.outdir,
+        # )
+
+    def execute(self, *args, **kws):
+        self.announce()
+        return self._receiver.run(**self.CMD)
+
+
+class Loop(Command):
+    NAME = "loop"
 
     def __init__(self, *args, **kws):
         super().__init__(
@@ -731,7 +832,7 @@ class MokaPotConsole(Command):
             ]  # the values are RawFile instances
             # pinfiles = [x for x in pinfiles if x is not None]
         if pinfiles[0] is None:
-            raise ValueError("!!")
+            raise ValueError(f"no pinfile found for {self.inputfiles}")
 
         if self.outdir is None and len(pinfiles) == 1:
             outdir = pinfiles[0].parent
@@ -827,3 +928,60 @@ def make_psms_collect_object(container_cls, name=None, path=None):
         name=name,
     )
     return collect_psms
+
+
+# class Builder(ABC):
+#     """Builder [...]
+#
+#     [extended_summary]
+#
+#     Args:
+#         ABC ([type]): [description]
+#     """
+#
+#     ...
+#
+#     @property
+#     @abstractmethod
+#     def product(self) -> None:
+#         pass
+#
+#
+# class Loop(Builder):
+#     def __init__(self, collector) -> None:
+#         self._collector = collector  # the command with an `execute()` method
+#         super().__init__()
+#         self.reset()
+#
+#     def reset(self) -> None:
+#         ...
+#
+#     def build(self, cls):
+#
+#         worker = Worker()
+#         worker.register("finder", self._collector)
+#         result_containers = worker.execute("finder")
+#         for ix, result_container in enumerate(result_containers):
+#             newcls = cls.new(result_container)
+#             worker.register(f"{cls}-{ix}", newcls)
+#
+#         import ipdb
+#
+#         ipdb.set_trace()
+#         1 + 1
+#
+#     def execute(self):
+#         self.build
+#
+#         # gpgrouper = gpGrouper(
+#         #     cmd_runner,
+#         #     #inputfiles=searchruncontainer,
+#         #     workers=workers,
+#         #     name=f"gpgrouper-{ix}",
+#         #     refseq=refseq,
+#         #     paramfile=Predefined_gpG.default,
+#         #     labeltype=labeltype,
+#         #     phospho=phospho,
+#         # )
+#         # worker.register(f"gpgrouper-{ix}", gpgrouper)
+#

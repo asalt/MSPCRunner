@@ -3,12 +3,14 @@
 
 import logging
 import os
+import ipdb
 
-from ipdb.__main__ import set_trace
+from ipdb import set_trace
 
-from .commands import Command
+from .commands import Command, Receiver
 from .utils import find_rec_run
 from .predefined_params import Predefined_gpG
+
 
 BASE = [
     "gpgrouper",
@@ -37,7 +39,8 @@ class gpGrouper(Command):
         outdir=None,
         name=None,
         refseq=None,
-        **kwargs
+        workers=1,
+        **kwargs,
     ):
 
         super().__init__(
@@ -46,7 +49,7 @@ class gpGrouper(Command):
             inputfiles=inputfiles,
             name=name,
             refseq=refseq,
-            **kwargs
+            **kwargs,
         )
         # super().__init__(
         #     receiver,
@@ -56,6 +59,7 @@ class gpGrouper(Command):
         #     name=name,
         #     **kwargs,
         # )
+        self.workers = workers
         self.phospho = kwargs.get("phospho", False)
         # self.inputfiles = (inputfiles,)
         self.refseq = refseq
@@ -66,6 +70,17 @@ class gpGrouper(Command):
         # self.record_no = kwargs.get("record_no", "none")
         # self.run_no = kwargs.get("run_no", "none")
         # self.search_no = kwargs.get("search_no", "none")
+
+    def create(self, sampleruncontainers=None, **kws):
+        if sampleruncontainers is None:
+            raise ValueError(f"Must pass an iterable of SampleRunContainers")
+        for ix, samplerun_container in enumerate(sampleruncontainers):
+            kws = self.__dict__.copy()
+            kws["inputfiles"] = samplerun_container
+            kws["name"] = f"{self}-{ix}"
+            kws["receiver"] = kws["_receiver"]
+            # set_trace()
+            yield gpGrouper(**kws)
 
     @property
     def CMD(self):
@@ -78,54 +93,55 @@ class gpGrouper(Command):
         if self.inputfiles is None:  # this is not supposed to happen
             return
 
-        for samplerun_container in self.inputfiles:
-            # import ipdb ipdb.set_trace()
+        samplerun_container = self.inputfiles
+        # for samplerun_container in self.inputfiles:
+        # import ipdb ipdb.set_trace()
 
-            samplerun_container.set_recrunsearch()
-            # psms_file = samplerun_container.psms_filePath
-            psms_file = samplerun_container.psms_file
-            record_no = samplerun_container.record_no
-            run_no = samplerun_container.run_no
-            search_no = samplerun_container.search_no
-            # psms_file = samplerun_container.psms_filePath
+        samplerun_container.set_recrunsearch()
+        # psms_file = samplerun_container.psms_filePath
+        psms_file = samplerun_container.psms_file
+        record_no = samplerun_container.record_no
+        run_no = samplerun_container.run_no
+        search_no = samplerun_container.search_no
+        # psms_file = samplerun_container.psms_filePath
 
-            BASE = [
-                "gpgrouper",
-                "run",
-                #
-                "-p",
-                psms_file,
-                #
-                "-d",
-                self.refseq,
-                #
-                "--ion-score-bins",
-                "16",
-                "18",
-                "20",
-                #
-                "-s",
-                self.paramfile,
-                #
-                "--labeltype",
-                self.labeltype,
-                #
-                "--record-no",
-                record_no,
-                "--run-no",
-                run_no,
-                "--search-no",
-                search_no,
-                "--taxonid",
-                #
-                "9606",
-                #
-                "--workers",
-                8,
-                #
-                "--outdir",
-                str(psms_file.parent),
-            ]
-            if self.phospho:
-                BASE.append("--phospho")
-            return BASE
+        BASE = [
+            "gpgrouper",
+            "run",
+            #
+            "-p",
+            psms_file,
+            #
+            "-d",
+            self.refseq,
+            #
+            "--ion-score-bins",
+            "16",
+            "18",
+            "20",
+            #
+            "-s",
+            self.paramfile,
+            #
+            "--labeltype",
+            self.labeltype,
+            #
+            "--record-no",
+            record_no,
+            "--run-no",
+            run_no,
+            "--search-no",
+            search_no,
+            "--taxonid",
+            #
+            "9606",
+            #
+            "--workers",
+            self.workers,
+            #
+            "--outdir",
+            str(psms_file.parent),
+        ]
+        if self.phospho:
+            BASE.append("--phospho")
+        return BASE

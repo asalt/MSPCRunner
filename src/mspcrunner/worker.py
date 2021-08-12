@@ -56,10 +56,10 @@ class Worker:  # invoker
             raise ValueError(f"{container} must be of type {SampleRunContainer}")
 
     def get_runcontainers(self):
-        return self._runcontainers
+        return [x for x in self._runcontainers.values()]
 
     def get_sampleruncontainers(self):
-        return self._sampleruncontainers
+        return [x for x in self._sampleruncontainers.values()]
 
     def register(self, command_name, command):
         self._commands[command_name] = command
@@ -85,33 +85,51 @@ class Worker:  # invoker
             print(command_name)
             cmd = self._commands[command_name]
 
-            # input files not dynamically found, but should be
-            # self.update_inputfiles(cmd)
+            if isinstance(cmd, tuple()):
+                pass
+            factory = cmd.create(
+                runcontainers=self.get_runcontainers() or None,
+                sampleruncontainers=self.get_sampleruncontainers() or None,
+            )
 
-            # cmd.set_files(the_files)
+            for obj in factory:
 
-            self._history.append((time(), command_name))
+                self._history.append((time(), command_name))
 
-            output = cmd.execute()
-            self._output[command_name] = output
+                # set_trace()
+                output = obj.execute()
+                self._output[command_name] = output
 
-            if output is not None and isinstance(output, typing.Iterable):
-                for o in output:
-                    if o.n_files == 0:
-                        continue
-                    if isinstance(o, RunContainer):
-                        self.add_runcontainer(o)
-                    elif isinstance(o, SampleRunContainer):
-                        self.add_sampleruncontainer(o)
-                    else:
-                        pass
+                # input files not dynamically found, but should be
+                # self.update_inputfiles(cmd)
 
-            return output
+                # cmd.set_files(the_files)
+
+                if output is not None and isinstance(output, typing.Iterable):
+
+                    for o in output:
+                        if o.n_files == 0:
+                            continue
+                        if isinstance(o, RunContainer):
+                            self.add_runcontainer(o)
+                        elif isinstance(o, SampleRunContainer):
+                            self.add_sampleruncontainer(o)
+                        else:
+                            pass
+
+            # return output  # return nothing/...
+            return  # return nothing/...
 
         else:
             logger.error(f"Command [{command_name}] not recognized")
 
     def get_files(self):
+        """get_files [depreciated]
+
+
+        Returns:
+            [type]: [description]
+        """
         if (
             "experiment_finder" in self._commands
             and "experiment_finder" not in self._output
