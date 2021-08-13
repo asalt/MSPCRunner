@@ -66,28 +66,6 @@ class NewFile(FileSystemEventHandler):
         socket.close()
 
 
-def test():
-    while True:
-
-        msg = socket.recv()
-        print(msg)
-        # socket.send(b"client message to server1")
-        # socket.send(b"client message to server2")
-        f = "/mnt/f/45873_1_6/45873_1_MSPCL_559_TMT16_prof_1ug_F24.raw"
-        # socket.send(b'test')
-
-        # socket.send_json(f, zmq.SNDMORE)
-        logging.info("Sending metadata")
-        socket.send_string(os.path.split(f)[-1], zmq.SNDMORE)
-
-        logging.info("reading file")
-        raw = open(f, "rb")
-        logging.info("sending file")
-        socket.send(raw.read())
-
-    time.sleep(1)
-
-
 def watch(path=".", IP=IP, PORT=PORT, ext=None):
 
     logging.basicConfig(
