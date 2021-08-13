@@ -5,6 +5,8 @@ import mspcrunner
 from mspcrunner.containers import RunContainer
 from mspcrunner.file_finder import FileFinder
 
+# logging.setLevel
+logging.basicConfig(filename=f"{__name__}.log", level=logging.DEBUG)
 
 PATH = "path"
 
@@ -46,6 +48,9 @@ from mspcrunner.containers import RunContainer
 # contents of test_image.py
 @pytest.mark.parametrize("exts,num_found", TEST_CASES)
 def test_find_some_file(tmp_path_factory, exts, num_found):
+    """
+    test if filefinder will return RunContainers with proper number of files identified.
+    """
     logging.debug(f"{tmp_path_factory}, {exts}, {num_found}")
     path = tmp_path_factory.mktemp("tmp")
     for ext in exts:
@@ -54,14 +59,18 @@ def test_find_some_file(tmp_path_factory, exts, num_found):
 
     filefinder = FileFinder()
     results = filefinder.run(path=path, container_obj=RunContainer)  # ->dict
-    assert len(results) == 1  # should return a dict
+    assert len(results) == 1  # should return a ~~dict~~ a list
+    logging.warning(f"{results}")
+    logging.warning(f"{results[0].__dict__}")
+    logging.warning(f"{len(results[0]._file_mappings)}")
 
-    r1 = results[filefinder.NAME]
-    should_be_run_container = r1[str(RunContainer)][0]
+    # r1 = results[filefinder.NAME]
+    should_be_run_container = results[0]
     assert isinstance(should_be_run_container, RunContainer)
 
     # runcontainer = results[0]
-    assert len(should_be_run_container._files) == num_found
+    nunique = len(set(should_be_run_container._file_mappings.values()))
+    assert nunique == num_found
 
     # img = load_image(image_file)
     # compute and test histogram
