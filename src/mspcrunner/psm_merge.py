@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 from mokapot import read_pin
 from typing import Any, Dict, Iterable, List, Mapping, Tuple
-from .commands import RunContainer
+from .commands import RunContainer, Receiver
 
 # from .containers import SampleRun
 
@@ -215,7 +215,7 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
 MASS_SHIFTS = "229\.1629|286\.184"
 
 # could consider incorporating in containers.SampleRunContainer
-class PSM_Merger:
+class PSM_Merger(Receiver):
 
     NAME = "PSM-Merger"
     """
@@ -237,6 +237,15 @@ class PSM_Merger:
         percpsm_f = runcontainer.get_file("mokapot-psms")
         sic_f = runcontainer.get_file("SICs")
         ri_f = runcontainer.get_file("ReporterIons")
+
+        logger.info(
+            f"""
+            search: {search_res}
+            percolator: {percpsm_f}
+            SIC: {sic_f}
+            ReporterIons: {ri_f}
+            """
+        )
 
         if search_res is None:
             logger.info(f"No search result file for {runcontainer.stem}")
