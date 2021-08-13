@@ -1,4 +1,3 @@
-from os import initgroups
 from pathlib import Path
 import pandas as pd
 
@@ -11,7 +10,6 @@ logger = get_logger(__name__)
 from dataclasses import dataclass
 import typing
 from typing import List, Collection, Dict
-import attr
 
 from abc import ABC, ABCMeta, abstractmethod
 
@@ -417,9 +415,6 @@ class SampleRunContainer(AbstractContainer):
             logger.info(f"{outpath} already exists, not writing")
             return
 
-        import ipdb
-
-        ipdb.set_trace()
         df = pd.concat(pd.read_table(f) for f in self.mspcfiles)
         df.to_csv(outpath, sep="\t", index=False)
         logger.info(f"Wrote {outpath}")

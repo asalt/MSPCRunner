@@ -56,7 +56,8 @@ class gpGrouper(Command):
         #     name=name,
         #     **kwargs,
         # )
-        self.phospho = kwargs.get("phospho", "False")
+        self.phospho = kwargs.get("phospho", False)
+
         # self.inputfiles = (inputfiles,)
         self.refseq = refseq
         self.labeltype = kwargs.get("labeltype", "none")
