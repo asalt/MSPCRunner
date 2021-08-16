@@ -2,7 +2,12 @@ import time
 import os
 import logging
 from pathlib import Path
-import zmq
+
+try:
+    import zmq
+except ImportError:
+    pass
+
 import random
 import sys
 import time
@@ -18,7 +23,6 @@ PORT = "5556"
 # #socket.connect("tcp://localhost:%s" % port)
 # socket.connect(f"tcp://{IP}:{PORT}")
 # ==================================
-
 
 # watchdog newfile send
 class NewFile(FileSystemEventHandler):
@@ -52,7 +56,6 @@ class NewFile(FileSystemEventHandler):
         # or not
         # msg = socket.recv()
         # logging.info(msg)
-
         # print(msg)
 
         file = Path(event.src_path)
