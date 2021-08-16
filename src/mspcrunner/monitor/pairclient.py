@@ -19,6 +19,7 @@ try:
     from watchdog.events import LoggingEventHandler, FileSystemEventHandler
 except ImportError:
     _WATCHDOG = False
+    FileSystemEventHandler = object
 
 # ZMQ setup
 IP = "10.16.1.24"
