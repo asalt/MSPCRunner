@@ -3,16 +3,22 @@ import os
 import logging
 from pathlib import Path
 
+_ZMQ = True
 try:
     import zmq
 except ImportError:
-    pass
+    _ZMQ = False
 
 import random
 import sys
 import time
-from watchdog.observers import Observer
-from watchdog.events import LoggingEventHandler, FileSystemEventHandler
+
+_WATCHDOG = True
+try:
+    from watchdog.observers import Observer
+    from watchdog.events import LoggingEventHandler, FileSystemEventHandler
+except ImportError:
+    _WATCHDOG = False
 
 # ZMQ setup
 IP = "10.16.1.24"
