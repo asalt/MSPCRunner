@@ -13,6 +13,8 @@ from collections import OrderedDict, defaultdict
 from pathlib import Path
 from time import time
 from typing import Any, Dict, Iterable, List, Mapping, Tuple, Collection
+
+import ipdb
 from .worker import Worker
 from .file_finder import FileFinder
 from .containers import RunContainer, SampleRunContainer
@@ -576,6 +578,9 @@ class MSPC_Rename:  # receiver
     def run(self, runcontainer=None, **kws):
 
         logger.info(f"starting {self}")
+        if runcontainer is None:
+            logger.info(f"{self}: no run container")
+            return
 
         mspcfile = runcontainer.get_file("MSPCRunner")
         if mspcfile is None:
@@ -654,21 +659,21 @@ class FileRealtor:  # receiver
 
     def run(
         self,
-        inputfiles: Collection[RunContainer] = tuple(),
+        runcontainers: Collection[RunContainer] = tuple(),
         outdir: Path = None,
         **kwargs,
     ) -> Dict[Path, List[Path]]:
         """
         :inputfiles: Path objects of files to
         """
-        if inputfiles is None:
+        if runcontainers is None:
             raise ValueError("no input")
         results = defaultdict(list)
 
         # print(inputfiles[[x for x in inputfiles.keys()][0]])
         for (
             run_container
-        ) in inputfiles:  # id may be equivalent to stem, but doesn't have to be
+        ) in runcontainers:  # id may be equivalent to stem, but doesn't have to be
             recno, runno, searchno = parse_rawname(run_container.stem)
             if recno is None:
                 logger.info(f"Could not find recno for {run_container.stem}, skipping")
@@ -702,7 +707,7 @@ class FileRealtor:  # receiver
             run_container.relocate(new_home)
 
             results[new_home].append(run_container)
-        return inputfiles
+        return runcontainers
 
 
 class PythonCommand(Command):
@@ -719,6 +724,7 @@ class PythonCommand(Command):
 
         # set_trace()
         # if self._receiver.
+
         if runcontainers is None and sampleruncontainers is None:
             yield self
         else:
@@ -742,7 +748,7 @@ class PythonCommand(Command):
                 if inputfiles is not None:
                     pass
 
-            yield PythonCommand(**d, inputfiles=containers)
+            yield PythonCommand(**d, containers=containers)
 
     @property
     def CMD(self):

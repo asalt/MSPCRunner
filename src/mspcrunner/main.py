@@ -532,21 +532,30 @@ def mspc_rename():
     worker = ctx.obj["worker"]
 
     psms_collector = make_psms_collect_object(
-        container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
+        container_cls=RunContainer, name="experiment_finder", path=worker.path
     )
-    worker.register(f"collect-psms", psms_collector)
+    worker.register(f"collect-psms-for-rename", psms_collector)
 
-    for (ix, run_container) in enumerate(
-        worker._output.get("experiment_finder", tuple())
-    ):
+    ix = 0
+    file_cleaner = PythonCommand(
+        MSPC_Rename(),
+        # runcontainer=run_container,
+        # psm_merger,
+        name=f"renamer_{ix}",
+    )
+    worker.register(f"renamer_{ix}", file_cleaner)
 
-        file_cleaner = PythonCommand(
-            MSPC_Rename(),
-            runcontainer=run_container,
-            # psm_merger,
-            name=f"renamer_{ix}",
-        )
-        worker.register(f"renamer_{ix}", file_cleaner)
+    # for (ix, run_container) in enumerate(
+    #     worker._output.get("experiment_finder", tuple())
+    # ):
+
+    #     file_cleaner = PythonCommand(
+    #         MSPC_Rename(),
+    #         runcontainer=run_container,
+    #         # psm_merger,
+    #         name=f"renamer_{ix}",
+    #     )
+    #     worker.register(f"renamer_{ix}", file_cleaner)
 
 
 @run_app.command()
