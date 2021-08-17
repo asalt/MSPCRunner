@@ -2,12 +2,24 @@ import time
 import os
 import logging
 from pathlib import Path
-import zmq
+
+_ZMQ = True
+try:
+    import zmq
+except ImportError:
+    _ZMQ = False
+
 import random
 import sys
 import time
-from watchdog.observers import Observer
-from watchdog.events import LoggingEventHandler, FileSystemEventHandler
+
+_WATCHDOG = True
+try:
+    from watchdog.observers import Observer
+    from watchdog.events import LoggingEventHandler, FileSystemEventHandler
+except ImportError:
+    _WATCHDOG = False
+    FileSystemEventHandler = object
 
 # ZMQ setup
 IP = "10.16.1.24"
@@ -18,7 +30,6 @@ PORT = "5556"
 # #socket.connect("tcp://localhost:%s" % port)
 # socket.connect(f"tcp://{IP}:{PORT}")
 # ==================================
-
 
 # watchdog newfile send
 class NewFile(FileSystemEventHandler):
@@ -52,7 +63,6 @@ class NewFile(FileSystemEventHandler):
         # or not
         # msg = socket.recv()
         # logging.info(msg)
-
         # print(msg)
 
         file = Path(event.src_path)
@@ -64,28 +74,6 @@ class NewFile(FileSystemEventHandler):
         print("done sending")
 
         socket.close()
-
-
-def test():
-    while True:
-
-        msg = socket.recv()
-        print(msg)
-        # socket.send(b"client message to server1")
-        # socket.send(b"client message to server2")
-        f = "/mnt/f/45873_1_6/45873_1_MSPCL_559_TMT16_prof_1ug_F24.raw"
-        # socket.send(b'test')
-
-        # socket.send_json(f, zmq.SNDMORE)
-        logging.info("Sending metadata")
-        socket.send_string(os.path.split(f)[-1], zmq.SNDMORE)
-
-        logging.info("reading file")
-        raw = open(f, "rb")
-        logging.info("sending file")
-        socket.send(raw.read())
-
-    time.sleep(1)
 
 
 def watch(path=".", IP=IP, PORT=PORT, ext=None):

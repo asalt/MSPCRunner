@@ -1,6 +1,10 @@
 import os
 import logging
-import zmq
+
+try:
+    import zmq
+except ImportError:
+    pass
 import random
 import sys
 import time

@@ -13,7 +13,6 @@ logger = get_logger(__name__)
 from dataclasses import dataclass
 import typing
 from typing import List, Collection, Dict
-import attr
 
 from abc import ABC, ABCMeta, abstractmethod
 

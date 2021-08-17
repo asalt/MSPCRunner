@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 from . import pairserver, pairclient
+from .qc import watch as mspcrunner_watch
 
 app = typer.Typer(name="monitor", result_callback=None)
 
@@ -34,5 +35,4 @@ def qc(path: Path = "."):
     """
     monitor `path` for new QC files and process them
     """
-    ...
-    
+    mspcrunner_watch()
