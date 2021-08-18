@@ -31,6 +31,52 @@ class MASIC(Command):
 
     NAME = "MASIC"
 
+    def __init__(self, receiver, inputfiles, paramfile, outdir, name, **kwargs):
+        super().__init__(
+            receiver,
+            inputfiles=inputfiles,
+            paramfile=paramfile,
+            outdir=outdir,
+            name=name,
+            **kwargs,
+        )
+        self.paramfile = paramfile
+        self._params = None
+        self.param_out = None
+
+        param_out = f"{paramfile.name}"
+        self.save_params(param_out)
+
+    @property
+    def params(self):
+        if self._params is None:
+            import xml.etree.ElementTree as ET
+
+            tree = ET.parse(self.paramfile)
+            self._params = tree
+        return self._params
+
+    def set_attr(self, section_name, item_key, item_value):
+        """
+        <section name="MasicExportOptions">
+            <item key="ReporterIonMassMode", value="0">
+        <section name="SICOptions">
+            <item key=x>
+        """
+        self.params
+        root = self.params.getroot()
+        for section in root.find("section"):
+            _name = section.attrib.get("name")
+            if _name != section_name:
+                continue
+            for item in section.find("item"):
+                if not item.attrib.get("key") == item_key:
+                    continue
+                item.set(item_key, item_value)
+
+    def save_params(self, param_out):
+        self.params.write(param_out)
+
     @property
     def CMD(self):
         # TODO check os
