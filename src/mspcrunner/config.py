@@ -1,8 +1,16 @@
 from configparser import ConfigParser
 from genericpath import exists
 from pathlib import Path
+from _pytest.config import directory_arg
 import click
+
+# from mspcrunner import logger
+from typing import Container, Optional, List, Tuple
 import typer
+
+from .commands import get_logger
+
+logger = get_logger(__name__)
 
 APPDIR = Path(typer.get_app_dir("mspcrunner"))
 APPCONF = APPDIR / "mspcrunner.conf"
@@ -111,7 +119,10 @@ def write_config(conf: ConfigParser = None, APPCONF=APPCONF) -> None:
 
 
 @config_app.command("set-ref")
-def set_ref(name: str, file: Path = typer.Argument(".", exists=True, file_okay=True)):
+def set_ref(
+    name: str,
+    file: Path = typer.Argument(".", exists=True, file_okay=True, dir_okay=False),
+):
     """
     Set reference fasta database [dir] to attribute [name]
     """
@@ -122,7 +133,13 @@ def set_ref(name: str, file: Path = typer.Argument(".", exists=True, file_okay=T
 
 @config_app.command("set-search")
 def set_search(
-    name: str, file: Path = typer.Argument(".", exists=True, file_okay=True)
+    name: str,
+    file: Path = typer.Argument(
+        ".",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+    ),
 ):
     """
     Set reference fasta database [dir] to attribute [name]
@@ -135,7 +152,15 @@ def set_search(
 
 
 @config_app.command("set-quant")
-def set_quant(name: str, file: Path = typer.Argument(".", exists=True, file_okay=True)):
+def set_quant(
+    name: str,
+    file: Path = typer.Argument(
+        ".",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+    ),
+):
     """
     Set reference fasta database [dir] to attribute [name]
     """
@@ -188,6 +213,52 @@ def show():
             typer.echo(f"{k}:\t{v}")
             # typer.echo(k,v)
         typer.echo("-" * 40)
+
+
+def validate_entry(file: Path, category: str, remove_missing=False):
+    """
+    validate file
+    :type: one of `ext` `refdb` `search-params` `quant-params` (can be expanded)
+    """
+    if not file.exists():
+        logger.warn(f"{file} does not exist")
+        return -1
+        # if remove_missing:
+        #     file.rem
+
+    if category == "ext":
+        logger.info(f"{file} {category}")
+    if category == "refdb":
+        logger.info(f"{file} {category}")
+    if category == "search-params":
+        logger.info(f"{file} {category}")
+    if category == "quant-params":
+        logger.info(f"{file} {category}")
+    return 0
+
+
+def two():
+    pass
+
+
+@config_app.command("check")
+def check(
+    remove: Optional[bool] = typer.Option(False),
+):
+    """
+    check if current config specification is valid
+    """
+    conf = get_conf()
+    for key in conf.sections():
+        for name, value in conf[key].items():
+            fileobj = Path(value)
+            ret_code = validate_entry(fileobj, category=key, remove_missing=remove)
+            if ret_code == 0:
+                continue
+            if ret_code != 0 and remove:
+                conf[key].popitem(value)
+    write_config()
+    # typer.echo(f"{k}:\t{v}")
 
 
 def get_msfragger_exe():
