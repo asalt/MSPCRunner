@@ -516,27 +516,31 @@ class PrepareForiSPEC:
     NAME = ""
 
     # def run(self, *args, e2g_qual, e2g_quant, **kwargs):
-    def run(self, *args, inputfiles: List[SampleRunContainer] = None, **kwargs):
+    def run(self, *args, containers: List[SampleRunContainer] = None, **kwargs):
+
+        import ipdb
+
+        ipdb.set_trace()
 
         force = False
         if "force" in kwargs:
             force = kwargs["force"]
 
-        if inputfiles is None:
+        if containers is None:
             logger.error(f"no sampleruncontainers passed")
             # this is bad
             return
-        inputfiles = [
+        containers = [
             container
-            for container in inputfiles
+            for container in containers
             if isinstance(container, SampleRunContainer)
         ]
-        if len(inputfiles) == 0:
+        if len(containers) == 0:
             logger.error(f"no sampleruncontainers passed")
             # this is bad
             return
 
-        for container in inputfiles:
+        for container in containers:
             if not isinstance(container, SampleRunContainer):
                 continue  # wrong container
 
@@ -557,6 +561,7 @@ class PrepareForiSPEC:
             return  # already done
 
         df_ql = pd.read_table(e2g_qual)
+
         df_ql = df_ql[[x for x in df_ql if x != "LabelFLAG"]]
         df_qt = pd.read_table(e2g_quant)
         df = pd.merge(

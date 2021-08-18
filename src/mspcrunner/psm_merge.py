@@ -277,7 +277,7 @@ class PSM_Merger(Receiver):
         )
         # fix specid
 
-        regx = "(.*[f|F]?\\d)(?=\\.\\d+\\.\\d+\\.\\d+)"
+        regx = r"(.*)(?=\.\d+\.\d+\.\d+_\d+)"
         df["SpectrumFile"] = extract_file_from_scan_header(df["SpecId"])
 
         # outname = f"{basename}_percolator_MASIC.txt"
