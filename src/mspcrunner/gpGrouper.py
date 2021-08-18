@@ -11,6 +11,10 @@ from .commands import Command, Receiver
 from .utils import find_rec_run
 from .predefined_params import Predefined_gpG
 
+from .logger import get_logger
+
+logger = get_logger(__name__)
+
 
 BASE = [
     "gpgrouper",
@@ -73,6 +77,7 @@ class gpGrouper(Command):
 
     def create(self, sampleruncontainers=None, **kws):
         if sampleruncontainers is None:
+            logger.error(f"!!")
             raise ValueError(f"Must pass an iterable of SampleRunContainers")
         for ix, samplerun_container in enumerate(sampleruncontainers):
             kws = self.__dict__.copy()

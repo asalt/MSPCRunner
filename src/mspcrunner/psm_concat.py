@@ -34,7 +34,7 @@ class PSM_Concat:
 
     def run(
         self,
-        inputfiles: List[RunContainer] = None,
+        containers: List[RunContainer] = None,
         outdir: Path = None,
         force=False,
         **kwargs,
@@ -43,7 +43,7 @@ class PSM_Concat:
         We can use this procedure to create SampleRunContainers
         """
 
-        if inputfiles is None:
+        if containers is None:
             logger.error(f"no runcontainers passed")
             # this is bad
             return
@@ -52,7 +52,7 @@ class PSM_Concat:
         logger.debug(f"{self}")
         filegroups = defaultdict(list)
         # for f in sorted(files):
-        for container in inputfiles:
+        for container in containers:
             if not isinstance(container, RunContainer):
                 continue  # wrong container
             mspcfile = container.get_file("MSPCRunner")

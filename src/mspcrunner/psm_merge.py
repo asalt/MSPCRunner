@@ -42,6 +42,12 @@ MSFRAGGER_TSV_COLUMNS = (
     "alternative_proteins",
 )
 
+REGX = "(.*[f|F]?\\d)(?=\\.\\d+\\.\\d+\\.\\d+)"
+
+
+def extract_file_from_scan_header(s: pd.Series):
+    return s.str.extract(REGX)
+
 
 def get_scanno(s):
     return s.split(".")[-2]
@@ -257,6 +263,23 @@ class PSM_Merger(Receiver):
         df = concat(
             search_result_f=search_res, sic_f=sic_f, percpsm_f=percpsm_f, ri_f=ri_f
         )
+        df = df.rename(
+            columns={
+                "scannum": "First Scan",
+                "parent_charge": "Charge",
+                "mokapot q-value": "q_value",
+                "hyperscore": "Hyperscore",
+                "deltaRank1Rank2Score": "DeltaScore",
+                "Calibrated Observed M/Z": "mzDa",
+                "tot_num_ions": "TotalIons",
+                "hit_rank": "Rank",
+            }
+        )
+        # fix specid
+
+        regx = r"(.*)(?=\.\d+\.\d+\.\d+_\d+)"
+        df["SpectrumFile"] = extract_file_from_scan_header(df["SpecId"])
+
         # outname = f"{basename}_percolator_MASIC.txt"
         outname = os.path.join(
             runcontainer.rootdir,
