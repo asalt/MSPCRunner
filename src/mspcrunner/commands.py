@@ -511,25 +511,22 @@ def extract_file_from_scan_header(s: pd.Series):
     return s.str.extract(REGX)
 
 
-class PrepareForiSPEC:
+class PrepareForiSPEC: # receiver
 
     NAME = ""
 
     # def run(self, *args, e2g_qual, e2g_quant, **kwargs):
     def run(self, *args, containers: List[SampleRunContainer] = None, **kwargs):
 
-        import ipdb
-
-        ipdb.set_trace()
-
         force = False
         if "force" in kwargs:
-            force = kwargs["force"]
+            force = kwargs.pop("force")
 
         if containers is None:
             logger.error(f"no sampleruncontainers passed")
             # this is bad
             return
+        # filter for correct container type
         containers = [
             container
             for container in containers
@@ -551,25 +548,31 @@ class PrepareForiSPEC:
                 logger.debug(f"missing e2g file for {container}")
                 continue
 
-        # e2g_qual = runcontainer.get_file("e2g_QUAL")
-        # e2g_quant = runcontainer.get_file("e2g_QUANT")
+            # e2g_qual = runcontainer.get_file("e2g_QUAL")
+            # e2g_quant = runcontainer.get_file("e2g_QUANT")
 
-        # TODO be smart, don't just count 9 characters
-        outf = e2g_qual.parent / Path(f"{e2g_qual.name[:9]}_e2g_iSPEC_import.tsv")
-        if outf.exists() and not force:
-            logger.info(f"{outf} already exists")
-            return  # already done
+            # TODO be smart, don't just count 9 characters
+            # the proper name is rec_run_search_label_e2g.tab
+            # we do not have ready access to label - we will just put none (LF) for now
+            outf = e2g_qual.parent / Path(f"{e2g_qual.name[:9]}_none_e2g.tab")
+            if outf.exists() and not force:
+                logger.info(f"{outf} already exists")
+                continue # already done
+                # return 
 
-        df_ql = pd.read_table(e2g_qual)
+            df_ql = pd.read_table(e2g_qual)
 
-        df_ql = df_ql[[x for x in df_ql if x != "LabelFLAG"]]
-        df_qt = pd.read_table(e2g_quant)
-        df = pd.merge(
-            df_qt, df_ql, on=["EXPRecNo", "EXPRunNo", "EXPSearchNo", "GeneID", "SRA"]
-        )
-        df = df.rename(columns={x: f"e2g_{x}" for x in df.columns})
-        logger.info(f"Writing {outf}")
-        df.to_csv(outf, index=False, sep="\t")
+            df_ql = df_ql[[x for x in df_ql if x != "LabelFLAG"]]
+            df_qt = pd.read_table(e2g_quant)
+            df = pd.merge(
+                df_qt, df_ql, on=["EXPRecNo", "EXPRunNo", "EXPSearchNo", "GeneID", "SRA"]
+            )
+            _d = {x: f"e2g_{x}" for x in df.columns}
+            _d['e2g_LabelFLAG'] = 'e2g_EXPLabelFLAG'
+            df = df.rename(columns=_d)
+
+            logger.info(f"Writing {outf}")
+            df.to_csv(outf, index=False, sep="\t")
 
 
 class MSPC_Rename:  # receiver
