@@ -665,6 +665,10 @@ def gpgroup(
     labeltype: Optional[str] = typer.Option(None),
     refseq: Predefined_RefSeq = typer.Option(None),
     phospho: Optional[bool] = typer.Option(False),
+    no_taxa_redistrib: bool = typer.Option(
+        False, "--no-taxa-redistrib", help=""
+    ),
+
 ):
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
@@ -698,6 +702,7 @@ def gpgroup(
         paramfile=Predefined_gpG.default,
         labeltype=labeltype,
         phospho=phospho,
+        no_taxa_redistrib=no_taxa_redistrib,
     )
 
     worker.register(f"gpgrouper-{ix}", gpgrouper)

@@ -65,6 +65,7 @@ class gpGrouper(Command):
         # )
         self.workers = workers
         self.phospho = kwargs.get("phospho", False)
+        self.no_taxa_redistrib = kwargs.get("no_taxa_redistrib", False)
         # self.inputfiles = (inputfiles,)
         self.refseq = refseq
         self.labeltype = kwargs.get("labeltype", "none")
@@ -149,4 +150,6 @@ class gpGrouper(Command):
         ]
         if self.phospho:
             BASE.append("--phospho")
+        if self.no_taxa_redistrib:
+            BASE.append("--no-taxa-redistrib")
         return BASE
