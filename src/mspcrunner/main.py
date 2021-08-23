@@ -559,7 +559,12 @@ def mspc_rename():
 
 
 @run_app.command()
-def prepare_ispec_import():
+def prepare_ispec_import(
+    label: Optional[str] = typer.Option(
+        default="none",
+    ),
+):
+
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
@@ -574,6 +579,7 @@ def prepare_ispec_import():
         # runcontainer=run_container,
         # psm_merger,
         name=f"ispec-renamer",
+        label=label,
     )
     worker.register(f"ispec-renamer", file_cleaner)
 
@@ -665,10 +671,7 @@ def gpgroup(
     labeltype: Optional[str] = typer.Option(None),
     refseq: Predefined_RefSeq = typer.Option(None),
     phospho: Optional[bool] = typer.Option(False),
-    no_taxa_redistrib: bool = typer.Option(
-        False, "--no-taxa-redistrib", help=""
-    ),
-
+    no_taxa_redistrib: bool = typer.Option(False, "--no-taxa-redistrib", help=""),
 ):
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]

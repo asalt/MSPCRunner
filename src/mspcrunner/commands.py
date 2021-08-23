@@ -516,7 +516,7 @@ class PrepareForiSPEC: # receiver
     NAME = ""
 
     # def run(self, *args, e2g_qual, e2g_quant, **kwargs):
-    def run(self, *args, containers: List[SampleRunContainer] = None, **kwargs):
+    def run(self, *args, containers: List[SampleRunContainer] = None, label='none', **kwargs):
 
         force = False
         if "force" in kwargs:
@@ -554,7 +554,7 @@ class PrepareForiSPEC: # receiver
             # TODO be smart, don't just count 9 characters
             # the proper name is rec_run_search_label_e2g.tab
             # we do not have ready access to label - we will just put none (LF) for now
-            outf = e2g_qual.parent / Path(f"{e2g_qual.name[:9]}_none_e2g.tab")
+            outf = e2g_qual.parent / Path(f"{e2g_qual.name[:9]}_{label}_e2g.tab")
             if outf.exists() and not force:
                 logger.info(f"{outf} already exists")
                 continue # already done
@@ -568,7 +568,7 @@ class PrepareForiSPEC: # receiver
                 df_qt, df_ql, on=["EXPRecNo", "EXPRunNo", "EXPSearchNo", "GeneID", "SRA"]
             )
             _d = {x: f"e2g_{x}" for x in df.columns}
-            _d['e2g_LabelFLAG'] = 'e2g_EXPLabelFLAG'
+            _d['LabelFLAG'] = 'e2g_EXPLabelFLAG'
             df = df.rename(columns=_d)
 
             logger.info(f"Writing {outf}")
