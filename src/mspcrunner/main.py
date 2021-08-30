@@ -1,58 +1,57 @@
-from ipdb import set_trace
-
-from collections import defaultdict
-
-from mspcrunner.gpGrouper import gpGrouper
-from .containers import AbstractContainer, RunContainer, SampleRunContainer
-from .utils import confirm_param_or_exit, find_rec_run
-from .predefined_params import (
-    Predefined_Search,
-    Predefined_Quant,
-    Predefined_RefSeq,
-    Predefined_gpG,
-    PREDEFINED_SEARCH_PARAMS,
-    PREDEFINED_REFSEQ_PARAMS,
-    PREDEFINED_QUANT_PARAMS,
-)
-from .commands import get_logger
-from .commands import (
-    PrepareForiSPEC,
-    MSPC_Rename,
-    AddPhosBoolean,
-    CMDRunner,
-    FileFinder,
-    MokaPotRunner,
-    RawObj,
-    Command,
-    Worker,
-    RawObj,
-    PythonCommand,
-    FileMover,
-    FileRealtor,
-    MokaPotConsole,
-)
-from .commands import make_psms_collect_object
-from .MASIC import MASIC
-from .MSFragger import MSFragger
-from .psm_merge import PSM_Merger
-from .psm_concat import PSM_Concat
+import ctypes
 import logging
-import sys
 import os
 import re
-from enum import Enum
-from pathlib import Path
-from glob import iglob, glob
-from time import time
-import subprocess
 import shutil
-import ctypes
-from typing import Container, Optional, List, Tuple
+import subprocess
+import sys
+from collections import defaultdict
+from enum import Enum
+from glob import glob, iglob
+from pathlib import Path
+from time import time
+from typing import Container, List, Optional, Tuple
 
 import click
 import typer
+from ipdb import set_trace
 
+from mspcrunner.gpGrouper import gpGrouper
+
+from .commands import (
+    AddPhosBoolean,
+    CMDRunner,
+    Command,
+    FileFinder,
+    FileMover,
+    FileRealtor,
+    MokaPotConsole,
+    MokaPotRunner,
+    MSPC_Rename,
+    PrepareForiSPEC,
+    PythonCommand,
+    RawObj,
+    Rmd,
+    Worker,
+    get_logger,
+    make_psms_collect_object,
+)
 from .config import config_app
+from .containers import AbstractContainer, RunContainer, SampleRunContainer
+from .MASIC import MASIC
+from .MSFragger import MSFragger
+from .predefined_params import (
+    PREDEFINED_QUANT_PARAMS,
+    PREDEFINED_REFSEQ_PARAMS,
+    PREDEFINED_SEARCH_PARAMS,
+    Predefined_gpG,
+    Predefined_Quant,
+    Predefined_RefSeq,
+    Predefined_Search,
+)
+from .psm_concat import PSM_Concat
+from .psm_merge import PSM_Merger
+from .utils import confirm_param_or_exit, find_rec_run
 
 app = typer.Typer()
 run_app = typer.Typer(chain=True)
@@ -382,7 +381,7 @@ def search(
     # input files not dynamically found, but should be
 
     msfragger = MSFragger(
-        cmd_runner,
+        receiver=cmd_runner,
         # inputfiles=worker._output.get("experiment_finder"),
         inputfiles=inputfiles,
         # inputfiles=rawfiles,  # we can set this later
@@ -393,6 +392,39 @@ def search(
         name="msfragger-cmd",
     )
     worker.register("msfragger", msfragger)
+
+
+from enum import Enum
+
+
+class RMD_OUT_FORMAT(Enum):
+    html = "html"
+    pdf = "pdf"
+
+
+@run_app.command()
+def summarize(
+    output_format: RMD_OUT_FORMAT = typer.Option("html", "-o", "--output-format")
+):
+    """ """
+    import pkg_resources
+
+    print(f"Here : {pkg_resources.resource_dir}")
+    ctx = get_current_context()
+    cmd_runner = ctx.obj["cmd_runner"]
+    worker = ctx.obj["worker"]
+
+    psms_collector = make_psms_collect_object(
+        container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
+    )
+    worker.register(f"psms_collector-for-concat", psms_collector)
+
+    rmd = Rmd(
+        receiver=cmd_runner,
+        output_format=output_format,
+        name="Rmd",
+    )
+    worker.register(rmd.name, rmd)
 
 
 @run_app.command()

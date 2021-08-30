@@ -1,13 +1,27 @@
 import os
 from enum import Enum
 from pathlib import Path
-from re import I
-
+import re
+import pkg_resources
 
 from .config import get_conf
 
-BASEDIR = Path(os.path.split(__file__)[0]).resolve()
+PKG_PROVIDER = pkg_resources.get_provider("mspcrunner")
+BASEDIR = Path(PKG_PROVIDER.module_path).parent.parent
+
+# BASEDIR = Path(os.path.split(__file__)[0]).resolve()
+# BASEDIR = pkg_resources.resource_filename
+
+
+def get_dir(s: str) -> Path:
+    out = (Path(os.path.split(__file__)[0]).parent.parent / s).resolve()
+    return out
+
+
 PARAMDIR = (Path(os.path.split(__file__)[0]).parent.parent / "params").resolve()
+
+PARAMDIR = get_dir("params")
+RMDIR = get_dir("templates")
 
 conf = get_conf()
 
@@ -99,3 +113,14 @@ Predefined_Quant = Predefined_Quant(
 
 class Predefined_gpG(str, Enum):
     default = PARAMDIR / "gpgrouper.conf"
+
+
+class RMD_OUT_FORMAT(Enum):
+    html = "html"
+    pdf = "pdf"
+
+
+class RMD_TEMPLATES(Enum):
+    TMT = PARAMDIR / "xx"
+    html = "html"
+    pdf = "pdf"
