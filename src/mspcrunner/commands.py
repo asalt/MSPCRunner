@@ -212,7 +212,8 @@ def merge_pipes(**named_pipes):
 
 
 class Receiver:
-    input_required = None
+    pass
+    # input_required = None
 
 
 class CMDRunner(Receiver):  # receiver
@@ -400,7 +401,7 @@ class Command:
 
     def __init__(
         self,
-        receiver,
+        receiver: Receiver,
         inputfiles=None,
         paramfile=None,
         outdir=None,
@@ -504,19 +505,24 @@ class FileMover:  # receiver
         return newfiles
 
 
-REGX = "(.*[f|F]?\\d)(?=\\.\\d+\\.\\d+\\.\\d+)"
+# this was fixed previously?
+# REGX = "(.*[f|F]?\\d)(?=\\.\\d+\\.\\d+\\.\\d+)"
+REGX = "(.*\\d)(?=\\.\\d+\\.\\d+\\.\\d+)"
+# this doesn't work if there is a fraction named fA ??
 
 
 def extract_file_from_scan_header(s: pd.Series):
     return s.str.extract(REGX)
 
 
-class PrepareForiSPEC: # receiver
+class PrepareForiSPEC:  # receiver
 
     NAME = ""
 
     # def run(self, *args, e2g_qual, e2g_quant, **kwargs):
-    def run(self, *args, containers: List[SampleRunContainer] = None, label='none', **kwargs):
+    def run(
+        self, *args, containers: List[SampleRunContainer] = None, label="none", **kwargs
+    ):
 
         force = False
         if "force" in kwargs:
@@ -557,25 +563,27 @@ class PrepareForiSPEC: # receiver
             outf = e2g_qual.parent / Path(f"{e2g_qual.name[:9]}_{label}_e2g.tab")
             if outf.exists() and not force:
                 logger.info(f"{outf} already exists")
-                continue # already done
-                # return 
+                continue  # already done
+                # return
 
             df_ql = pd.read_table(e2g_qual)
 
             df_ql = df_ql[[x for x in df_ql if x != "LabelFLAG"]]
             df_qt = pd.read_table(e2g_quant)
             df = pd.merge(
-                df_qt, df_ql, on=["EXPRecNo", "EXPRunNo", "EXPSearchNo", "GeneID", "SRA"]
+                df_qt,
+                df_ql,
+                on=["EXPRecNo", "EXPRunNo", "EXPSearchNo", "GeneID", "SRA"],
             )
             _d = {x: f"e2g_{x}" for x in df.columns}
-            _d['LabelFLAG'] = 'e2g_EXPLabelFLAG'
+            _d["LabelFLAG"] = "e2g_EXPLabelFLAG"
             df = df.rename(columns=_d)
 
             logger.info(f"Writing {outf}")
             df.to_csv(outf, index=False, sep="\t")
 
 
-class MSPC_Rename:  # receiver
+class MSPC_Rename(Receiver):  # receiver
     """
     class to clean up file header and values for grouping on 01
     """

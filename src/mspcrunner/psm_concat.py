@@ -8,6 +8,7 @@ import pandas as pd
 from typing import Collection, List
 
 from .containers import RunContainer, SampleRunContainer
+from .commands import Receiver
 
 from .logger import get_logger
 
@@ -15,7 +16,9 @@ logger = get_logger(__name__)
 
 
 def find_rec_run(target: str):
-    "Try to get record, run, and search numbers with regex of a target string with pattern \d+_\d+_\d+"
+    r"""
+    Try to get record, run, and search numbers with regex of a target string with pattern \d+_\d+_\d+
+    """
 
     _, target = os.path.split(target)  # ensure just searching on filename
     rec_run_search = re.compile(r"^(\d+)_(\d+)_")
@@ -27,7 +30,7 @@ def find_rec_run(target: str):
     return
 
 
-class PSM_Concat:
+class PSM_Concat(Receiver):
     """combine multiple fractions of psm files for a given experiment"""
 
     NAME = "PSM-Concat"
@@ -104,7 +107,7 @@ class PSM_Concat:
             )
 
             sampleruncontainers.append(samplerun)
-            print(group)
+            # print(group)
 
             # # move this?
             # for f in sorted(files):

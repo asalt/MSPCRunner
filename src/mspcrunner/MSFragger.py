@@ -1,14 +1,14 @@
-from collections import OrderedDict
 import os
 import sys
+from collections import OrderedDict
+from configparser import ConfigParser
 from pathlib import Path
 from time import time
-from configparser import ConfigParser
 
 from mspcrunner.containers import RunContainer
 
+from .commands import MSFRAGGER_EXE, Command, Receiver
 from .logger import get_logger
-from .commands import Command, MSFRAGGER_EXE
 
 logger = get_logger(__name__)
 
@@ -42,9 +42,19 @@ class MSFragger(Command):
     NAME = "MSFragger"
 
     def __init__(
-        self, *args, inputfiles=tuple(), ramalloc="50G", refseq=None, **kwargs
+        self,
+        *args,
+        receiver: Receiver,
+        inputfiles=tuple(),
+        ramalloc="50G",
+        refseq=None,
+        **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+
+        if "receiver" in kwargs:
+            receiver = kwargs.pop("receiver")
+
+        super().__init__(*args, receiver=receiver, **kwargs)
         if "paramfile" in kwargs:
             paramfile = kwargs.pop("paramfile")
         self.ramalloc = ramalloc
@@ -113,7 +123,6 @@ class MSFragger(Command):
         # spectra_files = "<not set>"
         spectra_files = list()
         MSFRAGGER_EXE = get_exe()
-        import ipdb
 
         # inputfile = self.inputfiles[0].get_file("spectra")
 
