@@ -516,11 +516,7 @@ class PrepareForiSPEC: # receiver
     NAME = ""
 
     # def run(self, *args, e2g_qual, e2g_quant, **kwargs):
-    def run(self, *args, containers: List[SampleRunContainer] = None, label='none', **kwargs):
-
-        force = False
-        if "force" in kwargs:
-            force = kwargs.pop("force")
+    def run(self, *args, containers: List[SampleRunContainer] = None, label='none', force=False,**kwargs):
 
         if containers is None:
             logger.error(f"no sampleruncontainers passed")
@@ -568,6 +564,7 @@ class PrepareForiSPEC: # receiver
                 df_qt, df_ql, on=["EXPRecNo", "EXPRunNo", "EXPSearchNo", "GeneID", "SRA"]
             )
             _d = {x: f"e2g_{x}" for x in df.columns}
+            # rename to the correct iSPEC name
             _d['LabelFLAG'] = 'e2g_EXPLabelFLAG'
             df = df.rename(columns=_d)
 

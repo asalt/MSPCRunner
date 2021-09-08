@@ -563,6 +563,7 @@ def prepare_ispec_import(
     label: Optional[str] = typer.Option(
         default="none",
     ),
+    force: Optional[bool] = typer.Option(False),
 ):
 
     ctx = get_current_context()
@@ -580,6 +581,7 @@ def prepare_ispec_import(
         # psm_merger,
         name=f"ispec-renamer",
         label=label,
+        force=force,
     )
     worker.register(f"ispec-renamer", file_cleaner)
 
