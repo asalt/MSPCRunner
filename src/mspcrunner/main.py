@@ -18,6 +18,7 @@ from ipdb import set_trace
 
 from mspcrunner.gpGrouper import gpGrouper
 
+
 from .commands import (
     AddPhosBoolean,
     CMDRunner,
@@ -31,7 +32,6 @@ from .commands import (
     PrepareForiSPEC,
     PythonCommand,
     RawObj,
-    Rmd,
     Worker,
     get_logger,
     make_psms_collect_object,
@@ -39,6 +39,7 @@ from .commands import (
 from .config import config_app
 from .containers import AbstractContainer, RunContainer, SampleRunContainer
 from .MASIC import MASIC
+from .Rmd import Rmd
 from .MSFragger import MSFragger
 from .predefined_params import (
     PREDEFINED_QUANT_PARAMS,
@@ -48,6 +49,8 @@ from .predefined_params import (
     Predefined_Quant,
     Predefined_RefSeq,
     Predefined_Search,
+    RMD_OUT_FORMAT,
+    RMD_TEMPLATES,
 )
 from .psm_concat import PSM_Concat
 from .psm_merge import PSM_Merger
@@ -394,20 +397,16 @@ def search(
     worker.register("msfragger", msfragger)
 
 
-from enum import Enum
-
-
-class RMD_OUT_FORMAT(Enum):
-    html = "html"
-    pdf = "pdf"
-
-
 @run_app.command()
-def summarize(
-    output_format: RMD_OUT_FORMAT = typer.Option("html", "-o", "--output-format")
+def make_rmd(
+    template: RMD_TEMPLATES = typer.Option(Path("<#x^x#>"), "-t", "--template"),
+    output_format: RMD_OUT_FORMAT = typer.Option("html", "-o", "--output-format"),
+    # output_format: RMD_OUT_FORMAT = typer.Option(None),
 ):
     """ """
     import pkg_resources
+
+    set_trace()
 
     print(f"Here : {pkg_resources.resource_dir}")
     ctx = get_current_context()

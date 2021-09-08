@@ -21,7 +21,7 @@ def get_dir(s: str) -> Path:
 PARAMDIR = (Path(os.path.split(__file__)[0]).parent.parent / "params").resolve()
 
 PARAMDIR = get_dir("params")
-RMDIR = get_dir("templates")
+TEMPLATEDIR = get_dir("templates")
 
 conf = get_conf()
 
@@ -61,17 +61,18 @@ class Predefined_Search(str, Enum):
     # TMT16_OTOT_QC = "TMT16-OTOT-QC"
 
 
-PREDEFINED_SEARCH_PARAMS = {
-    #'OTIT' : Path('../params/MSfragger_OTIT.conf'),
-    "OTIT-hs": PARAMDIR / Path("MSFragger_OTIT_hs.conf"),
-    "OTOT": PARAMDIR / Path("MSFragger_OTOT.conf"),
-    "TMT6-OTOT": PARAMDIR / Path("MSFragger_TMT6_OTOT.conf"),
-    "TMT6-OTOT-PHOS": PARAMDIR / Path("MSFragger_TMT6_OTOT_PHOS.conf"),
-    "TMT6-OTOT-QC": PARAMDIR / Path("MSFragger_TMT6_OTOT_QC.conf"),
-    "TMT11-OTOT-QC": PARAMDIR / Path("MSFragger_TMT6_OTOT_QC.conf"),
-    "TMT16.OTOT": PARAMDIR / Path("MSFragger_OTOT.conf"),
-    "TMT16-OTOT-QC": PARAMDIR / Path("MSFragger_OTOT.conf"),
-}
+# PREDEFINED_SEARCH_PARAMS = {
+#     #'OTIT' : Path('../params/MSfragger_OTIT.conf'),
+#     "OTIT-hs": PARAMDIR / Path("MSFragger_OTIT_hs.conf"),
+#     "OTOT": PARAMDIR / Path("MSFragger_OTOT.conf"),
+#     "TMT6-OTOT": PARAMDIR / Path("MSFragger_TMT6_OTOT.conf"),
+#     "TMT6-OTOT-PHOS": PARAMDIR / Path("MSFragger_TMT6_OTOT_PHOS.conf"),
+#     "TMT6-OTOT-QC": PARAMDIR / Path("MSFragger_TMT6_OTOT_QC.conf"),
+#     "TMT11-OTOT-QC": PARAMDIR / Path("MSFragger_TMT6_OTOT_QC.conf"),
+#     "TMT16.OTOT": PARAMDIR / Path("MSFragger_OTOT.conf"),
+#     "TMT16-OTOT-QC": PARAMDIR / Path("MSFragger_OTOT.conf"),
+# }
+PREDEFINED_SEARCH_PARAMS = {}
 
 if "search-params" in conf.sections():
     PREDEFINED_SEARCH_PARAMS.update(
@@ -115,12 +116,12 @@ class Predefined_gpG(str, Enum):
     default = PARAMDIR / "gpgrouper.conf"
 
 
-class RMD_OUT_FORMAT(Enum):
-    html = "html"
+class RMD_OUT_FORMAT(str, Enum):
+    html = "zhtml"
     pdf = "pdf"
 
 
-class RMD_TEMPLATES(Enum):
-    TMT = PARAMDIR / "xx"
-    html = "html"
-    pdf = "pdf"
+class RMD_TEMPLATES(str, Enum):
+    SOMEDIR = "Three"
+    ONE = TEMPLATEDIR / "xx"
+    TWO = TEMPLATEDIR / "xy"
