@@ -362,6 +362,7 @@ def search(
     paramfile: Optional[Path] = typer.Option(None),
     refseq: Predefined_RefSeq = typer.Option(None),
     local_refseq: Optional[Path] = typer.Option(None),
+    calibrate_mass: Optional[int] = typer.Option(default=1, min=0, max=2),
     ramalloc: Optional[int] = typer.Option(
         default=10, help="Amount of memory (in GB) for msfragger"
     ),
@@ -394,6 +395,7 @@ def search(
         refseq=refseq,
         name="msfragger-cmd",
     )
+    msfragger.set_param("calibrate_mass", calibrate_mass)
     worker.register("msfragger", msfragger)
 
 

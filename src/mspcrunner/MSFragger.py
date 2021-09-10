@@ -4,6 +4,7 @@ from collections import OrderedDict
 from configparser import ConfigParser
 from pathlib import Path
 from time import time
+import ipdb
 
 from mspcrunner.containers import RunContainer
 
@@ -20,7 +21,7 @@ BASEDIR = os.path.split(__file__)[0]
 # MSFRAGGER_EXE = Path(MSFRAGGER_EXE)
 
 
-from .config import get_msfragger_exe
+from .config import get_msfragger_exe, write_config
 
 _MSFRAGGER_EXE = None
 
@@ -48,6 +49,7 @@ class MSFragger(Command):
         inputfiles=tuple(),
         ramalloc="50G",
         refseq=None,
+        paramfile=None,
         **kwargs,
     ):
 
@@ -55,31 +57,37 @@ class MSFragger(Command):
             receiver = kwargs.pop("receiver")
 
         super().__init__(*args, receiver=receiver, **kwargs)
-        if "paramfile" in kwargs:
-            paramfile = kwargs.pop("paramfile")
         self.ramalloc = ramalloc
-        self._params = None
+        self._config = None
         self.inputfiles = inputfiles
         # self.runcontainers = runcontainers
         self.refseq = refseq
-        self.configfile = None
+        self.paramfile = paramfile
+        self.local_paramfile = None
 
-        config = self.read_config(paramfile)
+        if paramfile is not None:
+            config = self.read_config(paramfile)
+            self._config = config
+            self.local_paramfile = paramfile.name
 
-        if refseq is not None:
-            config["top"]["database_name"] = str(refseq)
+        # we can edit the parameters right here
+        self.set_param("database_name", str(refseq))
+        self.set_param("data_type", "0")
+        # if refseq is not None:
+        #     config["top"]["database_name"] = str(refseq)
 
-        config_out = f"{paramfile.name}"
+    def write_config(self):
+        # should be called `write_config_and_set_self.paramfile_to_local_copy`
+
+        config_out = self.local_paramfile
         with open(config_out, "w") as fh:
             logger.info(f"Writing {config_out}")
-            config.write(fh)
+            self._config.write(fh)
 
             fh.seek(0)
             fh.write("\b" * len("[top]"))
         self.paramfile = Path(config_out)
-
-        # write_config
-        1 + 1
+        return self.paramfile
 
     def read_config(
         self, conf
@@ -108,19 +116,21 @@ class MSFragger(Command):
     #    return self._params.get(param)
 
     def set_param(self, param, value):
-        if param not in self._params:
-            logger.error(f"{param} does not exist")
-        self._params[param] = value
-
-    @staticmethod
-    def quote_if_windows(x):  # not needed
-        if platform.system() == "Windows":
-            return f'"{x}"'
-        return f"{x}"
+        # if param not in self._config:
+        #     logger.error(f"{param} does not exist")
+        if self._config is None:
+            logger.warning(f"No param file set for {self}")
+            return -1
+        self._config["top"][param] = str(value)
+        return 0
 
     @property
     def CMD(self):
         # spectra_files = "<not set>"
+
+        if self.paramfile is not None:
+            self.write_config()
+
         spectra_files = list()
         MSFRAGGER_EXE = get_exe()
 
