@@ -433,12 +433,12 @@ class Command:
                         d.update(kw, kws[kw])
                 yield self(**self.__dict__, inputfiles=container)
 
-    def update_inputfiles(self, *objs):
-        self.inputfiles = list()
+    # def update_inputfiles(self, *objs):
+    #     self.inputfiles = list()
 
-        for obj in objs:
-            if isinstance(obj, (RunContainer, SampleRunContainer)):
-                self.inputfiles.append(obj)
+    #     for obj in objs:
+    #         if isinstance(obj, (RunContainer, SampleRunContainer)):
+    #             self.inputfiles.append(obj)
 
     def __repr__(self):
         return f"{self.NAME} | {self.name}"

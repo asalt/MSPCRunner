@@ -14,23 +14,23 @@ logger = get_logger(__name__)
 class FileFinder:  # receiver
     NAME = "FileFinder Receiver"
 
-    PATTERNS = ["*raw", "*mzML", "*txt", "*pin", "*tsv"]
-    # use these to trim
-    FILE_EXTENSIONS = [
-        ".mokapot.psms",
-        ".mokapot.peptides",
-        "_ReporterIons",
-        "_SICstats",
-        "_ScanStats",
-        "_ScanStatsConstant",
-        "_MSPCRunner_a1",
-    ]
+    # PATTERNS = ["*raw", "*mzML", "*txt", "*pin", "*tsv"]
+    # # use these to trim
+    # FILE_EXTENSIONS = [
+    #     ".mokapot.psms",
+    #     ".mokapot.peptides",
+    #     "_ReporterIons",
+    #     "_SICstats",
+    #     "_ScanStats",
+    #     "_ScanStatsConstant",
+    #     "_MSPCRunner_a1",
+    # ]
 
-    RESULT_FILES = ["psms_all.txt", "e2g_QUAL.tsv", "e2g_QUANT.tsv"]
+    # RESULT_FILES = ["psms_all.txt", "e2g_QUAL.tsv", "e2g_QUANT.tsv"]
 
     def run(
         self,
-        file=None,
+        files=None,
         path: Path = None,
         container_obj: AbstractContainer = None,
         depth=5,
@@ -45,18 +45,19 @@ class FileFinder:  # receiver
 
         # we need the add_file method
 
-        if path is None:
-            path = Path(".")
+        # if path is None:
+        #     path = Path(".")
 
-        RESULT_FILES = self.RESULT_FILES
+        # RESULT_FILES = self.RESULT_FILES
         # res = li()
         # logger.debug(f"file:{file} path:{path}")
         # res = defaultdict(RunContainer)
         res = defaultdict(container_obj)
         observed_files = list()
         # import ipdb; ipdb.set_trace()
-        if file is not None:  # not working yet
-            for f in file:
+
+        if files is not None:  # not working yet
+            for f in files:
                 basename = f.stem
 
                 # if basename.endswith("F1"):
@@ -73,13 +74,14 @@ class FileFinder:  # receiver
             for i in range(depth):
                 globstr = "*/" * i + pat
                 # bug when depth == 1 and file has moved into its new home directory
-                for f in path.glob(globstr):  # TODO fix if path is None
+                for f in path.glob(globstr):  # DONE: ? fix if path is None
                     # if (not f.is_file()) and (not f.is_symlink()):
 
                     # logger.debug(f"pat:{pat}, file:{f}")
                     if f.is_dir():
                         continue
                     if f.name in observed_files:
+                        logger.debug(f"already have a file {f.name} skipping ")
                         continue
 
                     # print(f)
@@ -109,7 +111,7 @@ class FileFinder:  # receiver
                     ):
                         logger.debug(f)
 
-                        1 + 1
+                        # 1 + 1
                         # set_trace()
                     if basename is not None:
                         res[basename].add_file(f)
