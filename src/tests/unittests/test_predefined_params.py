@@ -1,4 +1,5 @@
 from pathlib import Path
+from enum import Enum, EnumMeta
 import logging
 
 import pytest
@@ -36,3 +37,8 @@ def test_get_dir():
     logging.debug(f"{BASEDIR}")
     logging.debug(f"{res} -- {expected_result}")
     assert expected_result == res
+
+
+def test_creator():
+    ret = predefined_params.param_obj_creator("hello", dict())
+    assert isinstance(ret, EnumMeta)

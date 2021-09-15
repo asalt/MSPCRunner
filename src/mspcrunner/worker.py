@@ -80,17 +80,26 @@ class Worker:  # invoker
         if command_name in self._commands.keys():
 
             # the_command = self._commands[command_name]
-            # the_command.set_files(the_files)
+            # # the_command.set_files(the_files)
 
             print(command_name)
             cmd = self._commands[command_name]
 
             if isinstance(cmd, tuple()):
                 pass
+            # if command_name.startswith("build"):
+
             factory = cmd.create(
                 runcontainers=self.get_runcontainers() or None,
                 sampleruncontainers=self.get_sampleruncontainers() or None,
             )
+            if (
+                command_name.startswith("concat")
+                or command_name == "psms-collector-for-concat"
+                or command_name == "SampleRunContainerBuilder"
+                or command_name == "runbuilder"
+            ):
+                pass
 
             for obj in factory:
 
@@ -98,6 +107,8 @@ class Worker:  # invoker
 
                 # set_trace()
                 output = obj.execute()
+                # print(obj)
+                # print(output)
                 self._output[command_name] = output
 
                 # input files not dynamically found, but should be
@@ -108,14 +119,18 @@ class Worker:  # invoker
                 if output is not None and isinstance(output, typing.Iterable):
 
                     for o in output:
-                        if o.n_files == 0:
-                            continue
-                        if isinstance(o, RunContainer):
+                        if isinstance(o, RunContainer) and o.n_files != 0:
                             self.add_runcontainer(o)
-                        elif isinstance(o, SampleRunContainer):
-                            self.add_sampleruncontainer(o)
-                        else:
-                            pass
+                        elif isinstance(
+                            o, SampleRunContainer
+                        ):  # check if SampleRunContainer first, then count
+                            # number of associated RunContainers
+                            if len(o.runcontainers) != 0:
+                                self.add_sampleruncontainer(o)
+                            # elif isinstance(o, SampleRunContainer)
+                            else:
+                                # import ipdb; ipdb.set_trace()
+                                pass
 
             # return output  # return nothing/...
             return  # return nothing/...

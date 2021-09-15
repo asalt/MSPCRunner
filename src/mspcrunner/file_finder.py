@@ -54,7 +54,6 @@ class FileFinder:  # receiver
         # res = defaultdict(RunContainer)
         res = defaultdict(container_obj)
         observed_files = list()
-        # import ipdb; ipdb.set_trace()
 
         if files is not None:  # not working yet
             for f in files:
@@ -93,42 +92,36 @@ class FileFinder:  # receiver
 
                     # basename = f.stem
                     basename = container_obj.make_basename(f)
-                    # logger.debug(f"before 0) {basename}")
+                    if basename is None:  # if is some irrelevant file
+                        continue
 
-                    # for ext in container_obj.FILE_EXTENSIONS:
-                    #     if re.search(ext, basename):
-                    #         basename = re.sub(f"{ext}.*", "", basename)
-                    # # else:
-                    # if f.suffix == ".tsv":
-                    #     basename = f.stem
+                    # if "psms_all" in basename:
+                    #     set_trace()
 
                     if f.is_symlink():
                         raise ValueError(f"No symlink allowed")
 
                     # sampleruncontainer "basename" is rec_run_search
-                    if basename is not False and isinstance(
-                        container_obj(), SampleRunContainer
+                    if (
+                        basename is not False
+                        and isinstance(container_obj(), SampleRunContainer)
+                        and "psms_all" in basename
                     ):
-                        logger.debug(f)
-
-                        # 1 + 1
+                        pass
+                        # logger.debug(f)
                         # set_trace()
+                        # 1 + 1
+
                     if basename is not None:
                         res[basename].add_file(f)
-                    # if any(x not in f.name for x in RESULT_FILES):
-                    #     res[basename].add_file(
-                    #         _name
-                    #     )  # this is where construction takes place
+                        # the defaultdict collection made it convienent to keep adding
+                        # files to the same "base" file
 
                     #     # add files to RunContainers with a matching `_name`
                     observed_files.append(f.name)
                     # weird behavior fix later
-
                     # run_container = RunContainer(stem=f.stem)
                     # res.append(run_container)
-        # we really only need the RunContainers,
-        # the defaultdict collection made it convienent to keep adding
-        # files to the same "base" file
 
         # set_trace()
         if len(res) > 0:  # for debugging

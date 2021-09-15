@@ -18,16 +18,17 @@ from abc import ABC, ABCMeta, abstractmethod
 
 import re
 
-RECRUN_REGEX = re.compile(r"(\d{5})_(\d+)_(\d+)")
+RECRUN_REGEX = re.compile(r"(\d{5})_(\d+)_(\d+)?")
 
 
 def parse_rawname(s):
     if isinstance(s, Path):
         s = s.name
     res = RECRUN_REGEX.match(s)
+
     # logger.debug(f"regex {RECRUN} on {name} returns {res}")
     recno, runno, searchno = None, None, None
-    if res is None:
+    if res is None:  # better error checking here
         return None, None, None
     recno = res.group(1)
     runno = res.group(2)
@@ -36,6 +37,8 @@ def parse_rawname(s):
 
 
 class AbstractContainer(ABC):
+    """Abstract Container designed to collects certain files
+    and produce a hash value equal to the files that have been collected"""
 
     FILE_EXTENSIONS = None
 
@@ -56,6 +59,7 @@ class AbstractContainer(ABC):
 
     @property
     def n_files(self):
+        "number of files added to container"
         return len(self._file_mappings)
 
     def __hash__(self) -> int:
@@ -65,6 +69,7 @@ class AbstractContainer(ABC):
         return val
 
     def __eq__(self, other) -> bool:
+        "Or just compare hash values?"
         if not isinstance(other, self.__class__):
             return False
         if len(self._file_mappings) != len(other._file_mappings):
@@ -111,6 +116,12 @@ class RunContainer(AbstractContainer):
         """
         can set the stem explicitly or let it self-calculate
         :see self.stem:
+        :n_files:
+        :stem:
+        :rootdir:
+
+        :update_rootdir:
+
         """
         self._stem = stem
         self._files = list()
@@ -226,6 +237,21 @@ class RunContainer(AbstractContainer):
         return self._rootdir
 
     def add_file(self, f):
+        """
+        collects psms related files including:
+         - raw
+         - mzML
+         - pin
+         - tsv
+           - MSFragger search result exported as tsv
+           - MSPCRunner combined output psms file
+         - pemXML
+         - txt
+           - SICstats.txt
+           - ScanStats.txt
+           - ReporterIons.txt
+
+        """
 
         if isinstance(f, str):
             f = Path(f)
@@ -383,7 +409,7 @@ class SampleRunContainer(AbstractContainer):
     ) -> None:
         super().__init__()
 
-        self.runcontainers = runcontainers
+        self.runcontainers = runcontainers or tuple()
         self.name: str = ""
         self.stem = None
         # self.runcontainers: Collection[RunContainer] = attr.ib(
@@ -405,19 +431,6 @@ class SampleRunContainer(AbstractContainer):
         self.refseq: Path = None
 
         self._psms_file: Path = None
-
-    def set_recrunsearch(self):
-
-        # if self.psms_file is None:
-        #    warn("No psms file specified")
-        #    return
-        # psms_file = self._file_mappings.get("input_psms")
-        psms_file = self._file_mappings.get("input_psms", None)
-        self.psms_file = psms_file  # fix this
-        rec, run, search = parse_rawname(psms_file.name)
-        self.record_no = rec
-        self.run_no = run
-        self.search_no = search
 
     def set_runno(self):
         ...
@@ -464,9 +477,14 @@ class SampleRunContainer(AbstractContainer):
         elif isinstance(self._psms_file, Path):
             outname = self._psms_file.name
         outpath = self.rootdir / Path(outname)
+        # could check if something exists
         return outpath
 
     def concat(self, force=False):
+
+        if self.mspcfiles is None or len(list(self.mspcfiles)) == 0:
+            logger.info(f"nothing to concat")
+            return
 
         outpath = self.psms_filePath
         if outpath.exists() and not force:
@@ -494,12 +512,14 @@ class SampleRunContainer(AbstractContainer):
         #     self._file_mappings["raw"] = f
         if "psms_all" in f.name:
             self._file_mappings["input_psms"] = f
-            self.set_recrunsearch()
 
         elif "e2g_QUAL" in f.name:
             self._file_mappings["e2g_QUAL"] = f
         elif "e2g_QUANT" in f.name:
             self._file_mappings["e2g_QUANT"] = f
+
+        else:
+            pass
 
         return self
 
@@ -510,16 +530,21 @@ class SampleRunContainer(AbstractContainer):
     def make_basename(self, file) -> str:
         res = parse_rawname(file.name)
         res = [*filter(None, res)]
+        if len(res) == 3:
+            return f"{res[0]}_{res[1]}_{res[2]}"
 
-        if len(res) < 3:  # or
+        if len(res) == 2:  # or
+            return f"{res[0]}_{res[1]}"
+        else:
             return None
-
-        return f"{res[0]}_{res[1]}_{res[2]}"
 
     # would be better to inherit?
     def __hash__(self) -> int:
         # return super().__hash__()
         s = [f"{k}:{v}" for k, v in self._file_mappings.items()]
+        # let's also include runcontainers
+        for rc in self.runcontainers:
+            s.append(hash(rc))
         val = hash(tuple([hash(x) for x in sorted(s)]))
         return val
 

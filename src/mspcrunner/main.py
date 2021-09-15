@@ -52,7 +52,7 @@ from .predefined_params import (
     RMD_OUT_FORMAT,
     RMD_TEMPLATES,
 )
-from .psm_concat import PSM_Concat
+from .psm_concat import PSM_Concat, SampleRunContainerBuilder
 from .psm_merge import PSM_Merger
 from .utils import confirm_param_or_exit, find_rec_run
 
@@ -480,41 +480,49 @@ def percolate(
     # rawfiles = ctx.obj["rawfiles"]
 
     # for ix, rawfile in enumerate(rawfiles):
+    # collector_name = "psms_collector_for_percolator"
+    # psms_collector = make_psms_collect_object(
+    #     container_cls=SampleRunContainer, name=collector_name, path=worker.path
+    # )
+    # worker.register(collector_name, psms_collector)
+    psm_obj = PythonCommand(
+        SampleRunContainerBuilder(),
+        name=f"SampleRunContainerBuilder",
+        force=False,
+    )
+    worker.register(f"build-sampleruncontainers", psm_obj)
 
-    for (ix, run_container) in enumerate(
-        worker._output.get("experiment_finder", tuple())
-    ):
+    mokapot = MokaPotConsole(
+        cmd_runner,
+        outdir=None,  # can add later
+        train_fdr=train_fdr,
+        test_fdr=test_fdr,
+        folds=folds,
+        decoy_prefix=decoy_prefix,
+        name=f"mokapot-parent"
+        # outdir=WORKDIR
+    )
+    worker.register(f"mokapot-parent", mokapot)
+    # this is all we need
 
-        # THIS does not work when path is not specified at start
-        file_maybe_exists = run_container.get_file("mokapot-psms")
+    # for (ix, run_container) in enumerate(
+    #     worker._output.get("experiment_finder", tuple())
+    # ):
 
-        # run_container.update_files()
-        # import ipdb
+    #     # THIS does not work when path is not specified at start
+    #     file_maybe_exists = run_container.get_file("mokapot-psms")
 
-        # ipdb.set_trace()
-        # if run_container.get_file("pinfile") is None:
-        #     logger.info(f"{file_maybe_exists} does not have associated pin file")
-        #     continue
+    #     # run_container.update_files()
+    #     # import ipdb
 
-        if isinstance(file_maybe_exists, Path) and file_maybe_exists.exists():
-            logger.info(f"{file_maybe_exists} already present")
-            continue
+    #     # ipdb.set_trace()
+    #     # if run_container.get_file("pinfile") is None:
+    #     #     logger.info(f"{file_maybe_exists} does not have associated pin file")
+    #     #     continue
 
-        mokapot = MokaPotConsole(
-            cmd_runner,
-            # inputfiles=(rawfile,),
-            # outdir=rawfile.parent.resolve(),
-            # inputfiles=worker._output.get("experiment_finder"),
-            outdir=None,  # can add later
-            inputfiles=run_container,
-            train_fdr=train_fdr,
-            test_fdr=test_fdr,
-            folds=folds,
-            decoy_prefix=decoy_prefix,
-            name=f"mokapot-{ix}"
-            # outdir=WORKDIR
-        )
-        worker.register(f"mokapot-{ix}", mokapot)
+    #     if isinstance(file_maybe_exists, Path) and file_maybe_exists.exists():
+    #         logger.info(f"{file_maybe_exists} already present")
+    #         continue
 
 
 @run_app.command()
@@ -525,17 +533,25 @@ def concat_psms(
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
 
+    # 'k
     psms_collector = make_psms_collect_object(
-        container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
+        container_cls=SampleRunContainer,
+        name="psms-collector-for-concat",
+        path=worker.path,
     )
-    worker.register(f"psms_collector-for-concat", psms_collector)
+    worker.register(f"psms-collector-for-concat", psms_collector)
 
-    worker.register(f"collect-psms", psms_collector)
+    # worker.register(f"collect-psms", psms_collector)
+    psm_obj = PythonCommand(
+        SampleRunContainerBuilder(),
+        name=f"SampleRunContainerBuilder",
+    )
+    worker.register(f"build-sampleruncontainers", psm_obj)
     psm_obj = PythonCommand(
         PSM_Concat(),
         # runcontainers=worker._output.get("experiment_finder", tuple()),
         # psm_merger,
-        name=f"concat_psms_0",
+        name=f"concat-psms-0",
         force=force,
     )
     worker.register(f"concat_psms", psm_obj)
@@ -718,22 +734,42 @@ def gpgroup(
     if refseq is None:
         raise ValueError("No refseq specified")
 
+    # jpsms_collector = make_psms_collect_object(
+    # j    container_cls=RunContainer, name="make-runcontainers-for-gpg", path=worker.path
+    # j)
+    # jworker.register(f"make-runcontainers-for-gpg", psms_collector)
+
+    # ==============================
+    # psms_collector = make_psms_collect_object(
+    #     container_cls=SampleRunContainer, name="psms-collector-for-concat", path=worker.path
+    # )
+    # worker.register(f"psms-collector-for-concat", psms_collector)
+
+    # # worker.register(f"collect-psms", psms_collector)
+    # psm_obj = PythonCommand(
+    #     SampleRunContainerBuilder(),
+    #     name=f"SampleRunContainerBuilder",
+    # )
+    # worker.register(f"build-sampleruncontainers", psm_obj)
+
+    # ====
     psms_collector = make_psms_collect_object(
-        container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
+        container_cls=SampleRunContainer, name="collect-psms-for-gpg", path=worker.path
     )
+    worker.register(f"psms-collector-for-gpg", psms_collector)
 
-    worker.register(f"collect-psms", psms_collector)
-
-    # searchruncontainers = worker.execute("collect-psms")
-
-    # for ix, searchruncontainer in enumerate(searchruncontainers):
-    ix = 1
+    psm_obj = PythonCommand(
+        SampleRunContainerBuilder(),
+        name=f"SampleRunContainerBuilder",
+        force=False,
+    )
+    worker.register(f"build-sampleruncontainers", psm_obj)
 
     gpgrouper = gpGrouper(
         cmd_runner,
         # inputfiles=searchruncontainer,
         workers=workers,
-        name=f"gpgrouper-{ix}",
+        name=f"gpgrouper-builder",
         refseq=refseq,
         paramfile=Predefined_gpG.default,
         labeltype=labeltype,
@@ -741,61 +777,7 @@ def gpgroup(
         no_taxa_redistrib=no_taxa_redistrib,
     )
 
-    worker.register(f"gpgrouper-{ix}", gpgrouper)
-
-    # gpgrouper = gpGrouper(
-    #     cmd_runner,
-    #     samplerun_container=samplerun_container,
-    #     record_no=samplerun_container.record_no,
-    #     run_no=samplerun_container.run_no,
-    #     search_no=samplerun_container.search_no,
-    #     phospho=phospho,
-    #     # inputfiles=(rawfile,),
-    #     # outdir=rawfile.parent.resolve(),
-    #     # inputfiles=worker._output.get("experiment_finder"),
-    #     labeltype=labeltype,
-    #     outdir=None,  # can add later
-    #     #
-    #     #
-    #     refseq=refseq,
-    #     paramfile=Predefined_gpG.default,
-    #     # decoy_prefix=decoy_prefix,
-    #     name=f"gpgrouper-{ix}"
-    #     # outdir=WORKDIR
-    # )
-
-    # samplerun_containers = get_containers_from_concat_res_or_other_mechanism()
-    # here
-    # gpgrouper_inputs = FileFinder(contain)
-
-    # get rid of this
-    # for (ix, samplerun_container) in enumerate(
-    #     worker._output.get("psm-concat", tuple())
-    # ):
-
-
-#     gpgrouper = gpGrouper(
-#         cmd_runner,
-#         samplerun_container=samplerun_container,
-#         record_no=samplerun_container.record_no,
-#         run_no=samplerun_container.run_no,
-#         search_no=samplerun_container.search_no,
-#         phospho=phospho,
-#         # inputfiles=(rawfile,),
-#         # outdir=rawfile.parent.resolve(),
-#         # inputfiles=worker._output.get("experiment_finder"),
-#         labeltype=labeltype,
-#         outdir=None,  # can add later
-#         #
-#         #
-#         refseq=refseq,
-#         paramfile=Predefined_gpG.default,
-#         # decoy_prefix=decoy_prefix,
-#         name=f"gpgrouper-{ix}"
-#         # outdir=WORKDIR
-#     )
-
-#     worker.register(f"gpgrouper-{ix}", gpgrouper)
+    worker.register(f"gpgrouper-builder", gpgrouper)
 
 
 # @app.command()
