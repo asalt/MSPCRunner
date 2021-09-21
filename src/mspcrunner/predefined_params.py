@@ -1,22 +1,39 @@
 import os
 from enum import Enum
 from pathlib import Path
-from re import I
-
+import re
+import pkg_resources
 
 from .config import get_conf
 
-BASEDIR = Path(os.path.split(__file__)[0]).resolve()
+PKG_PROVIDER = pkg_resources.get_provider("mspcrunner")
+BASEDIR = Path(PKG_PROVIDER.module_path).parent.parent
+
+# BASEDIR = Path(os.path.split(__file__)[0]).resolve()
+# BASEDIR = pkg_resources.resource_filename
+
+
+def get_dir(s: str) -> Path:
+    out = (Path(os.path.split(__file__)[0]).parent.parent / s).resolve()
+    return out
+
+
+class Param(str, Enum):
+    pass
+
+
+def param_obj_creator(name: str, d: dict):
+    return Param(name, {str(v): k for k, v in d.items()})
+
+
+# return cls(cls.__name__, d)
+
 PARAMDIR = (Path(os.path.split(__file__)[0]).parent.parent / "params").resolve()
 
+PARAMDIR = get_dir("params")
+TEMPLATEDIR = get_dir("templates")
+
 conf = get_conf()
-
-
-class Predefined_RefSeq(str, Enum):
-    pass
-    # def
-    # HS2020 = "HS2020"
-    # HSMM2020 = "HSMM2020"
 
 
 PREDEFINED_REFSEQ_PARAMS = {
@@ -29,53 +46,49 @@ if "refdb" in conf.sections():
     PREDEFINED_REFSEQ_PARAMS.update({k: v for k, v in conf["refdb"].items() if v})
 # PREDEFINED_REFSEQ_PARAMS.update(conf['refdb'].items())
 
-Predefined_RefSeq = Predefined_RefSeq(
-    "Predefined_RefSeq", {v: k for k, v in PREDEFINED_REFSEQ_PARAMS.items()}
+
+Predefined_RefSeq = param_obj_creator(
+    "Predefined_RefSeq",
+    PREDEFINED_REFSEQ_PARAMS
+    # {v: k for k, v in PREDEFINED_REFSEQ_PARAMS.items()}
 )
 
 
-class Predefined_Search(str, Enum):
-    pass
-
-    # OTIT = "OTIT"
-    # OTIT_hs = "OTIT-hs"
-    # OTOT = "OTOT"
-    # TMT6_OTOT = "TMT6-OTOT"
-    # TMT6_OTOT_PHOS = "TMT6-OTOT-PHOS"
-    # TMT6_OTOT_QC = "TMT6-OTOT-QC"
-    # TMT16_OTOT = "TMT16-OTOT"
-    # TMT16_OTOT_QC = "TMT16-OTOT-QC"
+# OTIT = "OTIT"
+# OTIT_hs = "OTIT-hs"
+# OTOT = "OTOT"
+# TMT6_OTOT = "TMT6-OTOT"
+# TMT6_OTOT_PHOS = "TMT6-OTOT-PHOS"
+# TMT6_OTOT_QC = "TMT6-OTOT-QC"
+# TMT16_OTOT = "TMT16-OTOT"
+# TMT16_OTOT_QC = "TMT16-OTOT-QC"
 
 
-PREDEFINED_SEARCH_PARAMS = {
-    #'OTIT' : Path('../params/MSfragger_OTIT.conf'),
-    "OTIT-hs": PARAMDIR / Path("MSFragger_OTIT_hs.conf"),
-    "OTOT": PARAMDIR / Path("MSFragger_OTOT.conf"),
-    "TMT6-OTOT": PARAMDIR / Path("MSFragger_TMT6_OTOT.conf"),
-    "TMT6-OTOT-PHOS": PARAMDIR / Path("MSFragger_TMT6_OTOT_PHOS.conf"),
-    "TMT6-OTOT-QC": PARAMDIR / Path("MSFragger_TMT6_OTOT_QC.conf"),
-    "TMT11-OTOT-QC": PARAMDIR / Path("MSFragger_TMT6_OTOT_QC.conf"),
-    "TMT16.OTOT": PARAMDIR / Path("MSFragger_OTOT.conf"),
-    "TMT16-OTOT-QC": PARAMDIR / Path("MSFragger_OTOT.conf"),
-}
+# PREDEFINED_SEARCH_PARAMS = {
+#     #'OTIT' : Path('../params/MSfragger_OTIT.conf'),
+#     "OTIT-hs": PARAMDIR / Path("MSFragger_OTIT_hs.conf"),
+#     "OTOT": PARAMDIR / Path("MSFragger_OTOT.conf"),
+#     "TMT6-OTOT": PARAMDIR / Path("MSFragger_TMT6_OTOT.conf"),
+#     "TMT6-OTOT-PHOS": PARAMDIR / Path("MSFragger_TMT6_OTOT_PHOS.conf"),
+#     "TMT6-OTOT-QC": PARAMDIR / Path("MSFragger_TMT6_OTOT_QC.conf"),
+#     "TMT11-OTOT-QC": PARAMDIR / Path("MSFragger_TMT6_OTOT_QC.conf"),
+#     "TMT16.OTOT": PARAMDIR / Path("MSFragger_OTOT.conf"),
+#     "TMT16-OTOT-QC": PARAMDIR / Path("MSFragger_OTOT.conf"),
+# }
+PREDEFINED_SEARCH_PARAMS = {}
 
 if "search-params" in conf.sections():
     PREDEFINED_SEARCH_PARAMS.update(
         {k: Path(v) for k, v in conf["search-params"].items() if v}
     )
 
-Predefined_Search = Predefined_Search(
-    "Predefined_Search",
-    {str(v.absolute()): k for k, v in PREDEFINED_SEARCH_PARAMS.items()},
-)
+Predefined_Search = param_obj_creator("Predefined_Search", PREDEFINED_SEARCH_PARAMS)
 
 
-class Predefined_Quant(str, Enum):
-    pass
-    # LF = "LF"
-    # TMT10 = "TMT10"
-    # TMT11 = "TMT11"
-    # TMT16 = "TMT16"
+# LF = "LF"
+# TMT10 = "TMT10"
+# TMT11 = "TMT11"
+# TMT16 = "TMT16"
 
 
 PREDEFINED_QUANT_PARAMS = {
@@ -91,11 +104,20 @@ if "quant-params" in conf.sections():
     PREDEFINED_QUANT_PARAMS.update(
         {k: Path(v) for k, v in conf["quant-params"].items() if v}
     )
-Predefined_Quant = Predefined_Quant(
-    "Predefined_QUANT",
-    {str(v.absolute()): k for k, v in PREDEFINED_QUANT_PARAMS.items()},
-)
+Predefined_Quant = param_obj_creator("Predefined_Quant", PREDEFINED_QUANT_PARAMS)
 
 
 class Predefined_gpG(str, Enum):
     default = PARAMDIR / "gpgrouper.conf"
+
+
+class RMD_OUT_FORMAT(str, Enum):
+    html = "html"
+    pdf = "pdf"
+
+
+PREDEFINED_RMD_TEMPLATES = {
+    "TMTreport": PARAMDIR / Path("TMTreport_a1.Rmd"),
+}
+
+RMD_TEMPLATES = param_obj_creator("RMD_TEMPLATES", PREDEFINED_RMD_TEMPLATES)

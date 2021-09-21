@@ -37,20 +37,21 @@ class gpGrouper(Command):
     def __init__(
         self,
         receiver,
-        # samplerun_containers,
         paramfile=None,
-        inputfiles=None,
         outdir=None,
         name=None,
         refseq=None,
         workers=1,
+        runcontainer=None,
+        sampleruncontainer=None,
+        runcontainers=None,  # either pass 1 run
+        sampleruncontainers=None,  # or 1 sample (collection of runs)
         **kwargs,
     ):
 
         super().__init__(
             receiver,
             paramfile=paramfile,
-            inputfiles=inputfiles,
             name=name,
             refseq=refseq,
             **kwargs,
@@ -72,17 +73,21 @@ class gpGrouper(Command):
         if self.labeltype is None:
             self.labeltype = "none"
         self.paramfile = kwargs.get("paramfile", Predefined_gpG.default.value)
+        self.sampleruncontainer = sampleruncontainer
+        self.sampleruncontainers = sampleruncontainers
         # self.record_no = kwargs.get("record_no", "none")
         # self.run_no = kwargs.get("run_no", "none")
         # self.search_no = kwargs.get("search_no", "none")
 
     def create(self, sampleruncontainers=None, **kws):
         if sampleruncontainers is None:
+            return
             logger.error(f"!!")
-            raise ValueError(f"Must pass an iterable of SampleRunContainers")
+            # `raise ValueError(f"Must pass an iterable of SampleRunContainers")
         for ix, samplerun_container in enumerate(sampleruncontainers):
             kws = self.__dict__.copy()
-            kws["inputfiles"] = samplerun_container
+            # kws["inputfiles"] = samplerun_container
+            kws["sampleruncontainer"] = samplerun_container
             kws["name"] = f"{self}-{ix}"
             kws["receiver"] = kws["_receiver"]
             # set_trace()
@@ -96,19 +101,18 @@ class gpGrouper(Command):
         # print(self.inputfiles[0].stem)
         # print(psms_file)
 
-        if self.inputfiles is None:  # this is not supposed to happen
+        if self.sampleruncontainer is None:
             return
+        sampleruncontainer = self.sampleruncontainer
+        psms_file = sampleruncontainer.psms_filePath
+        if psms_file is None:
+            return  # not good
 
-        samplerun_container = self.inputfiles
-        # for samplerun_container in self.inputfiles:
-        # import ipdb ipdb.set_trace()
-
-        samplerun_container.set_recrunsearch()
+        # samplerun_container.set_recrunsearch()
         # psms_file = samplerun_container.psms_filePath
-        psms_file = samplerun_container.psms_file
-        record_no = samplerun_container.record_no
-        run_no = samplerun_container.run_no
-        search_no = samplerun_container.search_no
+        record_no = sampleruncontainer.record_no
+        run_no = sampleruncontainer.run_no
+        search_no = sampleruncontainer.search_no
         # psms_file = samplerun_container.psms_filePath
 
         BASE = [

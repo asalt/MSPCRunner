@@ -8,6 +8,7 @@ import pandas as pd
 from typing import Collection, List
 
 from .containers import RunContainer, SampleRunContainer
+from .commands import Receiver
 
 from .logger import get_logger
 
@@ -15,7 +16,9 @@ logger = get_logger(__name__)
 
 
 def find_rec_run(target: str):
-    "Try to get record, run, and search numbers with regex of a target string with pattern \d+_\d+_\d+"
+    r"""
+    Try to get record, run, and search numbers with regex of a target string with pattern \d+_\d+_\d+
+    """
 
     _, target = os.path.split(target)  # ensure just searching on filename
     rec_run_search = re.compile(r"^(\d+)_(\d+)_")
@@ -24,19 +27,35 @@ def find_rec_run(target: str):
     if match:
         recno, runno = match.groups()
         return recno, runno
-    return
+    return None, None
 
 
-class PSM_Concat:
+class PSM_Concat(Receiver):
+    def run(self, sampleruncontainers=None, force=False, **kwargs):
+
+        if "containers" in kwargs and sampleruncontainers is None:
+            sampleruncontainers = kwargs.pop("containers")
+            sampleruncontainers = filter(
+                lambda x: isinstance(x, SampleRunContainer), sampleruncontainers
+            )
+
+        if sampleruncontainers is None:
+            return
+        for samplerun in sampleruncontainers:
+            samplerun.check_psms_files()
+            samplerun.concat(force=force)
+        return sampleruncontainers
+
+
+class SampleRunContainerBuilder(Receiver):
     """combine multiple fractions of psm files for a given experiment"""
 
-    NAME = "PSM-Concat"
+    NAME = "PSM-Collect"
 
     def run(
         self,
         containers: List[RunContainer] = None,
         outdir: Path = None,
-        force=False,
         **kwargs,
     ) -> str:
         """
@@ -49,16 +68,12 @@ class PSM_Concat:
             return
             # raise ValueError("No input")
 
-        logger.debug(f"{self}")
+        # logger.debug(f"{self}")
         filegroups = defaultdict(list)
         # for f in sorted(files):
         for container in containers:
             if not isinstance(container, RunContainer):
                 continue  # wrong container
-            mspcfile = container.get_file("MSPCRunner")
-            if mspcfile is None:
-                logger.debug(f"No MSPCRunner file for {container}")
-                continue
 
             # this is where search could be designated
             recrun = find_rec_run(container.stem)
@@ -104,22 +119,23 @@ class PSM_Concat:
             )
 
             sampleruncontainers.append(samplerun)
-            print(group)
-
-            # # move this?
-            # for f in sorted(files):
-            #     print(f)
-            # print(len(files))
-            # df = pd.concat(pd.read_table(f) for f in files)
-            # outname = f"{group}_6_psms_all.txt"
-            # df.to_csv(outname, sep="\t", index=False)
-            # print(f"Wrote {outname}")
-
-        for samplerun in sampleruncontainers:
-            samplerun.check_psms_files()
-            samplerun.concat(force=force)
-
         return sampleruncontainers
+        # print(group)
+
+        # # move this?
+        # for f in sorted(files):
+        #     print(f)
+        # print(len(files))
+        # df = pd.concat(pd.read_table(f) for f in files)
+        # outname = f"{group}_6_psms_all.txt"
+        # df.to_csv(outname, sep="\t", index=False)
+        # print(f"Wrote {outname}")
+
+        # for samplerun in sampleruncontainers:
+        #     samplerun.check_psms_files()
+        #     samplerun.concat(force=force)
+
+        # return sampleruncontainers
 
 
 if __name__ == "__main__":
