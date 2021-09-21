@@ -107,7 +107,7 @@ class FileFinder:  # receiver
                     if basename is not False and isinstance(
                         container_obj(), SampleRunContainer
                     ):
-                        logger.debug(f)
+                        # logger.debug(f)
 
                         1 + 1
                         # set_trace()
