@@ -631,6 +631,7 @@ class MokaPotConsole(Command):
         # output name calculation
 
         file_root = None
+        #import ipdb; ipdb.set_trace()
         if self.runcontainer and isinstance(self.runcontainer, RunContainer):
             pinfiles = [self.runcontainer.get_file("pinfile")]
             file_root = pinfiles[0].stem
@@ -643,6 +644,10 @@ class MokaPotConsole(Command):
                 for runcontainer in self.sampleruncontainer.runcontainers
             ]
             outdir = self.sampleruncontainer.rootdir
+            # bugfix when passing entire experiment which contains "just" 1 file.
+            # Need to set fileroot
+            if len(pinfiles) == 1:
+                file_root = pinfiles[0].stem
             # file_root = self.sampleruncontainer.stem
 
         # elif self.inputfiles and not isinstance(self.inputfiles, RunContainer):
@@ -682,7 +687,7 @@ class MokaPotConsole(Command):
             self.seed,
             "--folds",
             self.folds,
-            *[str(pinfile.resolve()) for pinfile in pinfiles],
+            *[str(pinfile.resolve()) for pinfile in filter(None, pinfiles)],
         ]
         if file_root is not None:
             res.append("--file_root")
