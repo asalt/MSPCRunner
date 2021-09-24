@@ -101,16 +101,20 @@ class FileFinder:  # receiver
                     if f.is_symlink():
                         raise ValueError(f"No symlink allowed")
 
+                    # =========================================================================
                     # sampleruncontainer "basename" is rec_run_search
                     if (
                         basename is not False
                         and isinstance(container_obj(), SampleRunContainer)
                         and "psms_all" in basename
                     ):
+                        # logger.debug(f)
+                        # 1 + 1
                         pass
                         # logger.debug(f)
                         # set_trace()
                         # 1 + 1
+                    # =========================================================================
 
                     if basename is not None:
                         res[basename].add_file(f)

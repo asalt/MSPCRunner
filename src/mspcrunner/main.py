@@ -621,7 +621,7 @@ def prepare_ispec_import(
     find_sample_containers = make_psms_collect_object(
         container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
     )
-    worker.register(f"collect-psms", find_sample_containers)
+    worker.register(f"collect-e2gs", find_sample_containers)
 
     file_cleaner = PythonCommand(
         PrepareForiSPEC(),

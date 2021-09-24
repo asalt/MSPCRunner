@@ -460,7 +460,9 @@ class SampleRunContainer(AbstractContainer):
         could be a good place to extend checks
 
         """
-        files = set([x.get_file("MSPCRunner") for x in self.runcontainers])
+        files = set(filter(None, [x.get_file("MSPCRunner") for x in self.runcontainers]))
+        # import ipdb; ipdb.set_trace()
+
         allfiles = [x.get_file("MSPCRunner") for x in self.runcontainers]
 
         logger.info(f"{self}: nfiles : {len(files)}")

@@ -13,7 +13,7 @@ calibrate_mass = 2                          # Perform mass calibration (0 for OF
 write_calibrated_mgf = 0                    # Write calibrated MS2 scan to a MGF file (0 for No, 1 for Yes).
 decoy_prefix = rev_                         # Prefix of the decoy protein entries. Used for parameter optimization only.
 
-isotope_error = -1/0/1/2                    # Also search for MS/MS events triggered on specified isotopic peaks.
+isotope_error = 0/1/2                    # Also search for MS/MS events triggered on specified isotopic peaks.
 mass_offsets = 0                            # Creates multiple precursor tolerance windows with specified mass offsets.
 restrict_deltamass_to = all                 # Specify amino acids on which delta masses (mass offsets or search modifications) can occur. Allowed values are single letter codes (e.g. ACD), must be capitalized. Use 'all' to allow any amino acid.
 precursor_mass_mode = corrected             # One of isolated/selected/corrected.
@@ -71,13 +71,13 @@ zero_bin_mult_expect = 1.00                 # Multiplies expect value of PSMs in
 add_topN_complementary = 0                  # Inserts complementary ions corresponding to the top N most intense fragments in each experimental spectra.
 
 minimum_peaks = 15                          # Minimum number of peaks in experimental spectrum for matching.
-use_topN_peaks = 150                        # Pre-process experimental spectrum to only use top N peaks.
+use_topN_peaks = 300                        # Pre-process experimental spectrum to only use top N peaks.
 deisotope = 1                               # Perform deisotoping or not (0=no, 1=yes and assume singleton peaks single charged, 2=yes and assume singleton
                                             # peaks single or double charged).
 min_fragments_modelling = 2                 # Minimum number of matched peaks in PSM for inclusion in statistical modeling.
 min_matched_fragments = 4                   # Minimum number of matched peaks for PSM to be reported.
 minimum_ratio = 0.01                        # Filters out all peaks in experimental spectrum less intense than this multiple of the base peak intensity.
-clear_mz_range = 125 135                    # Removes peaks in this m/z range prior to matching.
+clear_mz_range = 125 132                    # Removes peaks in this m/z range prior to matching.
 remove_precursor_peak = 0                   # Remove precursor peaks from tandem mass spectra. 0 = not remove; 1 = remove the peak with precursor charge;
                                             # 2 = remove the peaks with all charge states (only for DDA mode).
 remove_precursor_range = -1.5,1.5           # m/z range in removing precursor peaks. Only for DDA mode. Unit: Th.

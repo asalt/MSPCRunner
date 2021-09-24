@@ -643,18 +643,9 @@ class MokaPotConsole(Command):
                 runcontainer.get_file("pinfile")
                 for runcontainer in self.sampleruncontainer.runcontainers
             ]
+            pinfiles = list(filter(None, pinfiles))
+            # note this silently excludes runcontainers that don't have a pinfile
             outdir = self.sampleruncontainer.rootdir
-            # bugfix when passing entire experiment which contains "just" 1 file.
-            # Need to set fileroot
-            if len(pinfiles) == 1:
-                file_root = pinfiles[0].stem
-            # file_root = self.sampleruncontainer.stem
-
-        # elif self.inputfiles and not isinstance(self.inputfiles, RunContainer):
-        #    pinfiles = [
-        #        x.get_file("pinfile") for x in self.inputfiles
-        #    ]  # the values are RawFile instances
-        #    # pinfiles = [x for x in pinfiles if x is not None]
         else:
             #!
             # raise ValueError(f"no pinfile found for {self.inputfiles}")
