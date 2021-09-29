@@ -14,23 +14,23 @@ logger = get_logger(__name__)
 class FileFinder:  # receiver
     NAME = "FileFinder Receiver"
 
-    PATTERNS = ["*raw", "*mzML", "*txt", "*pin", "*tsv"]
-    # use these to trim
-    FILE_EXTENSIONS = [
-        ".mokapot.psms",
-        ".mokapot.peptides",
-        "_ReporterIons",
-        "_SICstats",
-        "_ScanStats",
-        "_ScanStatsConstant",
-        "_MSPCRunner_a1",
-    ]
+    # PATTERNS = ["*raw", "*mzML", "*txt", "*pin", "*tsv"]
+    # # use these to trim
+    # FILE_EXTENSIONS = [
+    #     ".mokapot.psms",
+    #     ".mokapot.peptides",
+    #     "_ReporterIons",
+    #     "_SICstats",
+    #     "_ScanStats",
+    #     "_ScanStatsConstant",
+    #     "_MSPCRunner_a1",
+    # ]
 
-    RESULT_FILES = ["psms_all.txt", "e2g_QUAL.tsv", "e2g_QUANT.tsv"]
+    # RESULT_FILES = ["psms_all.txt", "e2g_QUAL.tsv", "e2g_QUANT.tsv"]
 
     def run(
         self,
-        file=None,
+        files=None,
         path: Path = None,
         container_obj: AbstractContainer = None,
         depth=5,
@@ -45,18 +45,18 @@ class FileFinder:  # receiver
 
         # we need the add_file method
 
-        if path is None:
-            path = Path(".")
+        # if path is None:
+        #     path = Path(".")
 
-        RESULT_FILES = self.RESULT_FILES
+        # RESULT_FILES = self.RESULT_FILES
         # res = li()
         # logger.debug(f"file:{file} path:{path}")
         # res = defaultdict(RunContainer)
         res = defaultdict(container_obj)
         observed_files = list()
-        # import ipdb; ipdb.set_trace()
-        if file is not None:  # not working yet
-            for f in file:
+
+        if files is not None:  # not working yet
+            for f in files:
                 basename = f.stem
 
                 # if basename.endswith("F1"):
@@ -73,13 +73,14 @@ class FileFinder:  # receiver
             for i in range(depth):
                 globstr = "*/" * i + pat
                 # bug when depth == 1 and file has moved into its new home directory
-                for f in path.glob(globstr):  # TODO fix if path is None
+                for f in path.glob(globstr):  # DONE: ? fix if path is None
                     # if (not f.is_file()) and (not f.is_symlink()):
 
                     # logger.debug(f"pat:{pat}, file:{f}")
                     if f.is_dir():
                         continue
                     if f.name in observed_files:
+                        logger.debug(f"already have a file {f.name} skipping ")
                         continue
 
                     # print(f)
@@ -91,6 +92,7 @@ class FileFinder:  # receiver
 
                     # basename = f.stem
                     basename = container_obj.make_basename(f)
+<<<<<<< HEAD
                     # "12345_1_5_23094820934234_F1.raw"
                     # "12345_1_5_23094820934234_F1.tsv"
                     # "12345_1_5_23094820934234_F1.mokapot.psms"
@@ -99,41 +101,42 @@ class FileFinder:  # receiver
                     # basename = 12345_1_5_23094820934234
 
                     # logger.debug(f"before 0) {basename}")
+=======
+                    if basename is None:  # if is some irrelevant file
+                        continue
+>>>>>>> 54c0aa1a5cc5ff3a0d083c72c2b7d671c1138a9d
 
-                    # for ext in container_obj.FILE_EXTENSIONS:
-                    #     if re.search(ext, basename):
-                    #         basename = re.sub(f"{ext}.*", "", basename)
-                    # # else:
-                    # if f.suffix == ".tsv":
-                    #     basename = f.stem
+                    # if "psms_all" in basename:
+                    #     set_trace()
 
                     if f.is_symlink():
                         raise ValueError(f"No symlink allowed")
 
+                    # =========================================================================
                     # sampleruncontainer "basename" is rec_run_search
-                    if basename is not False and isinstance(
-                        container_obj(), SampleRunContainer
+                    if (
+                        basename is not False
+                        and isinstance(container_obj(), SampleRunContainer)
+                        and "psms_all" in basename
                     ):
-                        logger.debug(f)
-
-                        1 + 1
+                        # logger.debug(f)
+                        # 1 + 1
+                        pass
+                        # logger.debug(f)
                         # set_trace()
+                        # 1 + 1
+                    # =========================================================================
+
                     if basename is not None:
                         res[basename].add_file(f)
-                    # if any(x not in f.name for x in RESULT_FILES):
-                    #     res[basename].add_file(
-                    #         _name
-                    #     )  # this is where construction takes place
+                        # the defaultdict collection made it convienent to keep adding
+                        # files to the same "base" file
 
                     #     # add files to RunContainers with a matching `_name`
                     observed_files.append(f.name)
                     # weird behavior fix later
-
                     # run_container = RunContainer(stem=f.stem)
                     # res.append(run_container)
-        # we really only need the RunContainers,
-        # the defaultdict collection made it convienent to keep adding
-        # files to the same "base" file
 
         # set_trace()
         if len(res) > 0:  # for debugging

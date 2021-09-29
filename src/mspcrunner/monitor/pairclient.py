@@ -67,9 +67,12 @@ class NewFile(FileSystemEventHandler):
 
         file = Path(event.src_path)
 
-        socket.send_string(file.name)
+        # socket.send_string(file.name)
+        # socket.send(file.read_bytes())
 
-        socket.send(file.read_bytes())
+        socket.send_multipart(bytes(file.name), 'utf8')
+        socket.send_multipart(bytes(file.name), 'utf8')
+
 
         print("done sending")
 

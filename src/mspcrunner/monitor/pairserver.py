@@ -1,5 +1,6 @@
 import os
 import logging
+from multiprocessing import Process
 
 try:
     import zmq

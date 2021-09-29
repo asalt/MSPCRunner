@@ -1,7 +1,20 @@
 import sys
 import logging
+from pathlib import Path
 
 from time import time
+
+def delete_existing_log_file():
+    """to be called once upon module import
+    TODO: properly build a logfile manager that is not dangerous like this is
+    """
+    fh = logging.FileHandler("MSPCRunner.log")
+    maybe_already_exists = Path(fh.__dict__['baseFilename'])
+    if maybe_already_exists.exists():
+        maybe_already_exists.unlink()
+
+# call once on import
+delete_existing_log_file()
 
 
 def get_logger(name=__name__):
@@ -18,6 +31,7 @@ def get_logger(name=__name__):
     # logger.addHandler(queue_handler)
 
     fh = logging.FileHandler("MSPCRunner.log")
+
     # fh.flush = sys.stdout.flush
     # fh.setLevel(logging.DEBUG)
     # create console handler with a higher log level

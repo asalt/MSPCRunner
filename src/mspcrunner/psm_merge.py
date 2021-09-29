@@ -145,6 +145,7 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
     concat
     """
 
+    #import ipdb; ipdb.set_trace()
     search_result = pd.read_table(search_result_f)
     # percpsm = pd.read_table(percpsm_f, usecols=[0,1,2,3,4,5])
     percpsm = pd.read_table(percpsm_f)
@@ -237,9 +238,22 @@ class PSM_Merger(Receiver):
     def run(
         self, runcontainer: RunContainer = None, outdir: Path = None, **kwargs
     ) -> List[Path]:  # return ?
+    
+        force = False
+        if 'force' in kwargs:
+            force = kwargs.pop('force')
 
         if runcontainer is None:
             raise ValueError("No input")
+
+        # outname = f"{basename}_percolator_MASIC.txt"
+        outname = os.path.join(
+            runcontainer.rootdir,
+            f"{runcontainer.stem}_MSPCRunner_a1.txt",
+        )
+        if os.path.exists(outname) and not force:
+            logger.info(f"{outname} already exists")
+            return
 
         search_res = runcontainer.get_file("tsv_searchres")
         percpsm_f = runcontainer.get_file("mokapot-psms")
@@ -282,11 +296,6 @@ class PSM_Merger(Receiver):
         regx = r"(.*)(?=\.\d+\.\d+\.\d+_\d+)"
         df["SpectrumFile"] = extract_file_from_scan_header(df["SpecId"])
 
-        # outname = f"{basename}_percolator_MASIC.txt"
-        outname = os.path.join(
-            runcontainer.rootdir,
-            f"{runcontainer.stem}_MSPCRunner_a1.txt",
-        )
 
         maybe_calc_labeling_efficiency(df, outname)
 

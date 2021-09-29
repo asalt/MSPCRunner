@@ -212,7 +212,8 @@ def merge_pipes(**named_pipes):
 
 
 class Receiver:
-    input_required = None
+    pass
+    # input_required = None
 
 
 class CMDRunner(Receiver):  # receiver
@@ -400,17 +401,21 @@ class Command:
 
     def __init__(
         self,
-        receiver,
-        inputfiles=None,
+        receiver: Receiver,
         paramfile=None,
         outdir=None,
         name=None,
+        inputfiles=None,  # deprecitate
+        container=None,
+        containers=None,  # replace with this
         **kwargs,
     ):
         self.name = name
         self._receiver = receiver
         self._CMD = None
-        self.inputfiles = inputfiles
+        self.inputfiles = inputfiles  # depreciate
+        self.containers = containers  # multiple containers to create multiple objects
+        self.container = container  # a single container to do something
         self.paramfile = paramfile
         # self.outdir = outdir or Path(".")
         self.outdir = outdir  # let it stay as none if not given
@@ -418,26 +423,20 @@ class Command:
             setattr(self, k, v)
 
         # def set_files(self, inputfiles: dict):
-        logger.info(f"Adding inputfiles on {self}")
+        # logger.info(f"Adding inputfiles on {self}")
         self.inputfiles = inputfiles
 
-    def create(self, containers=None, **kws):
+    def create(self, containers=None, **kwargs):
         if containers is None:
             yield self
         else:
-            for container in containers:
+            for ix, container in enumerate(containers):
                 d = self.__dict__.copy()
-                for kw in kws:
+                for kw in kwargs:
                     if kw in d:
-                        d.update(kw, kws[kw])
-                yield self(**self.__dict__, inputfiles=container)
-
-    def update_inputfiles(self, *objs):
-        self.inputfiles = list()
-
-        for obj in objs:
-            if isinstance(obj, (RunContainer, SampleRunContainer)):
-                self.inputfiles.append(obj)
+                        d.update(kw, kwargs[kw])
+                    d["name"] = d.get("name", "name") + f"-{ix}"
+                yield self(**self.__dict__, inputfiles=container, container=container)
 
     def __repr__(self):
         return f"{self.NAME} | {self.name}"
@@ -466,6 +465,8 @@ class Command:
         # return self._receiver.action("run", self.CMD)
 
         if not self.CMD:  # CMD lazy loads, can end up empty if all jobs completed
+            # does it still do this?
+            # Not exactly
             return
         if isinstance(self.CMD, (list, tuple)) and isinstance(
             self.CMD[0], (list, tuple)
@@ -480,7 +481,220 @@ class Command:
         return all_return
 
 
-class FileMover:  # receiver
+class PythonCommand(Command):
+
+    NAME = "PythonCommand"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            *args, **kwargs
+        )  # this has to be called before we can access "args"
+
+    def create(self, runcontainers=None, sampleruncontainers=None, **kwargs):
+
+        if runcontainers is None and sampleruncontainers is None:
+            yield self
+        else:
+            if runcontainers is None:
+                runcontainers = tuple()
+            if sampleruncontainers is None:
+                sampleruncontainers = tuple()
+
+            containers = list(runcontainers) + list(sampleruncontainers)
+            d = self.__dict__.copy()
+            d["containers"] = containers
+            # quick fix
+            if "receiver" not in d and "_receiver" in d:
+                d["receiver"] = d["_receiver"]
+            # ================
+            for kw in kwargs:
+                if kw in d:
+                    d.update(kw, kwargs[kw])
+            if "inputfiles" in d:
+                inputfiles = d.pop("inputfiles")
+                if inputfiles is not None:
+                    pass
+
+            yield PythonCommand(**d)
+
+    @property
+    def CMD(self):
+        """
+        Return the dictionary of attributes to pass to the receiver as kwargs.
+        """
+        self._cmd = self.__dict__
+        return self._cmd
+        # return dict(
+        #    inputfiles=self.inputfiles,
+        #    outdir=self.outdir,
+        # )
+
+    def execute(self, *args, **kws):
+        return self._receiver.run(**self.CMD)
+
+
+class MokaPotConsole(Command):
+
+    NAME = "MokaPot Console"
+
+    def __init__(
+        self,
+        *args,
+        decoy_prefix="rev_",
+        train_fdr=0.05,
+        test_fdr=0.05,
+        seed=888,
+        folds=3,
+        outdir=None,
+        runcontainer=None,
+        sampleruncontainer=None,
+        runcontainers=None,  # either pass 1 run
+        sampleruncontainers=None,  # or 1 sample (collection of runs)
+        **kws,
+    ):
+
+        super().__init__(*args, **kws)
+        self.decoy_prefix = decoy_prefix
+        self.train_fdr = train_fdr
+        self.test_fdr = test_fdr
+        self.seed = seed
+        self.folds = folds
+        self.outdir = outdir  # not being used at the moment
+        self.pinfiles = tuple()
+        self._cmd = None
+        self.runcontainer = runcontainer
+        self.sampleruncontainer = sampleruncontainer
+        self.runcontainers = runcontainers  # for construction
+        self.sampleruncontainers = sampleruncontainers  # for construction
+        self.run_entire_cohort = (
+            True  # will preferentially combine runcontainers together
+        )
+
+    # remember this class inherits a create method, which sets self.runcontainers
+    def create(self, runcontainers=None, sampleruncontainers=None, **kws):
+
+        if runcontainers is None and sampleruncontainers is None:
+            yield self
+        else:
+            if runcontainers is None:
+                runcontainers = tuple()
+            if sampleruncontainers is None:
+                sampleruncontainers = tuple()
+
+            #
+            d = self.__dict__.copy()
+
+            # quick fix
+            if "receiver" not in d and "_receiver" in d:
+                d["receiver"] = d["_receiver"]
+
+            if self.run_entire_cohort:
+                for ix, sampleruncontainer in enumerate(sampleruncontainers):
+                    d["sampleruncontainer"] = sampleruncontainer
+                    d["name"] = f"mokapot-samplerun-{ix}"
+                    yield MokaPotConsole(**d)
+            if sampleruncontainers is None:
+                for ix, runcontainer in enumerate(runcontainers):
+                    d["name"] = f"mokapot-{ix}"
+                    d["runcontainer"] = runcontainer
+                    yield MokaPotConsole(**d)
+            # containers = list(runcontainers) + list(sampleruncontainers)
+            # d = self.__dict__.copy()
+
+            # # quick fix
+            # if "receiver" not in d and "_receiver" in d:
+            #     d["receiver"] = d["_receiver"]
+            # # ================
+            # for kw in kws:
+            #     if kw in d:
+            #         d.update(kw, kws[kw])
+            # if "inputfiles" in d:
+            #     inputfiles = d.pop("inputfiles")
+            #     if inputfiles is not None:
+            #         pass
+
+            # yield MokaPotConsole(**d, containers=containers)
+
+    @property
+    def CMD(self):
+        """
+        executes on a runcontainer or sampleruncontainer
+        """
+        if self.runcontainer is None and self.sampleruncontainer is None:
+            # need to fail better than this
+            return
+        # self.announce()
+
+        # for inputfile in self.get_inputfiles():
+        # for inputfile in self.inputfiles:
+        # self.runcontainer or self.sampleruncontainer should be set
+        # output name calculation
+
+        file_root = None
+        #import ipdb; ipdb.set_trace()
+        if self.runcontainer and isinstance(self.runcontainer, RunContainer):
+            pinfiles = [self.runcontainer.get_file("pinfile")]
+            file_root = pinfiles[0].stem
+            outdir = self.runcontainer.rootdir
+        elif self.sampleruncontainer and isinstance(
+            self.sampleruncontainer, SampleRunContainer
+        ):
+            pinfiles = [
+                runcontainer.get_file("pinfile")
+                for runcontainer in self.sampleruncontainer.runcontainers
+            ]
+            pinfiles = list(filter(None, pinfiles))
+            # note this silently excludes runcontainers that don't have a pinfile
+            outdir = self.sampleruncontainer.rootdir
+        else:
+            #!
+            # raise ValueError(f"no pinfile found for {self.inputfiles}")
+            return
+        if pinfiles[0] is None:
+            raise ValueError(f"no pinfile found for {self.inputfiles}")
+
+        # if self.outdir is None and len(pinfiles) == 1:
+        #     outdir = pinfiles[0].parent
+        # elif self.outdir is not None and len(pinfiles) > 1:
+        #     raise NotImplementedError("Have not resolved multiple file case yet")
+        # else:
+        #     outdir = self.outdir
+
+        # parse_rawname
+
+        res = [
+            MOKAPOT,
+            "--decoy_prefix",
+            "rev_",
+            "--missed_cleavages",
+            "2",
+            "--dest_dir",
+            outdir,
+            "--train_fdr",
+            self.train_fdr,
+            "--test_fdr",
+            self.test_fdr,
+            "--seed",
+            self.seed,
+            "--folds",
+            self.folds,
+            *[str(pinfile.resolve()) for pinfile in filter(None, pinfiles)],
+        ]
+        if file_root is not None:
+            res.append("--file_root")
+            res.append(file_root)
+
+        self._CMD = res
+        return self._CMD
+
+    def execute(self):
+        "execute"
+        # return self._receiver.action("run", self.CMD)
+        # self.find_pinfiles()  # should be created by the time this executs
+        return self._receiver.run(CMD=self.CMD)
+
+
+class FileMover(Receiver):  # receiver
 
     NAME = "FileMover Receiver"
     """execute something internally"""
@@ -504,14 +718,18 @@ class FileMover:  # receiver
         return newfiles
 
 
-REGX = "(.*[f|F]?\\d)(?=\\.\\d+\\.\\d+\\.\\d+)"
+# this was fixed previously?
+# REGX = "(.*[f|F]?\\d)(?=\\.\\d+\\.\\d+\\.\\d+)"
+REGX = "(.*\\d)(?=\\.\\d+\\.\\d+\\.\\d+)"
+# this doesn't work if there is a fraction named fA ??
 
 
 def extract_file_from_scan_header(s: pd.Series):
     return s.str.extract(REGX)
 
 
-class PrepareForiSPEC:
+class PrepareForiSPEC(Receiver):  # receiver
+>>>>>>> 54c0aa1a5cc5ff3a0d083c72c2b7d671c1138a9d
 
     NAME = ""
 
@@ -519,6 +737,10 @@ class PrepareForiSPEC:
     def run(
         self, *args, containers: List[SampleRunContainer] = None, force=False, **kwargs
     ):
+
+        force = False
+        if "force" in kwargs:
+            force = kwargs.pop("force")
 
         if containers is None:
             logger.error(f"no sampleruncontainers passed")
@@ -548,26 +770,34 @@ class PrepareForiSPEC:
         # e2g_qual = runcontainer.get_file("e2g_QUAL")
         # e2g_quant = runcontainer.get_file("e2g_QUANT")
 
-        # TODO be smart, don't just count 9 characters
-        outf = e2g_qual.parent / Path(f"{e2g_qual.name[:9]}_e2g_iSPEC_import.tsv")
-        if outf.exists() and not force:
-            logger.info(f"{outf} already exists")
-            return  # already done
+            # we are still in the for loop iterating over containers
+            # TODO be smart, don't just count 9 characters
+            # the proper name is rec_run_search_label_e2g.tab
+            # we do not have ready access to label - we will just put none (LF) for now
+            outf = e2g_qual.parent / Path(f"{e2g_qual.name[:9]}_{label}_e2g.tab")
+            if outf.exists() and not force:
+                logger.info(f"{outf} already exists")
+                continue  # already done
+                # return
 
-        df_ql = pd.read_table(e2g_qual)
+            df_ql = pd.read_table(e2g_qual)
 
-        df_ql = df_ql[[x for x in df_ql if x != "LabelFLAG"]]
-        df_qt = pd.read_table(e2g_quant)
-        ipdb
-        df = pd.merge(
-            df_qt, df_ql, on=["EXPRecNo", "EXPRunNo", "EXPSearchNo", "GeneID", "SRA"]
-        )
-        df = df.rename(columns={x: f"e2g_{x}" for x in df.columns})
-        logger.info(f"Writing {outf}")
-        df.to_csv(outf, index=False, sep="\t")
+            df_ql = df_ql[[x for x in df_ql if x != "LabelFLAG"]]
+            df_qt = pd.read_table(e2g_quant)
+            df = pd.merge(
+                df_qt,
+                df_ql,
+                on=["EXPRecNo", "EXPRunNo", "EXPSearchNo", "GeneID", "SRA"],
+            )
+            _d = {x: f"e2g_{x}" for x in df.columns}
+            _d["LabelFLAG"] = "e2g_EXPLabelFLAG"
+            df = df.rename(columns=_d)
+
+            logger.info(f"Writing {outf}")
+            df.to_csv(outf, index=False, sep="\t")
 
 
-class MSPC_Rename:  # receiver
+class MSPC_Rename(Receiver):  # receiver
     """
     class to clean up file header and values for grouping on 01
     """
@@ -710,63 +940,6 @@ class FileRealtor:  # receiver
         return runcontainers
 
 
-class PythonCommand(Command):
-
-    NAME = "PythonCommand"
-
-    def __init__(self, *args, **kws):
-        super().__init__(
-            *args, **kws
-        )  # this has to be called before we can access "args"
-
-    def create(self, runcontainers=None, sampleruncontainers=None, **kws):
-        # from ipdb import set_trace
-
-        # set_trace()
-        # if self._receiver.
-
-        if runcontainers is None and sampleruncontainers is None:
-            yield self
-        else:
-            if runcontainers is None:
-                runcontainers = tuple()
-            if sampleruncontainers is None:
-                sampleruncontainers = tuple()
-
-            containers = list(runcontainers) + list(sampleruncontainers)
-            d = self.__dict__.copy()
-
-            # quick fix
-            if "receiver" not in d and "_receiver" in d:
-                d["receiver"] = d["_receiver"]
-            # ================
-            for kw in kws:
-                if kw in d:
-                    d.update(kw, kws[kw])
-            if "inputfiles" in d:
-                inputfiles = d.pop("inputfiles")
-                if inputfiles is not None:
-                    pass
-
-            yield PythonCommand(**d, containers=containers)
-
-    @property
-    def CMD(self):
-        """
-        Return the dictionary of attributes to pass to the receiver as kwargs.
-        """
-        self._cmd = self.__dict__
-        return self._cmd
-        # return dict(
-        #    inputfiles=self.inputfiles,
-        #    outdir=self.outdir,
-        # )
-
-    def execute(self, *args, **kws):
-        self.announce()
-        return self._receiver.run(**self.CMD)
-
-
 class Loop(Command):
     NAME = "loop"
 
@@ -790,100 +963,6 @@ class Loop(Command):
     def execute(self, *args, **kws):
         self.announce()
         return self._receiver.run(**self.CMD)
-
-
-class MokaPotConsole(Command):
-
-    NAME = "MokaPot Console"
-
-    def __init__(
-        self,
-        *args,
-        decoy_prefix="rev_",
-        train_fdr=0.05,
-        test_fdr=0.05,
-        seed=888,
-        folds=3,
-        outdir=None,
-        basename=None,
-        **kws,
-    ):
-        """
-        base_name basename of file e.g. 12345_x_x
-        """
-
-        super().__init__(*args, **kws)
-        self.decoy_prefix = decoy_prefix
-        self.train_fdr = train_fdr
-        self.test_fdr = test_fdr
-        self.seed = seed
-        self.folds = folds
-        self.outdir = outdir
-        self.pinfiles = tuple()
-        self.basename = basename  # not using
-        self._cmd = None
-
-    @property
-    def CMD(self):
-        # self.announce()
-
-        # for inputfile in self.get_inputfiles():
-        # for inputfile in self.inputfiles:
-
-        if self.inputfiles and isinstance(self.inputfiles, RunContainer):
-            pinfiles = [self.inputfiles.get_file("pinfile")]
-        elif self.inputfiles and not isinstance(self.inputfiles, RunContainer):
-            pinfiles = [
-                x.get_file("pinfile") for x in self.inputfiles
-            ]  # the values are RawFile instances
-            # pinfiles = [x for x in pinfiles if x is not None]
-        if pinfiles[0] is None:
-            raise ValueError(f"no pinfile found for {self.inputfiles}")
-
-        if self.outdir is None and len(pinfiles) == 1:
-            outdir = pinfiles[0].parent
-        elif self.outdir is not None and len(pinfiles) > 1:
-            raise NotImplementedError("Have not resolved multiple file case yet")
-        else:
-            outdir = self.outdir
-
-        if self.basename is not None:
-            file_root = self.basename
-        elif len(pinfiles) == 1:
-            file_root = pinfiles[0].stem
-        elif len(pinfiles) > 1 and self.basename is None:
-            raise NotImplementedError("Have not resolved multiple file case")
-
-        # parse_rawname
-        res = [
-            MOKAPOT,
-            "--decoy_prefix",
-            "rev_",
-            "--missed_cleavages",
-            "2",
-            "--dest_dir",
-            outdir,
-            "--file_root",
-            f"{file_root}",
-            "--train_fdr",
-            self.train_fdr,
-            "--test_fdr",
-            self.test_fdr,
-            "--seed",
-            self.seed,
-            "--folds",
-            self.folds,
-            *[str(pinfile.resolve()) for pinfile in pinfiles],
-        ]
-
-        self._CMD = res
-        return self._CMD
-
-    def execute(self):
-        "execute"
-        # return self._receiver.action("run", self.CMD)
-        # self.find_pinfiles()  # should be created by the time this executs
-        return self._receiver.run(CMD=self.CMD)
 
 
 class Percolator(Command):

@@ -2,8 +2,8 @@ num_threads = 0                             # Number of CPU threads to use.
 # database_name = test.fasta                  # Path to the protein database file in FASTA format.
 database_name = /mnt/e/reference_databases/2020-11-23-decoys-contam-gpGrouper_Homo_sapiens_2020_03_24_refseq_GCF_000001405.39_GRCh38.p13_protein.fa.fas
 
-precursor_mass_lower = -10                  # Lower bound of the precursor mass window.
-precursor_mass_upper = 10                   # Upper bound of the precursor mass window.
+precursor_mass_lower = -20                  # Lower bound of the precursor mass window.
+precursor_mass_upper = 20                   # Upper bound of the precursor mass window.
 precursor_mass_units = 1                    # Precursor mass tolerance units (0 for Da, 1 for ppm, 2 for DIA-MS1, 3 for DIA-all).
 precursor_true_tolerance = 20               # True precursor mass tolerance (window is +/- this value).
 precursor_true_units = 1                    # True precursor mass tolerance units (0 for Da, 1 for ppm).
@@ -13,10 +13,10 @@ calibrate_mass = 2                          # Perform mass calibration (0 for OF
 write_calibrated_mgf = 0                    # Write calibrated MS2 scan to a MGF file (0 for No, 1 for Yes).
 decoy_prefix = rev_                         # Prefix of the decoy protein entries. Used for parameter optimization only.
 
-isotope_error = -1/0/1/2                    # Also search for MS/MS events triggered on specified isotopic peaks.
+isotope_error = 0/1/2                    # Also search for MS/MS events triggered on specified isotopic peaks.
 mass_offsets = 0                            # Creates multiple precursor tolerance windows with specified mass offsets.
 restrict_deltamass_to = all                 # Specify amino acids on which delta masses (mass offsets or search modifications) can occur. Allowed values are single letter codes (e.g. ACD), must be capitalized. Use 'all' to allow any amino acid.
-precursor_mass_mode = selected              # One of isolated/selected/corrected.
+precursor_mass_mode = corrected             # One of isolated/selected/corrected.
 
 localize_delta_mass = 0                     # Include fragment ions mass-shifted by unknown modifications (recommended for open
                                             # and mass offset searches) (0 for OFF, 1 for ON).
@@ -37,14 +37,14 @@ clip_nTerm_M = 1                            # Specifies the trimming of a protei
 # peptide termini
 variable_mod_01 = 15.994915 M 3
 # variable_mod_02 = 42.010565 [^ 1
-variable_mod_02 = 229.162932
+variable_mod_02 = 229.162932 n* 1
 variable_mod_03 = 79.966331 STY 3
 variable_mod_04 = -17.02650 nQnC 1
 variable_mod_05 = -18.01060 nE 1
 # variable_mod_06 = 0.00000 site_06 3
 # variable_mod_07 = 0.00000 site_07 3
 
-allow_multiple_variable_mods_on_residue = 0 # Allow each residue to be modified by multiple variable modifications (0 or 1).
+allow_multiple_variable_mods_on_residue = 1 # Allow each residue to be modified by multiple variable modifications (0 or 1).
 max_variable_mods_per_peptide = 4           # Maximum total number of variable modifications per peptide.
 max_variable_mods_combinations = 5000       # Maximum number of modified forms allowed for each peptide (up to 65534).
 mass_diff_to_variable_mod = 0               # Put mass diff as a variable modification. 0 for no; 1 for yes and change the original mass diff and the calculated mass accordingly; 2 for yes but do not change the original mass diff.
@@ -71,13 +71,13 @@ zero_bin_mult_expect = 1.00                 # Multiplies expect value of PSMs in
 add_topN_complementary = 0                  # Inserts complementary ions corresponding to the top N most intense fragments in each experimental spectra.
 
 minimum_peaks = 15                          # Minimum number of peaks in experimental spectrum for matching.
-use_topN_peaks = 150                        # Pre-process experimental spectrum to only use top N peaks.
+use_topN_peaks = 300                        # Pre-process experimental spectrum to only use top N peaks.
 deisotope = 1                               # Perform deisotoping or not (0=no, 1=yes and assume singleton peaks single charged, 2=yes and assume singleton
                                             # peaks single or double charged).
 min_fragments_modelling = 2                 # Minimum number of matched peaks in PSM for inclusion in statistical modeling.
 min_matched_fragments = 4                   # Minimum number of matched peaks for PSM to be reported.
 minimum_ratio = 0.01                        # Filters out all peaks in experimental spectrum less intense than this multiple of the base peak intensity.
-clear_mz_range = 125 135                    # Removes peaks in this m/z range prior to matching.
+clear_mz_range = 125 132                    # Removes peaks in this m/z range prior to matching.
 remove_precursor_peak = 0                   # Remove precursor peaks from tandem mass spectra. 0 = not remove; 1 = remove the peak with precursor charge;
                                             # 2 = remove the peaks with all charge states (only for DDA mode).
 remove_precursor_range = -1.5,1.5           # m/z range in removing precursor peaks. Only for DDA mode. Unit: Th.
