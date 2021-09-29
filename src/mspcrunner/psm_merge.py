@@ -202,7 +202,9 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
         )
     else:
         res2 = res
+        # this fails because res2 never gets "Dataset" column from sic_f
 
+    # bug if sic_f
     if ri_f:
         res3 = pd.merge(
             res2,
