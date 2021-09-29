@@ -92,8 +92,19 @@ class FileFinder:  # receiver
 
                     # basename = f.stem
                     basename = container_obj.make_basename(f)
+<<<<<<< HEAD
+                    # "12345_1_5_23094820934234_F1.raw"
+                    # "12345_1_5_23094820934234_F1.tsv"
+                    # "12345_1_5_23094820934234_F1.mokapot.psms"
+                    # "12345_1_5_23094820934234_F1_MSPCRunner_a1.tsv"
+
+                    # basename = 12345_1_5_23094820934234
+
+                    # logger.debug(f"before 0) {basename}")
+=======
                     if basename is None:  # if is some irrelevant file
                         continue
+>>>>>>> 54c0aa1a5cc5ff3a0d083c72c2b7d671c1138a9d
 
                     # if "psms_all" in basename:
                     #     set_trace()
@@ -101,16 +112,20 @@ class FileFinder:  # receiver
                     if f.is_symlink():
                         raise ValueError(f"No symlink allowed")
 
+                    # =========================================================================
                     # sampleruncontainer "basename" is rec_run_search
                     if (
                         basename is not False
                         and isinstance(container_obj(), SampleRunContainer)
                         and "psms_all" in basename
                     ):
+                        # logger.debug(f)
+                        # 1 + 1
                         pass
                         # logger.debug(f)
                         # set_trace()
                         # 1 + 1
+                    # =========================================================================
 
                     if basename is not None:
                         res[basename].add_file(f)

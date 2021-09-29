@@ -631,6 +631,7 @@ class MokaPotConsole(Command):
         # output name calculation
 
         file_root = None
+        #import ipdb; ipdb.set_trace()
         if self.runcontainer and isinstance(self.runcontainer, RunContainer):
             pinfiles = [self.runcontainer.get_file("pinfile")]
             file_root = pinfiles[0].stem
@@ -677,7 +678,7 @@ class MokaPotConsole(Command):
             self.seed,
             "--folds",
             self.folds,
-            *[str(pinfile.resolve()) for pinfile in pinfiles],
+            *[str(pinfile.resolve()) for pinfile in filter(None, pinfiles)],
         ]
         if file_root is not None:
             res.append("--file_root")
@@ -728,12 +729,13 @@ def extract_file_from_scan_header(s: pd.Series):
 
 
 class PrepareForiSPEC(Receiver):  # receiver
+>>>>>>> 54c0aa1a5cc5ff3a0d083c72c2b7d671c1138a9d
 
     NAME = ""
 
     # def run(self, *args, e2g_qual, e2g_quant, **kwargs):
     def run(
-        self, *args, containers: List[SampleRunContainer] = None, label="none", **kwargs
+        self, *args, containers: List[SampleRunContainer] = None, force=False, **kwargs
     ):
 
         force = False
@@ -744,7 +746,6 @@ class PrepareForiSPEC(Receiver):  # receiver
             logger.error(f"no sampleruncontainers passed")
             # this is bad
             return
-        # filter for correct container type
         containers = [
             container
             for container in containers
@@ -766,9 +767,10 @@ class PrepareForiSPEC(Receiver):  # receiver
                 logger.debug(f"missing e2g file for {container}")
                 continue
 
-            # e2g_qual = runcontainer.get_file("e2g_QUAL")
-            # e2g_quant = runcontainer.get_file("e2g_QUANT")
+        # e2g_qual = runcontainer.get_file("e2g_QUAL")
+        # e2g_quant = runcontainer.get_file("e2g_QUANT")
 
+            # we are still in the for loop iterating over containers
             # TODO be smart, don't just count 9 characters
             # the proper name is rec_run_search_label_e2g.tab
             # we do not have ready access to label - we will just put none (LF) for now

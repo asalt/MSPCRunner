@@ -612,6 +612,7 @@ def prepare_ispec_import(
     label: Optional[str] = typer.Option(
         default="none",
     ),
+    force: Optional[bool] = typer.Option(False),
 ):
 
     ctx = get_current_context()
@@ -621,7 +622,7 @@ def prepare_ispec_import(
     find_sample_containers = make_psms_collect_object(
         container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
     )
-    worker.register(f"collect-psms", find_sample_containers)
+    worker.register(f"collect-e2gs", find_sample_containers)
 
     file_cleaner = PythonCommand(
         PrepareForiSPEC(),
@@ -629,6 +630,7 @@ def prepare_ispec_import(
         # psm_merger,
         name=f"ispec-renamer",
         label=label,
+        force=force,
     )
     worker.register(f"ispec-renamer", file_cleaner)
 

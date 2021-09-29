@@ -106,6 +106,8 @@ def load_config(APPCONF=APPCONF) -> ConfigParser:
 
     _CONFIG["ext"] = SECTIONS["ext"]
     _CONFIG["refdb"] = SECTIONS["refdb"]
+    _CONFIG["search-params"] = SECTIONS["search-params"]
+    _CONFIG["quant-params"] = SECTIONS["quant-params"]
     return _CONFIG
 
 
