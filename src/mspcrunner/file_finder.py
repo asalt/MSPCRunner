@@ -92,19 +92,8 @@ class FileFinder:  # receiver
 
                     # basename = f.stem
                     basename = container_obj.make_basename(f)
-<<<<<<< HEAD
-                    # "12345_1_5_23094820934234_F1.raw"
-                    # "12345_1_5_23094820934234_F1.tsv"
-                    # "12345_1_5_23094820934234_F1.mokapot.psms"
-                    # "12345_1_5_23094820934234_F1_MSPCRunner_a1.tsv"
-
-                    # basename = 12345_1_5_23094820934234
-
-                    # logger.debug(f"before 0) {basename}")
-=======
                     if basename is None:  # if is some irrelevant file
                         continue
->>>>>>> 54c0aa1a5cc5ff3a0d083c72c2b7d671c1138a9d
 
                     # if "psms_all" in basename:
                     #     set_trace()
