@@ -218,7 +218,7 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
 
 
 # MASS_SHIFTS = ['229.1629', '286.184']
-MASS_SHIFTS = "229\.1629|286\.184"
+MASS_SHIFTS = "229\.1629|286\.184|304.207"
 
 # could consider incorporating in containers.SampleRunContainer
 class PSM_Merger(Receiver):

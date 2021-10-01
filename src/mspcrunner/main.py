@@ -258,6 +258,9 @@ def main(
     run MSPC pipeline: raw -> MASIC -> MSFragger -> Percolator
     """
     # ctx = get_current_context()
+    if path is None and bool(rawfile) is False:
+        path = Path('.')
+
 
     if ctx.invoked_subcommand is None:
         logger.info("starting MSPCRunner")
