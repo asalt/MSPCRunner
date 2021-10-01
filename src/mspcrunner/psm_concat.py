@@ -100,9 +100,13 @@ class SampleRunContainerBuilder(Receiver):
             #     continue
 
             recrun = {find_rec_run(container.stem) for container in runcontainers}
-            rootdir = {container.rootdir for container in runcontainers}
+
+            # silently drops RunContainers that do not have a pin file
+            rootdir = filter(None, {container.rootdir for container in runcontainers})
+            rootdir = list(rootdir)
             assert len(recrun) == 1
             recrun = list(recrun)[0]
+            #import ipdb; ipdb.set_trace()
             assert len(rootdir) == 1
             rootdir = list(rootdir)[0]
 

@@ -1,3 +1,6 @@
+"""
+this is for experimenting with Perfect workflow manager
+"""
 import ctypes
 import logging
 import os
@@ -55,6 +58,10 @@ from .predefined_params import (
 from .psm_concat import PSM_Concat, SampleRunContainerBuilder
 from .psm_merge import PSM_Merger
 from .utils import confirm_param_or_exit, find_rec_run
+
+# dagster import
+import dagster
+
 
 app = typer.Typer()
 run_app = typer.Typer(chain=True)
@@ -258,9 +265,6 @@ def main(
     run MSPC pipeline: raw -> MASIC -> MSFragger -> Percolator
     """
     # ctx = get_current_context()
-    if path is None and bool(rawfile) is False:
-        path = Path('.')
-
 
     if ctx.invoked_subcommand is None:
         logger.info("starting MSPCRunner")

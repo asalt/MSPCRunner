@@ -44,7 +44,7 @@ variable_mod_05 = -18.01060 nE 1
 # variable_mod_06 = 0.00000 site_06 3
 # variable_mod_07 = 0.00000 site_07 3
 
-allow_multiple_variable_mods_on_residue = 0 # Allow each residue to be modified by multiple variable modifications (0 or 1).
+allow_multiple_variable_mods_on_residue = 1 # Allow each residue to be modified by multiple variable modifications (0 or 1).
 max_variable_mods_per_peptide = 4           # Maximum total number of variable modifications per peptide.
 max_variable_mods_combinations = 5000       # Maximum number of modified forms allowed for each peptide (up to 65534).
 mass_diff_to_variable_mod = 0               # Put mass diff as a variable modification. 0 for no; 1 for yes and change the original mass diff and the calculated mass accordingly; 2 for yes but do not change the original mass diff.

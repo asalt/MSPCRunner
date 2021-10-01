@@ -31,7 +31,7 @@ class MASIC(Command):
 
     NAME = "MASIC"
 
-    #def __init__(self, receiver, containers, paramfile, outdir, name, **kwargs):
+    # def __init__(self, receiver, containers, paramfile, outdir, name, **kwargs):
     def __init__(self, receiver, paramfile, **kwargs):
         super().__init__(
             receiver,

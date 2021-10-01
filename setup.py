@@ -10,7 +10,7 @@ setup(
         #'requests',
         #'importlib; python_version >= "3.6"',
     ],
-    packages=["mspcrunner", "mspcrunner.monitor"],
+    packages=["mspcrunner", "mspcrunner.monitor", "mspcrunner.dagster"],
     # packages=find_packages(),
     package_dir={"": "src"},
     author="Alex Saltzman",
