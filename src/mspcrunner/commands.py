@@ -737,6 +737,8 @@ class PrepareForiSPEC(Receiver):  # receiver
         self, *args, containers: List[SampleRunContainer] = None, force=False, **kwargs
     ):
 
+        import ipdb; ipdb.set_trace()
+
         force = False
         if "force" in kwargs:
             force = kwargs.pop("force")
@@ -750,10 +752,10 @@ class PrepareForiSPEC(Receiver):  # receiver
             for container in containers
             if isinstance(container, SampleRunContainer)
         ]
-        if len(containers) == 0:
-            logger.error(f"no sampleruncontainers passed")
-            # this is bad
-            return
+        # if len(containers) == 0:
+        #     logger.error(f"no sampleruncontainers passed")
+        #     # this is bad
+        #     return
 
         for container in containers:
             if not isinstance(container, SampleRunContainer):

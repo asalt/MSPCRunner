@@ -100,6 +100,9 @@ class Worker:  # invoker
                 or command_name == "runbuilder"
             ):
                 pass
+            if command_name == 'collect-e2gs':
+                pass
+                #import ipdb; ipdb.set_trace()
 
             for obj in factory:
 
@@ -124,13 +127,16 @@ class Worker:  # invoker
                         elif isinstance(
                             o, SampleRunContainer
                         ):  # check if SampleRunContainer first, then count
+                            self.add_sampleruncontainer(o)
                             # number of associated RunContainers
-                            if len(o.runcontainers) != 0:
-                                self.add_sampleruncontainer(o)
+
+                            # if len(o.runcontainers) != 0:  # do not put this check here, it should be checked somewhere else
+                            #     self.add_sampleruncontainer(o)
+
                             # elif isinstance(o, SampleRunContainer)
-                            else:
+                            # else:
                                 # import ipdb; ipdb.set_trace()
-                                pass
+                            #     pass
 
             # return output  # return nothing/...
             return  # return nothing/...
