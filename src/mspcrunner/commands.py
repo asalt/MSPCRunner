@@ -752,7 +752,7 @@ class PrepareForiSPEC(Receiver):  # receiver
 
     # def run(self, *args, e2g_qual, e2g_quant, **kwargs):
     def run(
-        self, *args, containers: List[SampleRunContainer] = None, force=False, **kwargs
+        self, *args, containers: List[SampleRunContainer] = None, force=False, label='none', **kwargs
     ):
 
         force = False
@@ -768,10 +768,10 @@ class PrepareForiSPEC(Receiver):  # receiver
             for container in containers
             if isinstance(container, SampleRunContainer)
         ]
-        if len(containers) == 0:
-            logger.error(f"no sampleruncontainers passed")
-            # this is bad
-            return
+        # if len(containers) == 0:
+        #     logger.error(f"no sampleruncontainers passed")
+        #     # this is bad
+        #     return
 
         for container in containers:
             if not isinstance(container, SampleRunContainer):
