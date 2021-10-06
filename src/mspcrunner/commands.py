@@ -734,10 +734,8 @@ class PrepareForiSPEC(Receiver):  # receiver
 
     # def run(self, *args, e2g_qual, e2g_quant, **kwargs):
     def run(
-        self, *args, containers: List[SampleRunContainer] = None, force=False, **kwargs
+        self, *args, containers: List[SampleRunContainer] = None, force=False, label='none', **kwargs
     ):
-
-        import ipdb; ipdb.set_trace()
 
         force = False
         if "force" in kwargs:
