@@ -44,6 +44,7 @@ from .MSFragger import MSFragger
 from .predefined_params import (
     PREDEFINED_QUANT_PARAMS,
     PREDEFINED_REFSEQ_PARAMS,
+    PREDEFINED_RMD_TEMPLATES,
     PREDEFINED_SEARCH_PARAMS,
     Predefined_gpG,
     Predefined_Quant,
@@ -281,6 +282,8 @@ def main(
 
     # outdir = set_outdir(outdir, path)
 
+    if path is None:
+        path = Path(".")
     file_finder = FileFinder()
     collect_experiments = PythonCommand(
         file_finder,
@@ -406,11 +409,17 @@ def make_rmd(
     # output_format: RMD_OUT_FORMAT = typer.Option(None),
 ):
     """ """
-    import pkg_resources
+    # import pkg_resources
+    # set_trace()
+    # print(f"Here : {pkg_resources.resource_dir}")
+    # template_file = confirm_param_or_exit(
+    #     template, preset=None, PRESET_DICT=PREDEFINED_RMD_TEMPLATES
+    # )
+    import ipdb
 
-    set_trace()
+    ipdb.set_trace()
+    template_file = Path(template.name)
 
-    print(f"Here : {pkg_resources.resource_dir}")
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
@@ -418,11 +427,12 @@ def make_rmd(
     psms_collector = make_psms_collect_object(
         container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
     )
-    worker.register(f"psms_collector-for-concat", psms_collector)
+    worker.register(f"psms_collector-for-rmd", psms_collector)
 
     rmd = Rmd(
         receiver=cmd_runner,
         output_format=output_format,
+        template_file=template_file,
         name="Rmd",
     )
     worker.register(rmd.name, rmd)

@@ -426,17 +426,35 @@ class Command:
         # logger.info(f"Adding inputfiles on {self}")
         self.inputfiles = inputfiles
 
-    def create(self, containers=None, **kwargs):
+    def create(self, runcontainers=None, sampleruncontainers=None, **kwargs):
+        if runcontainers is None:
+            runcontainers = tuple()
+        if sampleruncontainers is None:
+            sampleruncontainers = tuple()
+        containers = list(runcontainers) + list(sampleruncontainers)
+        import ipdb
+
+        ipdb.set_trace()
         if containers is None:
             yield self
         else:
             for ix, container in enumerate(containers):
                 d = self.__dict__.copy()
+
                 for kw in kwargs:
                     if kw in d:
                         d.update(kw, kwargs[kw])
+                    d["inputfiles"] = container  # depreciate
+                    d["container"] = container  # depreciate
                     d["name"] = d.get("name", "name") + f"-{ix}"
-                yield self(**self.__dict__, inputfiles=container, container=container)
+                if "receiver" not in d and "_receiver" in d:
+                    d["receiver"] = d["_receiver"]
+
+                if isinstance(container, SampleRunContainer):
+                    import ipdb
+
+                    ipdb.set_trace()
+                yield type(self)(**d)
 
     def __repr__(self):
         return f"{self.NAME} | {self.name}"

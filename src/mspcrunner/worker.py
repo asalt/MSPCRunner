@@ -93,6 +93,10 @@ class Worker:  # invoker
                 runcontainers=self.get_runcontainers() or None,
                 sampleruncontainers=self.get_sampleruncontainers() or None,
             )
+            if command_name == "Rmd":
+                import ipdb
+
+                ipdb.set_trace()
             if (
                 command_name.startswith("concat")
                 or command_name == "psms-collector-for-concat"
@@ -101,6 +105,7 @@ class Worker:  # invoker
             ):
                 pass
 
+            # ipdb.set_trace()
             for obj in factory:
 
                 self._history.append((time(), command_name))

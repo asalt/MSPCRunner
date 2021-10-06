@@ -419,10 +419,10 @@ class SampleRunContainer(AbstractContainer):
         self.psms_file = None
 
         # self.rootdir = attr.ib(default=Path("."))
-        self.record_no = record_no
+        # self.record_no = record_no
         self.rootdir = rootdir
 
-        self._record_no: None
+        self._record_no = record_no
         self.run_no: int = run_no
         self.search_no: int = search_no
 
@@ -445,6 +445,18 @@ class SampleRunContainer(AbstractContainer):
         return f"SampleRunContainer: {self.record_no}_{self.run_no}_{self.search_no}"
 
     @property
+    def record_no(self):
+
+        if self._record_no is not None:
+            return self._record_no
+
+        filemappings = {parse_rawname(x) for x in self._file_mappings.values()}
+        assert len(filemappings) == 1
+        # filemappings is a list of tuples (recno, runno, searchno)
+        self._record_no = list(filemappings)[0][0]
+        return self._record_no
+
+    @property
     def mspcfiles(self):
         _mspcfiles = [
             container.get_file("MSPCRunner") for container in self.runcontainers
@@ -460,7 +472,9 @@ class SampleRunContainer(AbstractContainer):
         could be a good place to extend checks
 
         """
-        files = set(filter(None, [x.get_file("MSPCRunner") for x in self.runcontainers]))
+        files = set(
+            filter(None, [x.get_file("MSPCRunner") for x in self.runcontainers])
+        )
         # import ipdb; ipdb.set_trace()
 
         allfiles = [x.get_file("MSPCRunner") for x in self.runcontainers]
