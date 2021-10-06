@@ -260,8 +260,7 @@ def main(
     """
     # ctx = get_current_context()
     if path is None and bool(rawfile) is False:
-        path = Path('.')
-
+        path = Path(".")
 
     if ctx.invoked_subcommand is None:
         logger.info("starting MSPCRunner")
@@ -418,19 +417,17 @@ def make_rmd(
     # template_file = confirm_param_or_exit(
     #     template, preset=None, PRESET_DICT=PREDEFINED_RMD_TEMPLATES
     # )
-    import ipdb
 
-    ipdb.set_trace()
     template_file = Path(template.name)
 
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
 
-    psms_collector = make_psms_collect_object(
-        container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
+    _collector = make_psms_collect_object(
+        container_cls=SampleRunContainer, name="collect-e2gs-for-Rmd", path=worker.path
     )
-    worker.register(f"psms_collector-for-rmd", psms_collector)
+    worker.register(f"collect-e2gs-for-Rmd", _collector)
 
     rmd = Rmd(
         receiver=cmd_runner,

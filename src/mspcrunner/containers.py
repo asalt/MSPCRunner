@@ -445,6 +445,10 @@ class SampleRunContainer(AbstractContainer):
         return f"SampleRunContainer: {self.record_no}_{self.run_no}_{self.search_no}"
 
     @property
+    def rec_run_search(self):
+        return f"{self.record_no}_{self.run_no}_{self.search_no}"
+
+    @property
     def record_no(self):
 
         if self._record_no is not None:

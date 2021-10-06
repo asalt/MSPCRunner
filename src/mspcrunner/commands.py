@@ -412,6 +412,7 @@ class Command:
     ):
         self.name = name
         self._receiver = receiver
+        self.receiver = receiver
         self._CMD = None
         self.inputfiles = inputfiles  # depreciate
         self.containers = containers  # multiple containers to create multiple objects
@@ -422,19 +423,15 @@ class Command:
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-        # def set_files(self, inputfiles: dict):
-        # logger.info(f"Adding inputfiles on {self}")
-        self.inputfiles = inputfiles
-
     def create(self, runcontainers=None, sampleruncontainers=None, **kwargs):
         if runcontainers is None:
             runcontainers = tuple()
         if sampleruncontainers is None:
             sampleruncontainers = tuple()
         containers = list(runcontainers) + list(sampleruncontainers)
-        import ipdb
+        # import ipdb
 
-        ipdb.set_trace()
+        # ipdb.set_trace()
         if containers is None:
             yield self
         else:
@@ -752,7 +749,12 @@ class PrepareForiSPEC(Receiver):  # receiver
 
     # def run(self, *args, e2g_qual, e2g_quant, **kwargs):
     def run(
-        self, *args, containers: List[SampleRunContainer] = None, force=False, label='none', **kwargs
+        self,
+        *args,
+        containers: List[SampleRunContainer] = None,
+        force=False,
+        label="none",
+        **kwargs,
     ):
 
         force = False

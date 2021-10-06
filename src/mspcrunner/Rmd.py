@@ -28,22 +28,39 @@ class Rmd(Command):
     def __init__(
         self,
         *args,
-        receiver: Receiver,
+        receiver: Receiver = None,
         template_file: Path = None,
         # inputfiles=tuple(),
         **kwargs,
     ):
 
+        self.receiver = None
         self.template_file = template_file
 
+        receiver = self.receiver or receiver  # keep old or use new if none
         if "receiver" in kwargs:
             receiver = kwargs.pop("receiver")
+        self.receiver = receiver
 
         super().__init__(*args, receiver=receiver, **kwargs)
         if "paramfile" in kwargs:
             paramfile = kwargs.pop("paramfile")
 
         # config = self.read_config(paramfile)
+
+    def create(self, sampleruncontainers=None, **kwargs):
+        # import ipdb
+
+        # ipdb.set_trace()
+        if sampleruncontainers is None:
+            yield self
+
+        d = self.__dict__.copy()
+        for kw in kwargs:
+            if kw in d:
+                d.update(kw, kwargs[kw])
+        d["containers"] = sampleruncontainers
+        yield type(self)(**d)
 
     @property
     def CMD(self):
@@ -89,6 +106,8 @@ class Rmd(Command):
 
 
         """
+        if self.containers is None:
+            return
 
         some_r_script = None
         some_template = None
@@ -96,24 +115,28 @@ class Rmd(Command):
         template_file = self.template_file.absolute()
         outname = ".html"
         title = "title"
-        directory = "."
+        directory = Path("./").absolute()
 
-        import ipdb
+        # import ipdb
 
         # ipdb.set_trace()
+        expids = [f'"{x.rec_run_search}"' for x in self.containers]
+        _res = list()
+        for ix, i in enumerate(expids, 1):
+            _res.append(f"'expids{ix}'= {i}")
+        EXPIDS = ", ".join(_res)
+
+        #'expids' =  c({expids})
         params = f"""
-            c('title' = {title},
-              'directory' = {directory},
-              'expids' = 
+            list('title' = '{title}',
+              'directory' = '{directory}',
+              'expids' = list({', '.join(expids)})
+              )
 
         """
         output_file = "test.html"
         output_dir = "."
 
-        if self.container is not None:
-            import ipdb
-
-            ipdb.set_trace()
         cmd = [
             f"Rscript",
             "-e",

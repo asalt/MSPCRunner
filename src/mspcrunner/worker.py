@@ -93,20 +93,19 @@ class Worker:  # invoker
                 runcontainers=self.get_runcontainers() or None,
                 sampleruncontainers=self.get_sampleruncontainers() or None,
             )
-            if command_name == "Rmd":
-                import ipdb
-
-                ipdb.set_trace()
             if (
                 command_name.startswith("concat")
                 or command_name == "psms-collector-for-concat"
                 or command_name == "SampleRunContainerBuilder"
                 or command_name == "runbuilder"
+                or command_name == "Rmd"
             ):
                 pass
-            if command_name == 'collect-e2gs':
+            if command_name == "collect-e2gs-for-Rmd":
                 pass
-                #import ipdb; ipdb.set_trace()
+                # import ipdb
+
+                # ipdb.set_trace()
 
             # ipdb.set_trace()
             for obj in factory:
@@ -140,7 +139,7 @@ class Worker:  # invoker
 
                             # elif isinstance(o, SampleRunContainer)
                             # else:
-                                # import ipdb; ipdb.set_trace()
+                            # import ipdb; ipdb.set_trace()
                             #     pass
 
             # return output  # return nothing/...
