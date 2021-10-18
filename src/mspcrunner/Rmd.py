@@ -30,12 +30,14 @@ class Rmd(Command):
         *args,
         receiver: Receiver = None,
         template_file: Path = None,
+        report_name: str = None,
         # inputfiles=tuple(),
         **kwargs,
     ):
 
         self.receiver = None
         self.template_file = template_file
+        self.report_name = report_name
 
         receiver = self.receiver or receiver  # keep old or use new if none
         if "receiver" in kwargs:
@@ -49,9 +51,7 @@ class Rmd(Command):
         # config = self.read_config(paramfile)
 
     def create(self, sampleruncontainers=None, **kwargs):
-        # import ipdb
 
-        # ipdb.set_trace()
         if sampleruncontainers is None:
             yield self
 
@@ -109,34 +109,39 @@ class Rmd(Command):
         if self.containers is None:
             return
 
-        some_r_script = None
-        some_template = None
+        directory = Path(
+            "."
+        ).absolute()  # this is the base directory for Rmd script to find psm and e2g files
         # template_file = self.template_file.absolute()
+
         template_file = self.template_file.absolute()
         outname = ".html"
-        title = "title"
-        directory = Path("./").absolute()
+        output_dir = self.outdir or Path("./").absolute()
+        output_file = self.report_name or "noname.html"
 
-        # import ipdb
+        # here we can add logic for dynamic name gen
+        title = f"{os.path.splitext(output_file)[0]} {directory.name}"
 
-        # ipdb.set_trace()
         expids = [f'"{x.rec_run_search}"' for x in self.containers]
-        _res = list()
-        for ix, i in enumerate(expids, 1):
-            _res.append(f"'expids{ix}'= {i}")
-        EXPIDS = ", ".join(_res)
+        # _res = list()
+        # for ix, i in enumerate(expids, 1):
+        #     _res.append(f"'expids{ix}'= {i}")
+        # EXPIDS = ", ".join(_res)
 
         #'expids' =  c({expids})
-        params = f"""
-            list('title' = '{title}',
-              'directory' = '{directory}',
-              'expids' = list({', '.join(expids)})
-              )
 
-        """
-        output_file = "test.html"
-        output_dir = "."
+        params = (
+            f"list('title' = '{title}',"
+            f"'directory' = '{directory}',"
+            f"'expids' = list({', '.join(expids)}))"  # Rmd script finds psm/e2g files from these IDs
+        )
 
+        # params = f"""
+        #    list('title' = '{title}',
+        #    'directory' = '{directory}',
+        #    'expids' = list({', '.join(expids)}))  # Rmd script finds psm/e2g files from these IDs
+        # """
+        # all paths need to be full paths
         cmd = [
             f"Rscript",
             "-e",

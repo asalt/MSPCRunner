@@ -12,6 +12,9 @@ from pathlib import Path
 from time import time
 from typing import Container, List, Optional, Tuple
 
+import progressbar
+
+progressbar.streams.wrap_stderr()
 import click
 import typer
 from ipdb import set_trace
@@ -41,6 +44,7 @@ from .containers import AbstractContainer, RunContainer, SampleRunContainer
 from .MASIC import MASIC
 from .Rmd import Rmd
 from .MSFragger import MSFragger
+from .inhouse_modisite import AnnotateSite
 from .predefined_params import (
     PREDEFINED_QUANT_PARAMS,
     PREDEFINED_REFSEQ_PARAMS,
@@ -406,8 +410,15 @@ def search(
 
 @run_app.command()
 def make_rmd(
-    template: RMD_TEMPLATES = typer.Option(Path("<#x^x#>"), "-t", "--template"),
-    output_format: RMD_OUT_FORMAT = typer.Option("html", "-o", "--output-format"),
+    template: RMD_TEMPLATES = typer.Option("TMTreport", "-t", "--template"),
+    output_format: RMD_OUT_FORMAT = typer.Option("html", "-f", "--output-format"),
+    report_name: str = typer.Option(
+        None,
+        "-o",
+        "--output-name",
+        help="Dasename for output. Default is name of the template file.",
+    ),
+    # title: str = typer.Option(None),
     # output_format: RMD_OUT_FORMAT = typer.Option(None),
 ):
     """ """
@@ -419,6 +430,7 @@ def make_rmd(
     # )
 
     template_file = Path(template.name)
+    report_name = report_name or os.path.splitext(template_file.name)[0]
 
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
@@ -429,9 +441,12 @@ def make_rmd(
     )
     worker.register(f"collect-e2gs-for-Rmd", _collector)
 
+    outdir = Path(".").absolute()  # can make dynamic later
     rmd = Rmd(
         receiver=cmd_runner,
+        outdir=outdir,
         output_format=output_format,
+        report_name=report_name,
         template_file=template_file,
         name="Rmd",
     )
@@ -686,7 +701,11 @@ def merge_psms():
 
 
 @run_app.command()
-def annotate_sites():
+def annotate_sites(
+    refseq: Predefined_RefSeq = typer.Option(None),
+    local_refseq: Optional[Path] = typer.Option(None),
+    workers: int = typer.Option(1, help="number of workers (CPU cores) to deploy"),
+):
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
@@ -709,18 +728,15 @@ def annotate_sites():
     # for ix, searchruncontainer in enumerate(searchruncontainers):
 
     # TODO finish: this is incomplete
-    gpgrouper = AnnotateSite(
+    site_annotate_factory = AnnotateSite(
         cmd_runner,
         # inputfiles=searchruncontainer,
         workers=workers,
-        name=f"gpgrouper-{ix}",
+        name=f"AnnotateSite-inhouse",
         refseq=refseq,
-        paramfile=Predefined_gpG.default,
-        labeltype=labeltype,
-        phospho=phospho,
     )
 
-    worker.register(f"gpgrouper-{ix}", gpgrouper)
+    worker.register(f"site_annotate_factory", site_annotate_factory)
 
 
 @run_app.command()

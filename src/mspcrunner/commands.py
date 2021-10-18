@@ -247,11 +247,12 @@ class CMDRunner(Receiver):  # receiver
 
         popen = subprocess.Popen(
             _CMD,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            bufsize=1,
-            universal_newlines=True,
-            shell=False,
+            # stdout=subprocess.PIPE,
+            # stderr=subprocess.PIPE,
+            # bufsize=1,
+            # universal_newlines=True,
+            # shell=False,
+            # shell=True,
         )
 
         # q = Queue()
@@ -271,8 +272,8 @@ class CMDRunner(Receiver):  # receiver
         #         # print("%s: %s" % (source, line))
         # import ipdb
 
-        for pipe, msg in merge_pipes(stdout=popen.stdout, stderr=popen.stderr):
-            logger.info(msg)
+        # for pipe, msg in merge_pipes(stdout=popen.stdout, stderr=popen.stderr):
+        #     logger.info(msg)
 
         retcode = popen.wait()
 
@@ -448,9 +449,10 @@ class Command:
                     d["receiver"] = d["_receiver"]
 
                 if isinstance(container, SampleRunContainer):
-                    import ipdb
+                    pass
+                    # import ipdb
 
-                    ipdb.set_trace()
+                    # ipdb.set_trace()
                 yield type(self)(**d)
 
     def __repr__(self):

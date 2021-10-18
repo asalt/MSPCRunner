@@ -1,4 +1,5 @@
 ---
+# https://yihui.org/knitr/options/#code-evaluation
 title: "`r params$title`"
 output: 
     #pdf_document:
@@ -8,6 +9,7 @@ output:
       df_print: kable
       #code_folding: hide
 latex_engine: lualatex
+tidy: formatR
 params:
     title: "default"
     directory: "/mnt/e/projects/ERPDX/gpgrouped/"
@@ -30,14 +32,14 @@ knitr::knit_hooks$set(debug = function(before, options, envir) {
 })
 ```
 
-```{r}
+```{r, include=F}
 knitr::opts_chunk$get("title")
 title <- params$title
 print(title)
 ```
 
 
-```{r}
+```{r collapse=TRUE}
 library(tidyverse)
 library(knitr)
 library(kableExtra)
@@ -48,20 +50,18 @@ library(vroom)
 ```{r, include=F}
 expids <- params$expids
 directory <- params$directory
-# knitr::opts_chunk$set(echo = params$expids)
+knitr::opts_chunk$set(echo = params$expids)
 # print(expids)
 # print(params$expids)
 # print(directory)
 # print('hi')
 # expids = c("45278", "45279", "45280", "45281", "45282")
+# print(params$directory)
 ```
 
 
-```{r}
-print(params$directory)
-```
-
-```{r}
+```{r label="func def for nice table print"}
+# output nice looking tables
 mykable <- function(data) {
     knitr::kable(data, booktabs = TRUE, digits = 2) %>%
         kable_styling(latex_options = c("striped", "scale_down"))
@@ -69,7 +69,9 @@ mykable <- function(data) {
 ```
 
 
-```{r}
+```{r label="func def for summarizing continuous data"}
+# in the future, likely to replace with tools provided in: https://github.com/easystats/report
+# and/or https://github.com/ddsjoberg/gtsummary
 calc_stat_summary <- function(.x, .var) {
     .x %>%
         summarize(
@@ -83,7 +85,7 @@ calc_stat_summary <- function(.x, .var) {
 }
 ```
 
-```{r}
+```{r, include=F}
 name_abbrev <- function(.x) {
     .x
 }
@@ -91,6 +93,7 @@ name_abbrev <- function(.x) {
 
 
 # load data
+
 ```{r, label="findfiles", eval=F, include=F, debug=F}
 # prof <- c("45278", "45279", "45280", "45281", "45282") %>%
 # map(~ glue::glue("../gpgrouped/", .x, "*e2g_QUAL.tsv")) %>%
@@ -109,6 +112,7 @@ message(
 )
 knit_print(files)
 ```
+
 ```{r, label="load data", include=F}
 
 df <- expids %>%
@@ -134,7 +138,7 @@ df <- expids %>%
 ```
 
 
-```{r}
+```{r, label='count'}
 df %>%
     count(id, EXPRecNo) %>%
     mykable()
