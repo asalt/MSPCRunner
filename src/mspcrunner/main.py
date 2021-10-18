@@ -343,10 +343,18 @@ def add_phos_boolean():
     cmd_runner = ctx.obj.get("cmd_runner")
     worker = ctx.obj.get("worker")
 
+
+
+    # psms_collector = make_psms_collect_object(
+    #     container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
+    # )
+    # worker.register(f"psms_collector-for-concat", psms_collector)
+
+    # needs updating!
     for (ix, run_container) in enumerate(
         worker._output.get("experiment_finder", tuple())
     ):
-        name = (f"add-phos-boolean-{ix}",)
+        name = f"add-phos-boolean-{ix}"
         cmd = PythonCommand(
             AddPhosBoolean(),
             runcontainer=run_container,
@@ -354,6 +362,8 @@ def add_phos_boolean():
             name=name,
         )
         worker.register(name, cmd)
+
+
 
 
 @run_app.command()
@@ -381,6 +391,7 @@ def search(
     else:
         refseq = local_refseq
 
+    # replace this!
     inputfiles = worker._output.get("experiment_finder", tuple())
     # input files not dynamically found, but should be
 
@@ -444,6 +455,7 @@ def quant(
 
     paramfile = confirm_param_or_exit(paramfile, preset, PREDEFINED_QUANT_PARAMS)
 
+    # replace this
     for (ix, run_container) in enumerate(
         worker._output.get("experiment_finder", tuple())
     ):
