@@ -12,9 +12,9 @@ from pathlib import Path
 from time import time
 from typing import Container, List, Optional, Tuple
 
-import progressbar
+# import progressbar
 
-progressbar.streams.wrap_stderr()
+# progressbar.streams.wrap_stderr()
 import click
 import typer
 from ipdb import set_trace
