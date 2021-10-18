@@ -1,3 +1,6 @@
+"""
+this is for experimenting with Perfect workflow manager
+"""
 import ctypes
 import logging
 import os
@@ -12,9 +15,6 @@ from pathlib import Path
 from time import time
 from typing import Container, List, Optional, Tuple
 
-# import progressbar
-
-# progressbar.streams.wrap_stderr()
 import click
 import typer
 from ipdb import set_trace
@@ -44,11 +44,9 @@ from .containers import AbstractContainer, RunContainer, SampleRunContainer
 from .MASIC import MASIC
 from .Rmd import Rmd
 from .MSFragger import MSFragger
-from .inhouse_modisite import AnnotateSite
 from .predefined_params import (
     PREDEFINED_QUANT_PARAMS,
     PREDEFINED_REFSEQ_PARAMS,
-    PREDEFINED_RMD_TEMPLATES,
     PREDEFINED_SEARCH_PARAMS,
     Predefined_gpG,
     Predefined_Quant,
@@ -60,6 +58,10 @@ from .predefined_params import (
 from .psm_concat import PSM_Concat, SampleRunContainerBuilder
 from .psm_merge import PSM_Merger
 from .utils import confirm_param_or_exit, find_rec_run
+
+# dagster import
+import dagster
+
 
 app = typer.Typer()
 run_app = typer.Typer(chain=True)
@@ -263,8 +265,6 @@ def main(
     run MSPC pipeline: raw -> MASIC -> MSFragger -> Percolator
     """
     # ctx = get_current_context()
-    if path is None and bool(rawfile) is False:
-        path = Path(".")
 
     if ctx.invoked_subcommand is None:
         logger.info("starting MSPCRunner")
@@ -288,8 +288,6 @@ def main(
 
     # outdir = set_outdir(outdir, path)
 
-    if path is None:
-        path = Path(".")
     file_finder = FileFinder()
     collect_experiments = PythonCommand(
         file_finder,
@@ -352,18 +350,10 @@ def add_phos_boolean():
     cmd_runner = ctx.obj.get("cmd_runner")
     worker = ctx.obj.get("worker")
 
-
-
-    # psms_collector = make_psms_collect_object(
-    #     container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
-    # )
-    # worker.register(f"psms_collector-for-concat", psms_collector)
-
-    # needs updating!
     for (ix, run_container) in enumerate(
         worker._output.get("experiment_finder", tuple())
     ):
-        name = f"add-phos-boolean-{ix}"
+        name = (f"add-phos-boolean-{ix}",)
         cmd = PythonCommand(
             AddPhosBoolean(),
             runcontainer=run_container,
@@ -371,8 +361,6 @@ def add_phos_boolean():
             name=name,
         )
         worker.register(name, cmd)
-
-
 
 
 @run_app.command()
@@ -400,7 +388,6 @@ def search(
     else:
         refseq = local_refseq
 
-    # replace this!
     inputfiles = worker._output.get("experiment_finder", tuple())
     # input files not dynamically found, but should be
 
@@ -421,44 +408,28 @@ def search(
 
 @run_app.command()
 def make_rmd(
-    template: RMD_TEMPLATES = typer.Option("TMTreport", "-t", "--template"),
-    output_format: RMD_OUT_FORMAT = typer.Option("html", "-f", "--output-format"),
-    report_name: str = typer.Option(
-        None,
-        "-o",
-        "--output-name",
-        help="Dasename for output. Default is name of the template file.",
-    ),
-    # title: str = typer.Option(None),
+    template: RMD_TEMPLATES = typer.Option(Path("<#x^x#>"), "-t", "--template"),
+    output_format: RMD_OUT_FORMAT = typer.Option("html", "-o", "--output-format"),
     # output_format: RMD_OUT_FORMAT = typer.Option(None),
 ):
     """ """
-    # import pkg_resources
-    # set_trace()
-    # print(f"Here : {pkg_resources.resource_dir}")
-    # template_file = confirm_param_or_exit(
-    #     template, preset=None, PRESET_DICT=PREDEFINED_RMD_TEMPLATES
-    # )
+    import pkg_resources
 
-    template_file = Path(template.name)
-    report_name = report_name or os.path.splitext(template_file.name)[0]
+    set_trace()
 
+    print(f"Here : {pkg_resources.resource_dir}")
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
 
-    _collector = make_psms_collect_object(
-        container_cls=SampleRunContainer, name="collect-e2gs-for-Rmd", path=worker.path
+    psms_collector = make_psms_collect_object(
+        container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
     )
-    worker.register(f"collect-e2gs-for-Rmd", _collector)
+    worker.register(f"psms_collector-for-concat", psms_collector)
 
-    outdir = Path(".").absolute()  # can make dynamic later
     rmd = Rmd(
         receiver=cmd_runner,
-        outdir=outdir,
         output_format=output_format,
-        report_name=report_name,
-        template_file=template_file,
         name="Rmd",
     )
     worker.register(rmd.name, rmd)
@@ -480,7 +451,6 @@ def quant(
 
     paramfile = confirm_param_or_exit(paramfile, preset, PREDEFINED_QUANT_PARAMS)
 
-    # replace this
     for (ix, run_container) in enumerate(
         worker._output.get("experiment_finder", tuple())
     ):
@@ -713,11 +683,7 @@ def merge_psms():
 
 
 @run_app.command()
-def annotate_sites(
-    refseq: Predefined_RefSeq = typer.Option(None),
-    local_refseq: Optional[Path] = typer.Option(None),
-    workers: int = typer.Option(1, help="number of workers (CPU cores) to deploy"),
-):
+def annotate_sites():
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
@@ -740,15 +706,18 @@ def annotate_sites(
     # for ix, searchruncontainer in enumerate(searchruncontainers):
 
     # TODO finish: this is incomplete
-    site_annotate_factory = AnnotateSite(
+    gpgrouper = AnnotateSite(
         cmd_runner,
         # inputfiles=searchruncontainer,
         workers=workers,
-        name=f"AnnotateSite-inhouse",
+        name=f"gpgrouper-{ix}",
         refseq=refseq,
+        paramfile=Predefined_gpG.default,
+        labeltype=labeltype,
+        phospho=phospho,
     )
 
-    worker.register(f"site_annotate_factory", site_annotate_factory)
+    worker.register(f"gpgrouper-{ix}", gpgrouper)
 
 
 @run_app.command()

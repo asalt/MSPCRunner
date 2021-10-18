@@ -98,11 +98,21 @@ class Worker:  # invoker
                 or command_name == "psms-collector-for-concat"
                 or command_name == "SampleRunContainerBuilder"
                 or command_name == "runbuilder"
+                or command_name == "Rmd"
             ):
                 pass
+<<<<<<< HEAD
             # if command_name == 'ispec-renamer':
             #     import ipdb; ipdb.set_trace()
+=======
+            if command_name == "collect-e2gs-for-Rmd":
+                pass
+                # import ipdb
 
+                # ipdb.set_trace()
+>>>>>>> bd2a56fcda654615936a523d97e94a2f8a8987e2
+
+            # ipdb.set_trace()
             for obj in factory:
 
                 self._history.append((time(), command_name))
@@ -126,14 +136,15 @@ class Worker:  # invoker
                         elif isinstance(
                             o, SampleRunContainer
                         ):  # check if SampleRunContainer first, then count
+                            self.add_sampleruncontainer(o)
                             # number of associated RunContainers
                             if len(o.runcontainers) != 0 or len(o._file_mappings) != 0: # TODO fix this
                                 #import ipdb; ipdb.set_trace()
                                 self.add_sampleruncontainer(o)
                             # elif isinstance(o, SampleRunContainer)
-                            else:
-                                # import ipdb; ipdb.set_trace()
-                                pass
+                            # else:
+                            # import ipdb; ipdb.set_trace()
+                            #     pass
 
             # return output  # return nothing/...
             return  # return nothing/...

@@ -405,12 +405,15 @@ class SampleRunContainer(AbstractContainer):
         search_no=6,
         stem=None,
         runcontainers=None,
-        **kws,
+        **kwargs,
     ) -> None:
-        super().__init__()
+
+        self.name = ""
+        if "name" in kwargs:
+            self.name = kwargs.pop("name")
+        super().__init__(**kwargs)
 
         self.runcontainers = runcontainers or tuple()
-        self.name: str = ""
         self.stem = None
         # self.runcontainers: Collection[RunContainer] = attr.ib(
         #     default=(RunContainer(),)
@@ -419,10 +422,10 @@ class SampleRunContainer(AbstractContainer):
         self.psms_file = None
 
         # self.rootdir = attr.ib(default=Path("."))
-        self.record_no = record_no
+        # self.record_no = record_no
         self.rootdir = rootdir
 
-        self._record_no: None
+        self._record_no = record_no
         self.run_no: int = run_no
         self.search_no: int = search_no
 
@@ -445,6 +448,23 @@ class SampleRunContainer(AbstractContainer):
         return f"SampleRunContainer: {self.record_no}_{self.run_no}_{self.search_no}"
 
     @property
+    def rec_run_search(self):
+        return f"{self.record_no}_{self.run_no}_{self.search_no}"
+
+    @property
+    def record_no(self):
+
+        if self._record_no is not None:
+            return self._record_no
+
+        filemappings = {parse_rawname(x) for x in self._file_mappings.values()}
+        assert len(filemappings) < 2
+        # filemappings is a list of tuples (recno, runno, searchno)
+        if filemappings:
+            self._record_no = list(filemappings)[0][0]
+        return self._record_no
+
+    @property
     def mspcfiles(self):
         _mspcfiles = [
             container.get_file("MSPCRunner") for container in self.runcontainers
@@ -460,7 +480,9 @@ class SampleRunContainer(AbstractContainer):
         could be a good place to extend checks
 
         """
-        files = set(filter(None, [x.get_file("MSPCRunner") for x in self.runcontainers]))
+        files = set(
+            filter(None, [x.get_file("MSPCRunner") for x in self.runcontainers])
+        )
         # import ipdb; ipdb.set_trace()
 
         allfiles = [x.get_file("MSPCRunner") for x in self.runcontainers]
@@ -512,16 +534,25 @@ class SampleRunContainer(AbstractContainer):
         # print(f)
         # if f.name.endswith("raw"):
         #     self._file_mappings["raw"] = f
-        if "psms_all" in f.name:
-            self._file_mappings["input_psms"] = f
-
-        elif "e2g_QUAL" in f.name:
-            self._file_mappings["e2g_QUAL"] = f
-        elif "e2g_QUANT" in f.name:
-            self._file_mappings["e2g_QUANT"] = f
-
-        else:
-            pass
+        keywords = (
+            "psms_all",
+            "e2g_QUAL",
+            "e2g_QUANT",
+            "psm_QUAL",
+            "psms_QUAL",
+            "psms_QUANT",
+        )
+        for kw in keywords:
+            if kw in f.name:
+                self._file_mappings[kw] = f
+            # if "psms_all" in f.name:
+        #    self._file_mappings["input_psms"] = f
+        # elif "e2g_QUAL" in f.name:
+        #    self._file_mappings["e2g_QUAL"] = f
+        # elif "e2g_QUANT" in f.name:
+        #    self._file_mappings["e2g_QUANT"] = f
+        # else:
+        #     pass
 
         return self
 

@@ -247,11 +247,12 @@ class CMDRunner(Receiver):  # receiver
 
         popen = subprocess.Popen(
             _CMD,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            bufsize=1,
-            universal_newlines=True,
-            shell=False,
+            # stdout=subprocess.PIPE,
+            # stderr=subprocess.PIPE,
+            # bufsize=1,
+            # universal_newlines=True,
+            # shell=False,
+            # shell=True,
         )
 
         # q = Queue()
@@ -271,8 +272,8 @@ class CMDRunner(Receiver):  # receiver
         #         # print("%s: %s" % (source, line))
         # import ipdb
 
-        for pipe, msg in merge_pipes(stdout=popen.stdout, stderr=popen.stderr):
-            logger.info(msg)
+        # for pipe, msg in merge_pipes(stdout=popen.stdout, stderr=popen.stderr):
+        #     logger.info(msg)
 
         retcode = popen.wait()
 
@@ -412,6 +413,7 @@ class Command:
     ):
         self.name = name
         self._receiver = receiver
+        self.receiver = receiver
         self._CMD = None
         self.inputfiles = inputfiles  # depreciate
         self.containers = containers  # multiple containers to create multiple objects
@@ -422,21 +424,36 @@ class Command:
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-        # def set_files(self, inputfiles: dict):
-        # logger.info(f"Adding inputfiles on {self}")
-        self.inputfiles = inputfiles
+    def create(self, runcontainers=None, sampleruncontainers=None, **kwargs):
+        if runcontainers is None:
+            runcontainers = tuple()
+        if sampleruncontainers is None:
+            sampleruncontainers = tuple()
+        containers = list(runcontainers) + list(sampleruncontainers)
+        # import ipdb
 
-    def create(self, containers=None, **kwargs):
+        # ipdb.set_trace()
         if containers is None:
             yield self
         else:
             for ix, container in enumerate(containers):
                 d = self.__dict__.copy()
+
                 for kw in kwargs:
                     if kw in d:
                         d.update(kw, kwargs[kw])
+                    d["inputfiles"] = container  # depreciate
+                    d["container"] = container  # depreciate
                     d["name"] = d.get("name", "name") + f"-{ix}"
-                yield self(**self.__dict__, inputfiles=container, container=container)
+                if "receiver" not in d and "_receiver" in d:
+                    d["receiver"] = d["_receiver"]
+
+                if isinstance(container, SampleRunContainer):
+                    pass
+                    # import ipdb
+
+                    # ipdb.set_trace()
+                yield type(self)(**d)
 
     def __repr__(self):
         return f"{self.NAME} | {self.name}"
@@ -631,7 +648,6 @@ class MokaPotConsole(Command):
         # output name calculation
 
         file_root = None
-        #import ipdb; ipdb.set_trace()
         if self.runcontainer and isinstance(self.runcontainer, RunContainer):
             pinfiles = [self.runcontainer.get_file("pinfile")]
             file_root = pinfiles[0].stem
@@ -654,6 +670,8 @@ class MokaPotConsole(Command):
             raise ValueError(f"no pinfile found for {self.inputfiles}")
 
         # if self.outdir is None and len(pinfiles) == 1:
+        if len(pinfiles) == 1:
+            file_root = pinfiles[0].stem # we have to do this iff there is 1 pinfile
         #     outdir = pinfiles[0].parent
         # elif self.outdir is not None and len(pinfiles) > 1:
         #     raise NotImplementedError("Have not resolved multiple file case yet")
@@ -734,7 +752,12 @@ class PrepareForiSPEC(Receiver):  # receiver
 
     # def run(self, *args, e2g_qual, e2g_quant, **kwargs):
     def run(
-        self, *args, containers: List[SampleRunContainer] = None, label="none", **kwargs
+        self,
+        *args,
+        containers: List[SampleRunContainer] = None,
+        force=False,
+        label="none",
+        **kwargs,
     ):
 
         force = False
@@ -745,16 +768,15 @@ class PrepareForiSPEC(Receiver):  # receiver
             logger.error(f"no sampleruncontainers passed")
             # this is bad
             return
-        # filter for correct container type
         containers = [
             container
             for container in containers
             if isinstance(container, SampleRunContainer)
         ]
-        if len(containers) == 0:
-            logger.error(f"no sampleruncontainers passed")
-            # this is bad
-            return
+        # if len(containers) == 0:
+        #     logger.error(f"no sampleruncontainers passed")
+        #     # this is bad
+        #     return
 
         for container in containers:
             if not isinstance(container, SampleRunContainer):
@@ -770,6 +792,7 @@ class PrepareForiSPEC(Receiver):  # receiver
             # e2g_qual = runcontainer.get_file("e2g_QUAL")
             # e2g_quant = runcontainer.get_file("e2g_QUANT")
 
+            # we are still in the for loop iterating over containers
             # TODO be smart, don't just count 9 characters
             # the proper name is rec_run_search_label_e2g.tab
             # we do not have ready access to label - we will just put none (LF) for now

@@ -117,7 +117,7 @@ class RMD_OUT_FORMAT(str, Enum):
 
 
 PREDEFINED_RMD_TEMPLATES = {
-    "TMTreport": PARAMDIR / Path("TMTreport_a1.Rmd"),
+    "TMTreport": TEMPLATEDIR / Path("TMTreport_a1.Rmd"),
 }
 
 RMD_TEMPLATES = param_obj_creator("RMD_TEMPLATES", PREDEFINED_RMD_TEMPLATES)

@@ -1,0 +1,461 @@
+---
+# https://yihui.org/knitr/options/#code-evaluation
+title: "`r params$title`"
+output: 
+    #pdf_document:
+        #df_print: kable
+        #highlight: pygments
+    html_document: 
+      df_print: kable
+      #code_folding: hide
+latex_engine: lualatex
+tidy: formatR
+params:
+    title: "default"
+    directory: "/mnt/e/projects/ERPDX/gpgrouped/"
+    expids:
+        - "45278"
+        - "45279"
+        - "45280"
+        - "45281"
+        - "45282"
+---
+```{r include=F}
+knitr::knit_hooks$set(debug = function(before, options, envir) {
+    if (!before) {
+        message(
+            paste(names(envir), as.list(envir),
+                sep = " = ", collapse = "\n"
+            )
+        )
+    }
+})
+```
+
+```{r, include=F}
+knitr::opts_chunk$get("title")
+title <- params$title
+print(title)
+```
+
+
+```{r collapse=TRUE}
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(vroom)
+```
+
+
+```{r, include=F}
+expids <- params$expids
+directory <- params$directory
+knitr::opts_chunk$set(echo = params$expids)
+# print(expids)
+# print(params$expids)
+# print(directory)
+# print('hi')
+# expids = c("45278", "45279", "45280", "45281", "45282")
+# print(params$directory)
+```
+
+
+```{r label="func def for nice table print"}
+# output nice looking tables
+mykable <- function(data) {
+    knitr::kable(data, booktabs = TRUE, digits = 2) %>%
+        kable_styling(latex_options = c("striped", "scale_down"))
+}
+```
+
+
+```{r label="func def for summarizing continuous data"}
+# in the future, likely to replace with tools provided in: https://github.com/easystats/report
+# and/or https://github.com/ddsjoberg/gtsummary
+calc_stat_summary <- function(.x, .var) {
+    .x %>%
+        summarize(
+            mean = mean({{ .var }}),
+            sd = sd({{ .var }}),
+            median = median({{ .var }}),
+            max = max({{ .var }}),
+            min = min({{ .var }}),
+            .groups = "keep"
+        )
+}
+```
+
+```{r, include=F}
+name_abbrev <- function(.x) {
+    .x
+}
+```
+
+
+# load data
+
+```{r, label="findfiles", eval=F, include=F, debug=F}
+# prof <- c("45278", "45279", "45280", "45281", "45282") %>%
+# map(~ glue::glue("../gpgrouped/", .x, "*e2g_QUAL.tsv")) %>%
+# ptinyz9
+files <- expids %>%
+    map(~ glue::glue(.x, ".*e2g_QUAL.tsv")) %>%
+    map(~ fs::dir_ls(path = directory, regexp = .x, recurse = T)) %>%
+    flatten() %>%
+    unlist(use.names = F)
+
+
+message(
+    paste(names(files), files,
+        sep = " = ", collapse = "\n"
+    )
+)
+knit_print(files)
+```
+
+```{r, label="load data", include=F}
+
+df <- expids %>%
+    map(~ glue::glue(.x, ".*e2g_QUAL.tsv")) %>%
+    map(~ fs::dir_ls(path = directory, regexp = .x, recurse = T)) %>%
+    flatten() %>%
+    unlist(use.names = F) %>%
+    map(~ vroom(.x, n_max = Inf) %>% mutate(id = fs::path_file(.x))) %>%
+    map(~ mutate(.x,
+        GeneID = as.character(GeneID),
+        TaxonID = as.character(TaxonID),
+    )) %>%
+    bind_rows()
+# %>% map(~udnlist(.x))
+#    map(~unlist(.x))  %>%
+#  map(~ read_tsv(.x) %>% mutate(id = fs::path_file(.x))) %>%
+#  map(~ mutate(.x,
+#    GeneID = as.character(GeneID),
+#    TaxonID = as.character(TaxonID),
+#  )) %>%
+#  bind_rows()
+# map(~ read_tsv(.x) %>% mutate(id = fs::path_file(.x))) %>%
+```
+
+
+```{r, label='count'}
+df %>%
+    count(id, EXPRecNo) %>%
+    mykable()
+```
+
+# number of strict level geneids per taxon
+```{r}
+.func <- function() {
+    df %>%
+        dplyr::filter(SRA == "S" & str_detect(GeneID, "sp_", negate = T) & !TaxonID == "NA") %>%
+        group_by(id, TaxonID) %>%
+        summarize(n_distinct = n_distinct(GeneID), .groups = "keep")
+}
+
+.func() %>%
+    ungroup() %>%
+    pivot_wider(id_cols = "id", names_from = "TaxonID", values_from = "n_distinct") %>%
+    mykable()
+
+.func() %>%
+    pivot_wider(id_cols = "id", names_from = "TaxonID", values_from = "n_distinct") %>%
+    pivot_longer(-id, names_to = "TaxonID", values_to = "n_Strict") %>%
+    group_by(TaxonID) %>%
+    calc_stat_summary(n_Strict) %>%
+    mykable()
+```
+
+
+# number of strict level geneids with 2 or more peptides per taxon
+```{r}
+
+.func <- function() {
+    df %>%
+        dplyr::filter(SRA == "S" & str_detect(GeneID, "sp_", negate = T) & !TaxonID == "NA" & PeptideCount > 1) %>%
+        group_by(id, TaxonID) %>%
+        summarize(n_distinct = n_distinct(GeneID), .groups = "keep")
+}
+
+.func() %>%
+    ungroup() %>%
+    pivot_wider(id_cols = "id", names_from = "TaxonID", values_from = "n_distinct") %>%
+    mykable()
+
+.func() %>%
+    pivot_wider(id_cols = "id", names_from = "TaxonID", values_from = "n_distinct") %>%
+    pivot_longer(-id, names_to = "TaxonID", values_to = "n_Strict") %>%
+    group_by(TaxonID) %>%
+    calc_stat_summary(n_Strict) %>%
+    mykable()
+```
+
+
+
+# PSMs
+```{r PSM LOADING, message=TRUE, include=F}
+
+.files <- expids %>%
+    map(~ glue::glue(.x, ".*psms?_QUAL.tsv")) %>%
+    map(~ fs::dir_ls(path = directory, regexp = .x, recurse = T)) %>%
+    flatten() %>%
+    map(~ unlist(.x))
+
+dfp <- .files %>%
+    map(~ vroom(.x, n_max = Inf) %>% mutate(id = fs::path_file(.x))) %>%
+    map(~ filter(.x, oriFLAG == 1)) %>%
+    map(~ mutate(.x,
+        GeneID = as.character(GeneID),
+        TaxonID = as.character(TaxonID),
+    )) %>%
+    bind_rows()
+
+# map(~ read_tsv(.x) %>% mutate(id = fs::path_file(.x))) %>%
+# SpectrumFile is still SpecId for msfragger output, need to parse out the raw file name
+# .dfp <-.dfp %>% mutate(SpectrumFile=coalesce(SpectrumFile, SpecId))
+
+# .dfp <-.dfp %>% mutate(SpectrumFile=coalesce(SpectrumFile, SpecId))
+if (!"SpecId" %in% colnames(dfp)) {
+    dfp <- dfp %>% mutate(SpecId = SpectrumFile)
+}
+
+dfp <- dfp %>% mutate(SpectrumFile = coalesce(SpectrumFile, filename))
+# dfp <-dfp %>% mutate(SpectrumFile=coalesce(SpectrumFile, SpecId))
+# dfp <-dfp %>% mutate(SpectrumFile=coalesce(SpecId, SpectrumFile))
+dfp <- dfp %>% mutate(SpectrumFile = coalesce(SpectrumFile, filename))
+
+if (!"SpectrumFile" %in% colnames(dfp)) {
+    dfp <- dfp %>% mutate(SpectrumFile = str_extract(SpecId, "(.*[f|F]?\\d)(?=\\.\\d+\\.\\d+\\.\\d+)"))
+}
+
+if (dfp %>% pull(SpectrumFile) %>% n_distinct() > 999) {
+    dfp <- dfp %>% mutate(SpectrumFile = str_extract(SpectrumFile, "(.*[f|F]?[\\d|a|A])(?=\\.\\d+\\.\\d+\\.\\d+)"))
+}
+# map( ~ select(.x, GeneID, TaxonID, SequenceModi)) #%>%
+
+dfp <- dfp %>%
+    mutate(miscuts = stringr::str_count(dfp$Sequence, "K|R") - 1) %>%
+    mutate(miscuts = recode(miscuts, `-1` = 0))
+
+dfp <- dfp %>% mutate(
+    DeltaMassPPM =
+        ((MZ - ParentIonMZ) / ParentIonMZ) * 10^6
+)
+```
+
+
+
+
+# n files
+```{r, eval=T}
+library(knitr)
+library(kableExtra)
+dfp %>%
+    pull(SpectrumFile) %>%
+    n_distinct()
+```
+```{r}
+
+dfp %>%
+    count(SpectrumFile) %>%
+    mykable()
+```
+
+```{r, eval=F, include=F, results = "asis", }
+# doesn't WORK
+unique_exps <- unique(dfp$EXPRecNo)
+print(unique_exps)
+
+dfp %>%
+    dplyr::filter(EXPRecNo == unique_exps[1]) %>%
+    count(SpectrumFile) %>%
+    arrange(SpectrumFile) %>%
+    knitr::kable()
+seq_along(unique_exps)
+for (i in seq_along(unique_exps)) {
+    .x <- dfp %>%
+        dplyr::filter(EXPRecNo == unique_exps[i]) %>%
+        count(SpectrumFile) %>%
+        arrange(SpectrumFile)
+    print(.x)
+
+    # %>%
+    #    knitr::kable() %>% kable_styling()
+    print(.x)
+    cat("\n")
+
+
+    # %>% kable_styling(font_size=6))
+    # cat('\n')
+}
+```
+
+# count per spec file
+```{r, eval=T}
+dfp %>%
+    dplyr::filter(str_detect(GeneID, "sp_", negate = T) & !TaxonID == "NA") %>%
+    group_by(id) %>%
+    summarize(
+        specids = n_distinct(SpecId), n_distinct_Sequence =
+            n_distinct(Sequence), .groups = "keep"
+    ) %>%
+    ungroup() %>%
+    mykable()
+# %>%
+#   pivot_wider(id_cols = "id",
+#               values_from = c('specids', "n_distinct_Sequence"))
+```
+
+
+# miscuts
+```{r, eval=T}
+dfp %>%
+    dplyr::filter(str_detect(GeneID, "sp_", negate = T) & !TaxonID == "NA") %>%
+    group_by(id) %>%
+    count(miscuts) %>%
+    mykable()
+```
+
+
+# miscuts avg
+```{r, eval=T}
+miscut_stats <- dfp %>%
+    dplyr::filter(str_detect(GeneID, "sp_", negate = T) & !TaxonID == "NA") %>%
+    group_by(id) %>%
+    count(miscuts) %>%
+    summarize(miscuts = miscuts, count = n, ratio = n / sum(n)) %>%
+    ungroup()
+miscut_stats %>% mykable()
+```
+
+
+```{r, label="Miscut graph"}
+library(ggpubr)
+
+ggbarplot(data = miscut_stats, y = "id", x = "count", fill = "miscuts")
+```
+
+```{r, include=F}
+# library(modelsummary)
+# datasummary_skim(
+#     miscuts ~ Mean + SD + Min + Max + Median,
+#     data = dfp
+# )
+```
+
+
+# count per taxon
+
+```{r, eval=F}
+dfp %>%
+    dplyr::filter(str_detect(GeneID, "sp_", negate = T) & !TaxonID == "NA") %>%
+    group_by(SpectrumFile, TaxonID) %>%
+    summarize(specids = n_distinct(SpecId), n_distinct_Sequence = n_distinct(Sequence), .groups = "keep") %>%
+    ungroup() %>%
+    arrange(SpectrumFile) %>%
+    mykable()
+```
+
+# mass error plot
+#
+
+```{r mass error plot, fig.height=10}
+dfp %>%
+    dplyr::filter(str_detect(GeneID, "sp_", negate = T) & !TaxonID == "NA") %>%
+    group_by(id, SpectrumFile) %>%
+    ggpubr::ggviolin(
+        x = "SpectrumFile", y = "DeltaMassPPM", x.text.angle = 45, font.ytickslab = 6,
+        main = "DeltaMassPPM",
+        orientation = "horiz",
+    )
+```
+
+# mass error stats
+```{r mass error stats}
+dfp %>%
+    dplyr::filter(str_detect(GeneID, "sp_", negate = T) & !TaxonID == "NA") %>%
+    group_by(id, SpectrumFile) %>%
+    calc_stat_summary(DeltaMassPPM) %>%
+    ungroup() %>%
+    select(-id) %>%
+    mykable()
+```
+# overall SN ratio
+```{r sn ratio stats}
+dfp %>%
+    dplyr::filter(str_detect(GeneID, "sp_", negate = T) & !TaxonID == "NA") %>%
+    group_by(filename) %>%
+    calc_stat_summary(PeakSignalToNoiseRatio) %>%
+    ungroup() %>%
+    mykable()
+```
+
+
+# Peak Skew
+```{r, include=F}
+dfp %>%
+    dplyr::filter(str_detect(GeneID, "sp_", negate = T) & !TaxonID == "NA") %>%
+    group_by(id, SpectrumFile) %>%
+    calc_stat_summary(PeakSkew) %>%
+    ungroup() %>%
+    select(-id) %>%
+    mykable()
+```
+# Mean Peak Skew
+```{r}
+dfp %>%
+    dplyr::filter(str_detect(GeneID, "sp_", negate = T) & !TaxonID == "NA") %>%
+    group_by(id) %>%
+    calc_stat_summary(PeakSkew) %>%
+    ungroup() %>%
+    mykable()
+```
+##
+
+
+
+```{r}
+# look for site data
+site_files <- expids %>%
+    map(~ glue::glue(.x, ".*site_table.tsv")) %>%
+    map(~ fs::dir_ls(path = directory, regexp = .x)) %>%
+    unlist()
+
+SITE_DATA <- if_else(length(site_files) > 0, T, F)
+site_files
+```
+
+```{r, eval=SITE_DATA, include=F}
+sites <- site_files %>%
+    map(~ read_tsv(.x) %>% mutate(id = fs::path_file(.x))) %>%
+    bind_rows()
+```
+
+
+```{r, eval=SITE_DATA}
+"Distinct sites"
+
+sites %>%
+    filter(AA %in% c("S", "T", "Y")) %>%
+    group_by(id) %>%
+    summarise(
+        tot = n(),
+        unique_sites = n_distinct(Site),
+        tot_geneids = n_distinct(GeneID)
+    ) %>%
+    mykable()
+```
+
+
+```{r, eval=SITE_DATA}
+
+sites %>%
+    filter(AA %in% c("S", "T", "Y")) %>%
+    group_by(id, AA) %>%
+    summarise(
+        tot = n(),
+        unique_sites = n_distinct(Site),
+        tot_geneids = n_distinct(GeneID)
+    ) %>%
+    mykable()
+```

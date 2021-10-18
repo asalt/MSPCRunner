@@ -31,7 +31,7 @@ class MASIC(Command):
 
     NAME = "MASIC"
 
-    #def __init__(self, receiver, containers, paramfile, outdir, name, **kwargs):
+    # def __init__(self, receiver, containers, paramfile, outdir, name, **kwargs):
     def __init__(self, receiver, paramfile, **kwargs):
         super().__init__(
             receiver,
@@ -80,13 +80,18 @@ class MASIC(Command):
 
     @property
     def CMD(self):
+
         # TODO check os
         # if not self.inputfiles:
         #    return
 
         self.announce()
 
-        inputfile = self.inputfile.get_file("spectra")
+        inputfile = self.inputfile.get_file("raw")
+        if inputfile is None:
+            inputfile = self.inputfile.get_file("spectra")
+        if inputfile is None:  # if still none
+            return
 
         # spectra_files = list()
         # # if self.inputfiles:

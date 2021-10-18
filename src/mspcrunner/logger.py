@@ -4,17 +4,44 @@ from pathlib import Path
 
 from time import time
 
+# import progressbar
+
+# progressbar.streams.wrap_stderr()
+
+
 def delete_existing_log_file():
     """to be called once upon module import
     TODO: properly build a logfile manager that is not dangerous like this is
     """
     fh = logging.FileHandler("MSPCRunner.log")
-    maybe_already_exists = Path(fh.__dict__['baseFilename'])
+    maybe_already_exists = Path(fh.__dict__["baseFilename"])
     if maybe_already_exists.exists():
         maybe_already_exists.unlink()
 
+
 # call once on import
-delete_existing_log_file()
+# delete_existing_log_file()
+from tqdm import tqdm
+
+
+# class TqdmHandler(logging.StreamHandler):
+#     def __init__(self, **kwargs):
+#         logging.StreamHandler.__init__(self, **kwargs)
+#
+#     def emit(self, record):
+#         msg = self.format(record)
+#         tqdm.write(msg)
+class TqdmLoggingHandler(logging.StreamHandler):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            tqdm.write(msg)
+            self.flush()
+        except Exception:
+            self.handleError(record)
 
 
 def get_logger(name=__name__):
