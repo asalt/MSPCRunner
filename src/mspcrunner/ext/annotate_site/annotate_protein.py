@@ -23,10 +23,6 @@ import tqdm
 from tqdm.contrib import DummyTqdmFile
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-import progressbar
-
-progressbar.streams.wrap_stderr()
-
 import click
 import pandas as pd
 from RefProtDB.utils import fasta_dict_from_file
