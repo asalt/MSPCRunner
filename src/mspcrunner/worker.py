@@ -100,6 +100,8 @@ class Worker:  # invoker
                 or command_name == "runbuilder"
             ):
                 pass
+            # if command_name == 'ispec-renamer':
+            #     import ipdb; ipdb.set_trace()
 
             for obj in factory:
 
@@ -125,7 +127,8 @@ class Worker:  # invoker
                             o, SampleRunContainer
                         ):  # check if SampleRunContainer first, then count
                             # number of associated RunContainers
-                            if len(o.runcontainers) != 0:
+                            if len(o.runcontainers) != 0 or len(o._file_mappings) != 0: # TODO fix this
+                                #import ipdb; ipdb.set_trace()
                                 self.add_sampleruncontainer(o)
                             # elif isinstance(o, SampleRunContainer)
                             else:
