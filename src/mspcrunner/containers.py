@@ -395,7 +395,7 @@ class SampleRunContainer(AbstractContainer):
     #     self._files_added = 0
     #     self.runcontainers = None
     FILE_EXTENSIONS = ["tsv"]
-    PATTERNS = ["*tsv", "*txt"]
+    PATTERNS = ["*tsv", "*txt", "*tab"]
 
     def __init__(
         self,
@@ -426,8 +426,8 @@ class SampleRunContainer(AbstractContainer):
         self.rootdir = rootdir
 
         self._record_no = record_no
-        self.run_no: int = run_no
-        self.search_no: int = search_no
+        self._run_no: int = run_no
+        self._search_no: int = search_no
 
         self.phospho: bool = False
         self.labeltype: str = "none"
@@ -453,16 +453,35 @@ class SampleRunContainer(AbstractContainer):
 
     @property
     def record_no(self):
-
+        self._update_recrunsearch()
         if self._record_no is not None:
             return self._record_no
 
+        #filemappings = {parse_rawname(x) for x in self._file_mappings.values()}
+        #assert len(filemappings) < 2
+        ## filemappings is a list of tuples (recno, runno, searchno)
+        #if filemappings:
+        #    self._record_no = list(filemappings)[0][0]
+        #return self._record_no
+
+    @property
+    def run_no(self):
+        self._update_recrunsearch()
+        if self._run_no is not None:
+            return self._run_no
+
+    @property
+    def search_no(self):
+        self._update_recrunsearch()
+        if self._search_no is not None:
+            return self._search_no
+
+    def _update_recrunsearch(self):
         filemappings = {parse_rawname(x) for x in self._file_mappings.values()}
-        assert len(filemappings) < 2
-        # filemappings is a list of tuples (recno, runno, searchno)
-        if filemappings:
-            self._record_no = list(filemappings)[0][0]
-        return self._record_no
+        assert len(filemappings) < 2 # we want 1 and only 1 result
+        self._record_no = list(filemappings)[0][0]
+        self._run_no = list(filemappings)[0][1]
+        self._search_no = list(filemappings)[0][2]
 
     @property
     def mspcfiles(self):
