@@ -57,7 +57,7 @@ from .predefined_params import (
     RMD_OUT_FORMAT,
     RMD_TEMPLATES,
 )
-from .psm_concat import PSM_Concat, SampleRunContainerBuilder
+from .psm_concat import PSM_Concat
 from .psm_merge import PSM_Merger
 from .utils import confirm_param_or_exit, find_rec_run
 
