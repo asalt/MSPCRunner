@@ -2,6 +2,7 @@
 """
 import dagster
 import dagster as d
+from dagster import job, op
 from dagster.core.definitions.preset import PresetDefinition
 import typer
 import typing as ty
@@ -15,12 +16,14 @@ from mspcrunner.predefined_params import (
 )
 
 
-@d.solid()
+# @d.solid()
+@op
 def get_config():
     return list(Predefined_RefSeq.values())[0]
 
 
-@dagster.solid()
+# @dagster.solid()
+@op
 def search(
     context,
     # preset=dagster.InputDefinition(None, dagster_type=dagster.Optional),
@@ -34,25 +37,34 @@ def search(
     # ),
     # msfragger_conf: Optional[Path] = typer.Option(MSFRAGGER_DEFAULT_CONF),
 ) -> int:
-    paramfile = context.solid_config["paramfile"]
-    context.log.info(f"paramfile: {paramfile}")
+    # paramfile = context.solid_config["paramfile"]
+    # context.log.info(f"paramfile: {paramfile}")
+    context.op_config.get("something important")
 
     return 1
 
 
 # @dagster.pipeline(config_schema=dagster.Field(dagster.Any))
-@dagster.pipeline(
-    preset_defs=[
-        d.PresetDefinition(
-            name="test",
-            run_config={"solids": {"search": {"config": {"paramfile": "file2"}}}},
-            # "solid_selection": [search],
-        )
-    ]
-)
+# @dagster.pipeline(
+#     preset_defs=[
+#         d.PresetDefinition(
+#             name="test",
+#             run_config={"solids": {"search": {"config": {"paramfile": "file2"}}}},
+#             # "solid_selection": [search],
+#         )
+#     ]
+# )
+@op
+def display_results(context, func_name=None, res=None):
+    context.log.info("f {func_name} ended with code {res}")
+
+
+@job
 def search_pipeline():
     # conf = get_config()
-    search()
+    search_res = search()
+    func_name = search.__name__
+    display_results(res=search_res)
 
 
 @dagster.repository
@@ -66,3 +78,8 @@ def search_repository():
             "search_pipeline": lambda: search_pipeline,
         }
     }
+
+
+# this is how we can run a job "manually"
+if __name__ == "__main__":
+    result = search.execute_in_process()
