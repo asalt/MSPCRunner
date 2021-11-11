@@ -269,7 +269,8 @@ def annotate_protein(
     gene_psms = psms[(psms.GeneID == str(geneid))].query("PSM_UseFLAG==1")
     seqs = fa[fa.geneid == str(geneid)]  # will loop over each
     if gene_psms.empty:
-        print("{} not in dataset".format(geneid))
+        # then did not pass PSM_UseFLAG==1. Can happen if an unlabeled peptide shows up in a tmt experiment 
+        # print("{} not in dataset".format(geneid))
         return
 
     ALL_RESULTS = list()
@@ -656,7 +657,7 @@ def plot_func(rows, modis=None, title=None, outname=None):
 )
 def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."):
 
-    fa = pd.DataFrame.from_dict(fasta_dict_from_file(fasta))
+    fa = None # lazy load later
     for p in psms:
         # get file
         if os.path.exists(p):
@@ -665,12 +666,12 @@ def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."
             from bcmproteomics_ext import ispec
 
             rec, run, search = parse_rawname(p)
-            exp = ispec.PSMs(rec, run, search, data_dir=data_dir)
-            df = exp.df
             # df = exp.df.head(30)
             # import ipdb
 
             # ipdb.set_trace()
+            exp = ispec.PSMs(rec, run, search, data_dir=data_dir)
+            df = exp.df
 
         # ============================
         df = df.rename(
@@ -692,6 +693,12 @@ def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."
         else:
             basename = f"{out}"
 
+
+        # now load fasta
+        if fa is None:
+            fa = pd.DataFrame.from_dict(fasta_dict_from_file(fasta))
+
+        # ====
         if cores > 1:
 
             # arglist = [[g, df, fa, basename, plot, combine]
@@ -771,7 +778,6 @@ def runner(geneids, df, fa, basename, make_plot, combine):
     for ix, g in enumerate(geneids):
         for label in df.LabelFLAG.unique():
             samplename = f"{basename}_{g}"
-            # import ipdb; ipdb.set_trace()
             res = annotate_protein(
                 df[df.LabelFLAG == label],
                 g,
