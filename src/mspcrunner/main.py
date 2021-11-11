@@ -57,7 +57,7 @@ from .predefined_params import (
     RMD_OUT_FORMAT,
     RMD_TEMPLATES,
 )
-from .psm_concat import PSM_Concat
+from .psm_concat import PSM_Concat, SampleRunContainerBuilder
 from .psm_merge import PSM_Merger
 from .utils import confirm_param_or_exit, find_rec_run
 
@@ -352,8 +352,6 @@ def add_phos_boolean():
     cmd_runner = ctx.obj.get("cmd_runner")
     worker = ctx.obj.get("worker")
 
-
-
     # psms_collector = make_psms_collect_object(
     #     container_cls=SampleRunContainer, name="experiment_finder", path=worker.path
     # )
@@ -371,8 +369,6 @@ def add_phos_boolean():
             name=name,
         )
         worker.register(name, cmd)
-
-
 
 
 @run_app.command()
@@ -540,26 +536,6 @@ def percolate(
         # outdir=WORKDIR
     )
     worker.register(f"mokapot-parent", mokapot)
-    # this is all we need
-
-    # for (ix, run_container) in enumerate(
-    #     worker._output.get("experiment_finder", tuple())
-    # ):
-
-    #     # THIS does not work when path is not specified at start
-    #     file_maybe_exists = run_container.get_file("mokapot-psms")
-
-    #     # run_container.update_files()
-    #     # import ipdb
-
-    #     # ipdb.set_trace()
-    #     # if run_container.get_file("pinfile") is None:
-    #     #     logger.info(f"{file_maybe_exists} does not have associated pin file")
-    #     #     continue
-
-    #     if isinstance(file_maybe_exists, Path) and file_maybe_exists.exists():
-    #         logger.info(f"{file_maybe_exists} already present")
-    #         continue
 
 
 @run_app.command()

@@ -666,12 +666,12 @@ class MokaPotConsole(Command):
             #!
             # raise ValueError(f"no pinfile found for {self.inputfiles}")
             return
-        if pinfiles[0] is None:
+        if len(pinfiles) == 1 and pinfiles[0] is None:
             raise ValueError(f"no pinfile found for {self.inputfiles}")
 
         # if self.outdir is None and len(pinfiles) == 1:
         if len(pinfiles) == 1:
-            file_root = pinfiles[0].stem # we have to do this iff there is 1 pinfile
+            file_root = pinfiles[0].stem  # we have to do this iff there is 1 pinfile
         #     outdir = pinfiles[0].parent
         # elif self.outdir is not None and len(pinfiles) > 1:
         #     raise NotImplementedError("Have not resolved multiple file case yet")
