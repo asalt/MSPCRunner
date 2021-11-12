@@ -49,12 +49,21 @@ def extract_file_from_scan_header(s: pd.Series):
     return s.str.extract(REGX)
 
 
+def get_delim(s):
+    if '.' in s:
+        delim = "."
+    elif '_' in s:
+        delim = "_"
+    return delim
+
 def get_scanno(s):
-    return s.split(".")[-2]
+    delim = get_delim(s)
+    return s.split(delim)[-2]
 
 
 def get_filename(s):
-    return s.split(".")[0]
+    delim = get_delim(s)
+    return s.split(delim)[0]
 
 
 def filechecker(f):
@@ -145,7 +154,12 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
     concat
     """
 
-    search_result = pd.read_table(search_result_f)
+    search_result = pd.read_table(search_result_f).rename(
+        columns = {
+            "ScanNum": "scannum",
+            "Peptide": "peptide",
+        }
+    )
     # percpsm = pd.read_table(percpsm_f, usecols=[0,1,2,3,4,5])
     percpsm = pd.read_table(percpsm_f)
     # percpsm = read_pin(str(percpsm_f), to_df=True )
@@ -163,9 +177,13 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
         peptide = [x for x in res.group() if x.isalpha() and x.isupper()]
         return "".join(peptide)
 
-    search_result["mz"] = (
-        search_result.precursor_neutral_mass + search_result.charge
-    ) / search_result.charge
+    if all (x in search_result for x in ('precursor_neutral_mass',
+                                         'charge')):
+
+        search_result["mz"] = (
+            search_result.precursor_neutral_mass + search_result.charge
+        ) / search_result.charge
+
     # percpsm['filename'] = percpsm.PSMId.apply(get_filename)
     # percpsm['scannum'] = percpsm.PSMId.apply(get_scanno).astype(int)
     percpsm["filename"] = percpsm.SpecId.apply(get_filename)
@@ -179,6 +197,8 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
     #    percpsm['peptide'] = percpsm.peptide_modi.apply(get_peptide_sequence)
     # else:
     percpsm["peptide"] = percpsm.peptide_modi.apply(get_peptide_sequence)
+    if 'hit_rank' not in search_result:
+        search_result['hit_rank'] = 1
 
     if percpsm_f:
         res = pd.merge(
@@ -296,6 +316,8 @@ class PSM_Merger(Receiver):
 
 
 def maybe_calc_labeling_efficiency(df, outname):
+    if 'modification_info' not in df:
+        return
     if not df.modification_info.fillna("").str.contains(MASS_SHIFTS).any():
         return
     with open("labeling_efficiency.txt", "a") as f:

@@ -457,12 +457,12 @@ class SampleRunContainer(AbstractContainer):
         if self._record_no is not None:
             return self._record_no
 
-        #filemappings = {parse_rawname(x) for x in self._file_mappings.values()}
-        #assert len(filemappings) < 2
+        # filemappings = {parse_rawname(x) for x in self._file_mappings.values()}
+        # assert len(filemappings) < 2
         ## filemappings is a list of tuples (recno, runno, searchno)
-        #if filemappings:
+        # if filemappings:
         #    self._record_no = list(filemappings)[0][0]
-        #return self._record_no
+        # return self._record_no
 
     @property
     def run_no(self):
@@ -478,7 +478,10 @@ class SampleRunContainer(AbstractContainer):
 
     def _update_recrunsearch(self):
         filemappings = {parse_rawname(x) for x in self._file_mappings.values()}
-        assert len(filemappings) < 2 # we want 1 and only 1 result
+        if len(filemappings) == 0:
+            return
+
+        assert len(filemappings) == 1  # we want 1 and only 1 result
         self._record_no = list(filemappings)[0][0]
         self._run_no = list(filemappings)[0][1]
         self._search_no = list(filemappings)[0][2]
