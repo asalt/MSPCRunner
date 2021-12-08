@@ -104,6 +104,23 @@ class MSFragger(Command):
             parser.read_string("[top]\n" + string)  # create dummy header
         return parser
 
+    def create(self, runcontainers=None, **kwargs):
+        if runcontainers is None:
+            yield self
+        else:
+            d = self.__dict__.copy()
+            for kw in kwargs:
+                if kw in d:
+                    d.update(kw, kwargs[kw])
+                # d["inputfiles"] = container  # depreciate
+                # d["container"] = container  # depreciate
+                ix=0
+                d["name"] = d.get("name", "name") + f"-{ix}"
+            if "receiver" not in d and "_receiver" in d:
+                d["receiver"] = d["_receiver"]
+            yield type(self)(**d)
+
+
     # @property
     # def params() -> dict:
     #    if self._params is None:
