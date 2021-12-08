@@ -50,11 +50,12 @@ def extract_file_from_scan_header(s: pd.Series):
 
 
 def get_delim(s):
-    if '.' in s:
+    if "." in s:
         delim = "."
-    elif '_' in s:
+    elif "_" in s:
         delim = "_"
     return delim
+
 
 def get_scanno(s):
     delim = get_delim(s)
@@ -155,7 +156,7 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
     """
 
     search_result = pd.read_table(search_result_f).rename(
-        columns = {
+        columns={
             "ScanNum": "scannum",
             "Peptide": "peptide",
         }
@@ -177,8 +178,7 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
         peptide = [x for x in res.group() if x.isalpha() and x.isupper()]
         return "".join(peptide)
 
-    if all (x in search_result for x in ('precursor_neutral_mass',
-                                         'charge')):
+    if all(x in search_result for x in ("precursor_neutral_mass", "charge")):
 
         search_result["mz"] = (
             search_result.precursor_neutral_mass + search_result.charge
@@ -197,8 +197,8 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
     #    percpsm['peptide'] = percpsm.peptide_modi.apply(get_peptide_sequence)
     # else:
     percpsm["peptide"] = percpsm.peptide_modi.apply(get_peptide_sequence)
-    if 'hit_rank' not in search_result:
-        search_result['hit_rank'] = 1
+    if "hit_rank" not in search_result:
+        search_result["hit_rank"] = 1
 
     if percpsm_f:
         res = pd.merge(
@@ -307,6 +307,7 @@ class PSM_Merger(Receiver):
         )
 
         maybe_calc_labeling_efficiency(df, outname)
+        maybe_calc_phos_enrichment(df, outname)
 
         print(f"Writing {outname}")
         df.to_csv(outname, sep="\t", index=False)
@@ -316,13 +317,23 @@ class PSM_Merger(Receiver):
 
 
 def maybe_calc_labeling_efficiency(df, outname):
-    if 'modification_info' not in df:
+    if "modification_info" not in df:
         return
     if not df.modification_info.fillna("").str.contains(MASS_SHIFTS).any():
         return
     with open("labeling_efficiency.txt", "a") as f:
         labeled = df[df.modification_info.fillna("").str.contains(MASS_SHIFTS)]
         f.write(f"{outname}\t{len(labeled)}\t{len(df)}\t{len(labeled)/len(df)}\n")
+
+
+def maybe_calc_phos_enrichment(df, outname):
+    if "modification_info" not in df:
+        return
+    if not df.modification_info.fillna("").str.contains("79\.96").any():
+        return
+    with open("phospho_enrichment.txt", "a") as f:
+        phos = df[df.modification_info.fillna("").str.contains("79\.96")]
+        f.write(f"{outname}\t{len(phos )}\t{len(df)}\t{len(phos )/len(df)}\n")
 
 
 def main(path=None):
