@@ -479,9 +479,11 @@ class SampleRunContainer(AbstractContainer):
     def _update_recrunsearch(self):
         filemappings = {parse_rawname(x) for x in self._file_mappings.values()}
         assert len(filemappings) < 2 # we want 1 and only 1 result
-        self._record_no = list(filemappings)[0][0]
-        self._run_no = list(filemappings)[0][1]
-        self._search_no = list(filemappings)[0][2]
+        import ipdb; ipdb.set_trace()
+        if filemappings:
+            self._record_no = list(filemappings)[0][0]
+            self._run_no = list(filemappings)[0][1]
+            self._search_no = list(filemappings)[0][2]
 
     @property
     def mspcfiles(self):
