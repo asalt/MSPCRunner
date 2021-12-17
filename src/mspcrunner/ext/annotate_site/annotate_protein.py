@@ -5,6 +5,7 @@ from collections import defaultdict
 from copy import deepcopy as copy
 from functools import partial
 from typing import Iterable, Tuple
+import ipdb
 
 import matplotlib as mpl
 from matplotlib import pyplot as plt
@@ -50,6 +51,59 @@ def parse_rawname(name: str) -> Tuple[str, str, str]:
 # mpl.use('pdf')
 # mpl.rc('text', usetex=False)
 # mpl.rc('font.family', 'monospace')
+def maybe_split_on_proteinid(df):
+    # look at geneid column
+    SEP = ";"
+    if not df["Proteins"].str.contains(SEP).any():
+        return df
+
+    glstsplitter = (
+        df["Proteins"]
+        .str.split(SEP)
+        .apply(pd.Series, 1)
+        .stack()
+        .to_frame(name="GeneID")
+    )
+
+    glstsplitter.index = glstsplitter.index.droplevel(-1)  # get rid of
+    # multi-index
+    df = df.join(glstsplitter).reset_index()
+    df["GeneID"] = df.GeneID.fillna("-1")
+    df.loc[df.GeneID == "", "GeneID"] = "-1"
+    df["GeneID"] = df.GeneID.fillna("-1")
+    # df['GeneID'] = df.GeneID.astype(int)
+    df["GeneID"] = df.GeneID.astype(str)
+
+    if "index" in df:
+        df = df.drop("index", axis=1)
+    return df
+
+
+def remove_contaminants(df):
+    return df[
+        ~(df.GeneID.str.startswith("CON_")) & ~(df.GeneID.str.startswith("cont_"))
+    ]
+
+
+def wide_to_long_xinpei_table(df):
+
+    id_vars = [
+        "Title",
+        "Charge",
+        "Sequence",
+        "Proteins",
+        "Modifications",
+        "SequenceModi",
+        "PeakArea",
+        "ParentIonIntensity",
+        "GeneID",
+    ]
+
+    res = df.melt(
+        id_vars=id_vars,
+        value_name="SequenceArea",
+    ).rename(columns={"variable": "LabelFLAG"})
+    return res
 
 
 class AA:
@@ -269,7 +323,7 @@ def annotate_protein(
     gene_psms = psms[(psms.GeneID == str(geneid))].query("PSM_UseFLAG==1")
     seqs = fa[fa.geneid == str(geneid)]  # will loop over each
     if gene_psms.empty:
-        # then did not pass PSM_UseFLAG==1. Can happen if an unlabeled peptide shows up in a tmt experiment 
+        # then did not pass PSM_UseFLAG==1. Can happen if an unlabeled peptide shows up in a tmt experiment
         # print("{} not in dataset".format(geneid))
         return
 
@@ -657,7 +711,7 @@ def plot_func(rows, modis=None, title=None, outname=None):
 )
 def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."):
 
-    fa = None # lazy load later
+    fa = None  # lazy load later
     for p in psms:
         # get file
         if os.path.exists(p):
@@ -681,6 +735,19 @@ def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."
             },
             # inplace=True,
         )
+
+        df = df.rename(
+            columns={"Modifications_abbrev": "Modifications", "Peptide": "Sequence"}
+        )
+        df = maybe_split_on_proteinid(df)
+        df = remove_contaminants(df)
+        # special case
+        # df = wide_to_long_xinpei_table(df)
+        if "PSM_UseFLAG" not in df:
+            df["PSM_UseFLAG"] = 1
+        if "IonScore" not in df:
+            df["IonScore"] = -1
+
         df["GeneID"] = df["GeneID"].astype(str)
         df["Modifications"] = df["Modifications"].astype(str).fillna("")
 
@@ -693,10 +760,15 @@ def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."
         else:
             basename = f"{out}"
 
-
         # now load fasta
         if fa is None:
+
             fa = pd.DataFrame.from_dict(fasta_dict_from_file(fasta))
+            if 'GeneID' not in fa: # this is not a comprehensive check
+                # this is for uniprot
+                fa = pd.DataFrame.from_dict(fasta_dict_from_file(fasta, "generic"))
+                fa["geneid"] = fa.header
+                fa["ref"] = fa.header
 
         # ====
         if cores > 1:
@@ -704,8 +776,16 @@ def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."
             # arglist = [[g, df, fa, basename, plot, combine]
             #            for g in np.array_split(geneid, cores)
             #  ]
+
+            import runner
+
             runner_partial = partial(
-                runner, df=df, fa=fa, basename=basename, make_plot=plot, combine=combine
+                runner.runner,
+                df=df,
+                fa=fa,
+                basename=basename,
+                make_plot=plot,
+                combine=combine,
             )
 
             from multiprocessing import Pool, set_start_method
@@ -717,12 +797,13 @@ def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."
 
             ALL_RESULTS = list()
             # with Pool(processes=cores) as pool, logging_redirect_tqdm():
-            import enlighten
 
             with Pool(processes=cores) as pool:
                 # ALL_RESULTS = pool.map(run, arglist)
                 # geneid = geneid[:42]
                 # for res in tqdm.tqdm(
+
+                import enlighten
 
                 pbar = enlighten.Counter(total=len(geneid), desc="pbar", unit="tick")
                 # for res in progressbar.progressbar(
@@ -733,6 +814,7 @@ def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."
                 #     # file=orig_stdout,
                 # ):
                 for res in pool.imap_unordered(runner_partial, geneid, cores):
+                    # for res in pool.imap_unordered(runner, geneids=geneid, df=df, fa=fa, basename=basename, make_plot=plot, combine=combine, cores=cores, chunksize=1e2):
                     ALL_RESULTS.append(res)
                     pbar.update()
                 # ALL_RESULTS = pool.imap_unordered(runner_partial, geneid[:510], cores)
@@ -775,6 +857,7 @@ def runner(geneids, df, fa, basename, make_plot, combine):
     # print(len(geneids))
     # return 1
     ALL_RESULTS = list()
+    print(f"total geneids: {len(geneids)}")
     for ix, g in enumerate(geneids):
         for label in df.LabelFLAG.unique():
             samplename = f"{basename}_{g}"
@@ -789,7 +872,8 @@ def runner(geneids, df, fa, basename, make_plot, combine):
             )
             if res:
                 ALL_RESULTS.append(pd.concat(res))
-        # if ix % 100 ==0: print(ix)
+        if ix % 100 == 0:
+            print(ix)
     return ALL_RESULTS
 
 
