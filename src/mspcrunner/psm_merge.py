@@ -163,9 +163,10 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
         peptide = [x for x in res.group() if x.isalpha() and x.isupper()]
         return "".join(peptide)
 
-    search_result["mz"] = (
-        search_result.precursor_neutral_mass + search_result.charge
-    ) / search_result.charge
+    if 'precursor_neutral_mass' in search_result.columns and 'charge' in search_result.columns:
+        search_result["mz"] = (
+            search_result.precursor_neutral_mass + search_result.charge
+        ) / search_result.charge
     # percpsm['filename'] = percpsm.PSMId.apply(get_filename)
     # percpsm['scannum'] = percpsm.PSMId.apply(get_scanno).astype(int)
     percpsm["filename"] = percpsm.SpecId.apply(get_filename)
