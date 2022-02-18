@@ -743,6 +743,7 @@ def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."
             # df = check_for_dup_cols(df)
 
         # ============================
+        df["GeneID"] = df.GeneID.astype(str)
         df = df.rename(
             columns={
                 k: k.split("psm_")[1]
