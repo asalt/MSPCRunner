@@ -54,6 +54,8 @@ def parse_rawname(name: str) -> Tuple[str, str, str]:
 def maybe_split_on_proteinid(df):
     # look at geneid column
     SEP = ";"
+    if "Proteins" not in df:
+        return df
     if not df["Proteins"].str.contains(SEP).any():
         return df
 
@@ -327,6 +329,7 @@ def annotate_protein(
         # print("{} not in dataset".format(geneid))
         return
 
+
     ALL_RESULTS = list()
     for ix, entry in seqs.iterrows():
 
@@ -360,13 +363,13 @@ def annotate_protein(
             if counter > 80 and ix not in protected_regions:
                 row += 1
                 counter = 0
+        #import ipdb; ipdb.set_trace()
 
         max_row_len = max(len(x) for x in rows.values())
 
         # make all Peptides
         peptides = list()
         for peptide_seq, positions in peptide_positions.items():
-            # import ipdb; ipdb.set_trace()
             for (start, end) in positions:
                 query = gene_psms[gene_psms.Sequence == peptide_seq].drop_duplicates(
                     ["SequenceModi"]
@@ -380,7 +383,7 @@ def annotate_protein(
                     modpos = [
                         0 if x.lower() == "n-term" else int(x) - 1 for x in modpos
                     ]  # n terminal is at first position
-                    _ignore = ("229.16", "304.207", "57.02")
+                    _ignore = ("229.16", "304.207", "57.02", "TMT") # dynamic tmt? or just in general. either way we ignore
                     mod_dict = {
                         a: b
                         for a, b in zip(modpos, modkeys)
@@ -567,7 +570,8 @@ def plot_func(rows, modis=None, title=None, outname=None):
         "Oxidation": "red",
         "Methyl": "yellow",
         "Phospho": "green",
-        "Carbamidomethyl": "purple",
+        "Carbamidomethyl": "grey",
+        "GlyGly": "purple",
     }
     modi_colors = dict(DEFAULTS)
 
@@ -695,6 +699,15 @@ def plot_func(rows, modis=None, title=None, outname=None):
     #         # feat = Simple(name = '', start=l+1, end=r+1)
     #         feats.append(feat)
 
+def check_for_dup_cols(df):
+    tot = len([x for x in df.columns if x == 'Modifications']   )
+    if tot != 1:
+        tmp = df.Modifications.values
+        df = df.drop(columns='Modifications', axis=1)
+        df['Modifications'] = tmp
+    return df
+
+
 
 @click.command()
 @click.option("--all-genes", is_flag=True, default=False)
@@ -721,11 +734,9 @@ def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."
 
             rec, run, search = parse_rawname(p)
             # df = exp.df.head(30)
-            # import ipdb
-
-            # ipdb.set_trace()
             exp = ispec.PSMs(rec, run, search, data_dir=data_dir)
             df = exp.df
+            #df = check_for_dup_cols(df)
 
         # ============================
         df = df.rename(
@@ -736,8 +747,12 @@ def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."
             # inplace=True,
         )
 
+        if "Modifications" not in df.columns:
+            df = df.rename(
+                columns={"Modifications_abbrev": "Modifications"}
+            )
         df = df.rename(
-            columns={"Modifications_abbrev": "Modifications", "Peptide": "Sequence"}
+            columns={"Peptide": "Sequence"}
         )
         df = maybe_split_on_proteinid(df)
         df = remove_contaminants(df)
@@ -752,6 +767,7 @@ def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."
         df["Modifications"] = df["Modifications"].astype(str).fillna("")
 
         if all_genes:
+            df = df[~ df.ReporterIntensity.isna() ]
             geneid = df.GeneID.unique()
 
         if out is None:
@@ -764,23 +780,23 @@ def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."
         if fa is None:
 
             fa = pd.DataFrame.from_dict(fasta_dict_from_file(fasta))
-            if 'GeneID' not in fa: # this is not a comprehensive check
+            if 'geneid' not in map(lambda x: x.lower(), fa.columns): # this is not a comprehensive check
                 # this is for uniprot
                 fa = pd.DataFrame.from_dict(fasta_dict_from_file(fasta, "generic"))
                 fa["geneid"] = fa.header
                 fa["ref"] = fa.header
 
         # ====
+        from runner import runner
         if cores > 1:
 
             # arglist = [[g, df, fa, basename, plot, combine]
             #            for g in np.array_split(geneid, cores)
             #  ]
 
-            import runner
 
             runner_partial = partial(
-                runner.runner,
+                runner,
                 df=df,
                 fa=fa,
                 basename=basename,
@@ -821,7 +837,7 @@ def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."
                 ALL_RESULTS = [
                     x for y in ALL_RESULTS for x in y
                 ]  # unpack list of lists
-        else:
+        else: # cores == 1
             ALL_RESULTS = runner(
                 geneid, df, fa, basename, make_plot=plot, combine=combine
             )
