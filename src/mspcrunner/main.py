@@ -495,6 +495,31 @@ def quant(
 
 
 @run_app.command()
+def quant2(
+    preset: Predefined_Quant = typer.Option(None, case_sensitive=False),
+    paramfile: Optional[Path] = typer.Option(None),
+    env: Optional[Path] = typer.Option(None),
+):
+    """
+    here we implement ploomber task management
+    """
+    from .ploomber import run_masic
+
+    # get .raw files for quant
+    ctx = get_current_context()
+    cmd_runner = ctx.obj["cmd_runner"]
+    worker = ctx.obj["worker"]
+    # cheating?
+    raw_files = worker._output["experiment_finder"]
+
+    paramfile = confirm_param_or_exit(paramfile, preset, PREDEFINED_QUANT_PARAMS)
+
+    run_masic.run(raw_files, local_env=local_env)
+
+    LOCAL_ENV = 1
+
+
+@run_app.command()
 def percolate(
     train_fdr: Optional[float] = typer.Option(default=0.01, help="train fdr"),
     test_fdr: Optional[float] = typer.Option(default=0.01, help="test fdr"),
