@@ -148,7 +148,7 @@ class SampleRunContainerBuilder(Receiver):
         filegroups = defaultdict(list)
         # for f in sorted(files):
         for container in containers:
-            if not isinstance(container, RunContainer):
+            if not isinstance(container, RunContainer):  # SampleRunContainer skip down
                 continue  # wrong container
 
             # this is where search could be designated
@@ -165,7 +165,11 @@ class SampleRunContainerBuilder(Receiver):
                 # filegroups[group].append(mspcfile)
                 filegroups[group].append(container)
 
+        # =========================== SampleRunContainer ===========================
         sampleruncontainers = list()
+        record_no = container.record_no
+        run_no = container.run_no
+        search_no = container.search_no
 
         # create run containers
 
@@ -175,19 +179,17 @@ class SampleRunContainerBuilder(Receiver):
             # if not recrun:  # ..
             #     continue
 
-            recrun = {find_rec_run(container.stem) for container in runcontainers}
+            # recrun = {find_rec_run(container.stem) for container in runcontainers}
 
             # silently drops RunContainers that do not have a pin file
             rootdir = filter(None, {container.rootdir for container in runcontainers})
             rootdir = list(rootdir)
-            assert len(recrun) == 1
-            recrun = list(recrun)[0]
+            # assert len(recrun) == 1
+            # recrun = list(recrun)[0]
             # import ipdb; ipdb.set_trace()
             assert len(rootdir) == 1
             rootdir = list(rootdir)[0]
 
-            record_no = recrun[0]
-            run_no = recrun[1]
             rootdir = rootdir
 
             samplerun = SampleRunContainer(
@@ -196,6 +198,7 @@ class SampleRunContainerBuilder(Receiver):
                 runcontainers=runcontainers,
                 record_no=record_no,
                 run_no=run_no,
+                search_no=search_no,
             )
 
             sampleruncontainers.append(samplerun)

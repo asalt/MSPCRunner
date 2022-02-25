@@ -114,6 +114,9 @@ class gpGrouper(Command):
         run_no = sampleruncontainer.run_no
         search_no = sampleruncontainer.search_no
         # psms_file = samplerun_container.psms_filePath
+        _ion_score_bins = [16, 18, 20]
+        if search_no == "1":
+            _ion_score_bins = [10, 20, 30]
 
         BASE = [
             "gpgrouper",
@@ -126,9 +129,7 @@ class gpGrouper(Command):
             self.refseq,
             #
             "--ion-score-bins",
-            "16",
-            "18",
-            "20",
+            *_ion_score_bins,
             #
             "-s",
             self.paramfile,

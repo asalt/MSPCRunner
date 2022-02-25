@@ -1,7 +1,6 @@
 from configparser import ConfigParser
 from genericpath import exists
 from pathlib import Path
-from _pytest.config import directory_arg
 import click
 
 # from mspcrunner import logger
