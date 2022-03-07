@@ -1,0 +1,46 @@
+# execute independent tasks in parallel
+executor: parallel
+
+
+tasks:
+  # Add tasks here...
+
+  # Example
+  # - source: path/to/script.py
+  #   product: products/report.ipynb
+  - source: "{{root}}/scripts/run_masic.sh"
+    name: masic-
+    product: "{{masic.outputdir}}/{{masic.output}}"
+    papermill_params:
+      log_output: True
+    params:
+      masic:
+        exe: '{{masic.exe}}'
+        paramfile: "{{masic.paramfile}}"
+        inputdir: "{{masic.inputdir}}"
+        outputdir: '{{masic.outputdir}}'
+        #inputfile: "{{masic.inputfile}}"
+    grid:
+      masic:
+        inputfiles: []
+
+  - source: scripts/run_msfragger.sh
+    name: msfragger-
+    product: "{{msfragger.outputdir}}/{{msfragger.output}}"
+    params:
+      msfragger:
+        exe: '{{msfragger.exe}}'
+        paramfile: "{{msfragger.paramfile}}"
+        inputdir: "{{msfragger.inputdir}}"
+        outputdir: '{{msfragger.outputdir}}'
+    papermill_params:
+      log_output: True
+
+
+  # - source: tasks.get_raw_and_log
+  #   product: 'products/get_raw_and_log'
+  #   params:
+  #     input_path: "raw"
+
+  # - source: tasks.variable_downstream
+  #   product: products/variable_downstream.txt

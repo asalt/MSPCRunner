@@ -1,6 +1,7 @@
 """
 xxRun the pipeline with: python run.py
 """
+from typing import Union
 from glob import glob
 from pathlib import Path
 from ploomber import DAG
@@ -15,6 +16,8 @@ from ploomber.executors import Parallel
 import yaml  # this is a good diea
 from copy import deepcopy
 
+BASE = Path(__file__).parent
+LOCAL_ENV = BASE / Path("env.yaml")
 MASIC_EXE = "<MASIC_EXE>"
 
 PARAMFILE_MASIC = Path("<paramfile_masic>")
@@ -23,6 +26,8 @@ INPUTFILE_MASIC = Path("<inputfile_masic>")
 
 
 def _merge_nested_dicts(d1: dict, d2: dict) -> dict:
+    if d2 is None:
+        return d1
     d1 = deepcopy(d1)  # we do not want to mutate the original dict
     # https://stackoverflow.com/a/22093909
     result = {
@@ -41,9 +46,6 @@ def calculate_masic_output(p: Path) -> Path:
 _env_obj = None
 
 
-LOCAL_ENV = Path("env.yaml")
-
-
 def get_env(local_env=LOCAL_ENV):
     global _env_obj
     if _env_obj is None:
@@ -58,8 +60,8 @@ def set_env(orig_env: dict, raw_file: Path) -> dict:
 
     dynamic_params = {
         "masic": {
-            "inputfile": raw_file,  # file name
-            "output": masic_output,  # file name
+            "inputfile": str(raw_file),  # file name
+            "output": str(masic_output),  # file name
         },
     }
     final_env = _merge_nested_dicts(orig_env, dynamic_params)
@@ -68,7 +70,9 @@ def set_env(orig_env: dict, raw_file: Path) -> dict:
     return final_env
 
 
-def run(raw_files: list):
+def run(
+    raw_files: list, local_env_file: Union[str, Path] = None, local_env: dict = None
+):
     print("hello world")
     # grab the files from the folder and run the pipeline
 
@@ -76,13 +80,19 @@ def run(raw_files: list):
     # raw_files = get_raw_only(_d)
     # raw_files = get_raw(_d)
 
-    orig_env = get_env(LOCAL_ENV)
+    # orig_env = get_env(LOCAL_ENV)
+    # orig_env = get_env(local_env)
+    # orig_env = _merge_nested_dicts(orig_env, local_env)
+    orig_env = local_env
+    if local_env_file:
+        orig_env = get_env(local_env_file)
+        orig_env = _merge_nested_dicts(orig_env, local_env)
 
     # we build a new DAG to accumulate all masic tasks
-    dag = DAG(executor=Parallel(processes=8, print_progress=True))
-    import ipdb
+    dag = DAG(executor=Parallel(processes=8, print_progress=False))
+    # import ipdb
 
-    ipdb.set_trace()
+    # ipdb.set_trace()
 
     # ============================================================
     def add_task(raw_file):
@@ -96,7 +106,9 @@ def run(raw_files: list):
 
         ShellScript(
             Path(
-                "./scripts/run_masic.sh"
+                # "./scripts/run_masic.sh"
+                BASE
+                / Path("scripts/run_masic.sh")
             ),  # this is relative to the current file within /mspcrunner/src/mspcrunner/ploomber/
             dag=dag,
             product=product,
@@ -108,4 +120,4 @@ def run(raw_files: list):
 
     # walk
     [x for x in map(add_task, raw_files)]
-    dag.build(force=True)
+    dag.build(force=False)

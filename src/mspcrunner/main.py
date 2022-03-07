@@ -510,13 +510,27 @@ def quant2(
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
     # cheating?
-    raw_files = worker._output["experiment_finder"]
+    raw_files = filter(
+        None, [x.get_file("spectra") for x in worker._output["experiment_finder"]]
+    )
 
     paramfile = confirm_param_or_exit(paramfile, preset, PREDEFINED_QUANT_PARAMS)
+    # import ipdb
+
+    # ipdb.set_trace()
+
+    from .config import get_masic_exe
+
+    local_env = {
+        "masic": {
+            "inputdir": Path(".").absolute().__str__(),
+            "outputdir": Path(".").__str__(),
+            "paramfile": paramfile,
+            "exe": get_masic_exe(),
+        }
+    }
 
     run_masic.run(raw_files, local_env=local_env)
-
-    LOCAL_ENV = 1
 
 
 @run_app.command()
