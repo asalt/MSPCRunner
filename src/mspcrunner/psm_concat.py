@@ -149,6 +149,11 @@ class SampleRunContainerBuilder(Receiver):
         # for f in sorted(files):
         for container in containers:
             if not isinstance(container, RunContainer):  # SampleRunContainer skip down
+                #import ipdb; ipdb.set_trace()
+                # Grab from sampleruncontainer?
+                record_no = container.record_no
+                run_no = container.run_no
+                search_no = container.search_no
                 continue  # wrong container
 
             # this is where search could be designated
@@ -165,11 +170,12 @@ class SampleRunContainerBuilder(Receiver):
                 # filegroups[group].append(mspcfile)
                 filegroups[group].append(container)
 
+        # record_no = recrun[0]
+        # run_no = recrun[1]
+        # search_no = container.search_no
+
         # =========================== SampleRunContainer ===========================
         sampleruncontainers = list()
-        record_no = container.record_no
-        run_no = container.run_no
-        search_no = container.search_no
 
         # create run containers
 
