@@ -57,7 +57,10 @@ def get_logger(name=__name__):
     logger.setLevel(logging.DEBUG)
     # logger.addHandler(queue_handler)
 
-    fh = logging.FileHandler("MSPCRunner.log")
+    try:
+        fh = logging.FileHandler("MSPCRunner.log")
+    except PermissionError:
+        fh = None
 
     # fh.flush = sys.stdout.flush
     # fh.setLevel(logging.DEBUG)
@@ -74,10 +77,11 @@ def get_logger(name=__name__):
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    fh.setFormatter(formatter)
+    if fh is not None:
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
     ch.setFormatter(formatter)
     # add the handlers to the logger
-    logger.addHandler(fh)
     logger.addHandler(ch)
     # listener.start()
     # logging.getLogger('').addHandler(fh)
