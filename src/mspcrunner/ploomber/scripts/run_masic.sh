@@ -4,17 +4,10 @@
 # use upstream[task_name][product_key]
 
 #run_masic.sh
-"{{product}}"
+# "{{product}}"
 
 mono \
  '{{masic.exe}}' \
  "/P:{{masic.paramfile}}" \
  "/O:{{masic.outputdir}}" \
  "/I:{{masic.inputfile}}"
-
-# {{product}}
-
-
-#touch 'raw'/'{{product}}'
-#touch "{{product}}"
-# mono \
