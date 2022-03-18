@@ -92,6 +92,7 @@ class PSM_Concat:
             assert len(rootdir) == 1
             rootdir = list(rootdir)[0]
 
+            import ipdb; ipdb.set_trace()
             record_no = recrun[0]
             run_no = recrun[1]
             rootdir = rootdir
@@ -170,9 +171,13 @@ class SampleRunContainerBuilder(Receiver):
                 # filegroups[group].append(mspcfile)
                 filegroups[group].append(container)
 
-        # record_no = recrun[0]
-        # run_no = recrun[1]
-        # search_no = container.search_no
+        record_no = recrun[0]
+        run_no = recrun[1]
+        # this is broken
+        if isinstance(container, SampleRunContainer):
+            search_no = container.search_no
+        else:
+            search_no = 6
 
         # =========================== SampleRunContainer ===========================
         sampleruncontainers = list()
@@ -195,8 +200,13 @@ class SampleRunContainerBuilder(Receiver):
             # import ipdb; ipdb.set_trace()
             assert len(rootdir) == 1
             rootdir = list(rootdir)[0]
-
             rootdir = rootdir
+
+            import ipdb; ipdb.set_trace()
+            record_no = group[0]
+            run_no = group[1]
+            rootdir = rootdir
+
 
             samplerun = SampleRunContainer(
                 name=group,
