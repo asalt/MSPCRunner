@@ -148,6 +148,7 @@ class SampleRunContainerBuilder(Receiver):
         # logger.debug(f"{self}")
         filegroups = defaultdict(list)
         # for f in sorted(files):
+        # import ipdb; ipdb.set_trace()
         for container in containers:
             if not isinstance(container, RunContainer):  # SampleRunContainer skip down
                 #import ipdb; ipdb.set_trace()
@@ -202,10 +203,10 @@ class SampleRunContainerBuilder(Receiver):
             rootdir = list(rootdir)[0]
             rootdir = rootdir
 
-            import ipdb; ipdb.set_trace()
-            record_no = group[0]
-            run_no = group[1]
-            rootdir = rootdir
+            # import ipdb; ipdb.set_trace()
+            # record_no = group[0]
+            # run_no = group[1]
+            # rootdir = rootdir
 
 
             samplerun = SampleRunContainer(
