@@ -23,6 +23,7 @@ BASE = [
     "16 18 20",
     "-s",
     "./params/gpgrouper.conf",
+    #Predefined_gpG.default,
     "--taxonid",
     "9606",
     "--workers",

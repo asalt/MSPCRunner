@@ -51,6 +51,54 @@ def parse_rawname(name: str) -> Tuple[str, str, str]:
 # mpl.use('pdf')
 # mpl.rc('text', usetex=False)
 # mpl.rc('font.family', 'monospace')
+
+
+def make_nr(df):
+    id_cols = ("Site", "quality", "AA", "Modi", "GeneID", "basename")
+    # other_cols = ['AApos', 'protein', ]
+    g = df.groupby(id_cols)
+    groups = g.groups
+
+    def condense_group(group, idxs):
+        idx = [0, 1]
+        sel = df.loc[idx]
+        proteins = str.join(", ", sel["Protein"].tolist())
+        aapos = str.join(", ", map(str, set(sel["AApos"].tolist())))
+        # make unique before making string
+        d = dict()
+        d["Protein"] = proteins
+        d["AApos"] = aapos
+        for k, v in zip(id_cols, group):
+            d[k] = v
+
+        # add quant values
+        for col in set(df.columns) - set(d.keys()):
+            d[col] = sel.iloc[0][col]
+        return d
+
+    res = list()
+    for group, idxs in groups.items():
+        d = condense_group(group, idxs)
+        res.append(d)
+
+    out = pd.DataFrame(res)
+
+    col_order = (
+        "Site",
+        "quality",
+        "AA",
+        "Modi",
+        "GeneID",
+        "basename",
+        "Protein",
+        "AApos",
+        *sorted(set(df.columns) - set(id_cols)),
+    )
+    out = out[col_order]
+
+    return out
+
+
 def maybe_split_on_proteinid(df):
     # look at geneid column
     SEP = ";"
@@ -722,11 +770,12 @@ def check_for_dup_cols(df):
 @click.option("-g", "--geneid", multiple=True)
 @click.option("--plot/--noplot", is_flag=True)
 @click.option("-o", "--out", default=None)
+@click.option("--nr", default=False, help="Make nonredundant table")
 @click.option("--data-dir", default=".")
 @click.option(
     "-f", "--fasta", type=click.Path(exists=True, dir_okay=False), help="fasta file"
 )
-def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."):
+def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, nr, data_dir="."):
 
     fa = None  # lazy load later
     for p in psms:
@@ -869,6 +918,11 @@ def main(all_genes, cores, combine, psms, geneid, plot, out, fasta, data_dir="."
             print(f"Writing {outname}")
 
             dfall.to_csv(outname, sep="\t", index=False, mode="w")
+
+            if nr:
+                df_nr = make_nr(dfall)
+                outname = os.path.join(data_dir, f"{_out}_site_table_nr.tsv")
+                df_nr.to_csv(outname, sep="\t", index=False, mode="w")
 
 
 def runner(geneids, df, fa, basename, make_plot, combine):

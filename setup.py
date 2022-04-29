@@ -22,7 +22,7 @@ setup(
     """,
     # py_modules = ['main'],
     package_data={
-        "mspcrunner": ["../../ext/*", "../../params/*", "./ext/*", "./ext/*/*"],
+        "mspcrunner": ["params/*", "../../ext/*", "../../params/*", "./ext/*", "./ext/*/*"],
         "": ["params/*"],
     },
     include_package_data=True,

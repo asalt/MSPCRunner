@@ -93,6 +93,7 @@ class AnnotateSite(Command):
             "--combine",
             "--all-genes",
             "--noplot",
+            "--nr",
             "--cores",
             ncores,
             "--fasta",
