@@ -202,10 +202,10 @@ class SampleRunContainerBuilder(Receiver):
             rootdir = list(rootdir)[0]
             rootdir = rootdir
 
-            import ipdb; ipdb.set_trace()
-            record_no = group[0]
-            run_no = group[1]
-            rootdir = rootdir
+            # import ipdb; ipdb.set_trace()
+            # record_no = group[0]
+            # run_no = group[1]
+            # rootdir = rootdir
 
 
             samplerun = SampleRunContainer(
