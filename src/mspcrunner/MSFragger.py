@@ -50,6 +50,7 @@ class MSFragger(Command):
         ramalloc="50G",
         refseq=None,
         paramfile=None,
+        force=False,
         **kwargs,
     ):
 
@@ -64,6 +65,7 @@ class MSFragger(Command):
         self.refseq = refseq
         self.paramfile = paramfile
         self.local_paramfile = None
+        self.force = force
 
         if paramfile is not None:
             config = self.read_config(paramfile)
@@ -73,6 +75,10 @@ class MSFragger(Command):
         # we can edit the parameters right here
         self.set_param("database_name", str(refseq))
         self.set_param("data_type", "0")
+        self.set_param("allow_multiple_variable_mods_per_peptide", "1")
+        # self.set_param("check_", "0")
+        self.set_param("minimum_ratio", "0.01")
+        self.set_param("output_format", "tsv_pepxml_pin")
         # if refseq is not None:
         #     config["top"]["database_name"] = str(refseq)
 
@@ -114,12 +120,11 @@ class MSFragger(Command):
                     d.update(kw, kwargs[kw])
                 # d["inputfiles"] = container  # depreciate
                 # d["container"] = container  # depreciate
-                ix=0
+                ix = 0
                 d["name"] = d.get("name", "name") + f"-{ix}"
             if "receiver" not in d and "_receiver" in d:
                 d["receiver"] = d["_receiver"]
             yield type(self)(**d)
-
 
     # @property
     # def params() -> dict:
@@ -161,7 +166,7 @@ class MSFragger(Command):
 
             spectraf = run_container.get_file("spectra")
             search_res = run_container.get_file("tsv_searchres")
-            if search_res is not None:
+            if search_res is not None and not self.force:
                 logger.info(f"{search_res} exists for {run_container}")
                 continue
 
