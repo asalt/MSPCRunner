@@ -125,7 +125,7 @@ def set_ref(
     file: Path = typer.Argument(".", exists=True, file_okay=True, dir_okay=False),
 ):
     """
-    Set reference fasta database [dir] to attribute [name]
+    Set attribute [name] to reference fasta database [dir]
     """
     conf = get_conf()
     conf["refdb"][name] = str(file.resolve())  # does this work for Path objects?
@@ -143,7 +143,7 @@ def set_search(
     ),
 ):
     """
-    Set reference fasta database [dir] to attribute [name]
+    Set attribute [name] to msfragger search parameter file [dir]
     """
     conf = get_conf()
     conf["search-params"][name] = str(
@@ -163,7 +163,7 @@ def set_quant(
     ),
 ):
     """
-    Set reference fasta database [dir] to attribute [name]
+    Set attribute [name] to MASIC search parameter file [dir]
     """
     conf = get_conf()
     conf["quant-params"][name] = str(file.resolve())  # does this work for Path objects?
