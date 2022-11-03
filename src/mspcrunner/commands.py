@@ -409,6 +409,7 @@ class Command:
         inputfiles=None,  # deprecitate
         container=None,
         containers=None,  # replace with this
+        force=False,
         **kwargs,
     ):
         self.name = name
@@ -419,6 +420,7 @@ class Command:
         self.containers = containers  # multiple containers to create multiple objects
         self.container = container  # a single container to do something
         self.paramfile = paramfile
+        self.force = force
         # self.outdir = outdir or Path(".")
         self.outdir = outdir  # let it stay as none if not given
         for k, v in kwargs.items():
@@ -567,6 +569,7 @@ class MokaPotConsole(Command):
         sampleruncontainer=None,
         runcontainers=None,  # either pass 1 run
         sampleruncontainers=None,  # or 1 sample (collection of runs)
+        enzyme="[KR]",
         **kws,
     ):
 
@@ -586,6 +589,7 @@ class MokaPotConsole(Command):
         self.run_entire_cohort = (
             True  # will preferentially combine runcontainers together
         )
+        self.enzyme = enzyme
 
     # remember this class inherits a create method, which sets self.runcontainers
     def create(self, runcontainers=None, sampleruncontainers=None, **kws):
@@ -684,8 +688,10 @@ class MokaPotConsole(Command):
             MOKAPOT,
             "--decoy_prefix",
             "rev_",
-            "--missed_cleavages",
-            "2",
+            "--enzyme",
+            self.enzyme,
+            # "--missed_cleavages",
+            # "2",
             "--dest_dir",
             outdir,
             "--train_fdr",
@@ -696,6 +702,10 @@ class MokaPotConsole(Command):
             self.seed,
             "--folds",
             self.folds,
+            # "--max_iter", 30,
+            # "--semi",
+            "-v",
+            2,
             *[str(pinfile.resolve()) for pinfile in filter(None, pinfiles)],
         ]
         if file_root is not None:
