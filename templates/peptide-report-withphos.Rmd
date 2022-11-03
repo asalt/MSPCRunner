@@ -1,7 +1,7 @@
 ---
 # https://yihui.org/knitr/options/#code-evaluation
 title: "`r params$title`"
-mainfont: Arial
+mainfont: Noto Sans
 output: 
   html_document: 
     df_print: kable
@@ -27,26 +27,36 @@ params:
 ---
 
 ```{r collapse=TRUE}
-library(tidyverse)
-library(reactable)
-library(knitr)
-library(kableExtra)
-library(ggpubr)
-library(vroom)
-library(formattable)
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(reactable))
+suppressPackageStartupMessages(library(knitr))
+suppressPackageStartupMessages(library(kableExtra))
+suppressPackageStartupMessages(library(ggpubr))
+suppressPackageStartupMessages(library(vroom))
+suppressPackageStartupMessages(library(formattable))
 ```
 # Introduction
 
-Phosphopetidomics
+## Phosphopetidomics
 
-- phosphopeptide signal intensity
-- phosphopeptide recovery numbers
-    - total
+Questions to answer
+
+- signal intensity
+- recovery numbers 
+    - total phosphopetides 
     - unique phospho peptides
     - common phosphopeptides
--  
+    - single/multi site
+- enrichment efficiency
+- hydrophobicity
+- reproducibility
+- method stability
+    - TMT HPLC fractionation pools
+
+
 
 ```{r include=F}
+BCMBLUE <- "#002396"
 knitr::knit_hooks$set(debug = function(before, options, envir) {
     if (!before) {
         message(
@@ -59,8 +69,10 @@ knitr::knit_hooks$set(debug = function(before, options, envir) {
 ```
 
 
+
+## Colors
 ```{r}
-  col <- circlize::colorRamp2(c(-300, 0, 300), c('red', 'grey40', 'green'))
+  .col <- circlize::colorRamp2(c(-300, 0, 300), c('red', 'grey40', 'green'))
   scorecol <- circlize::colorRamp2(c(0, 20, 50), c('#abe4ff', '#151269', '#040145'))
   massdiff_col <- colDef(style = function(value) {
     list( color = col(value) )
@@ -71,24 +83,37 @@ knitr::knit_hooks$set(debug = function(before, options, envir) {
   }
   )
   
-  map_to_color_fn <- function( col ) {
+  map_to_color_fn <- function( .col ) { # callable -> list
     colDef(style = function(value) {
-       list( color =  col(value) )
+       list( color =  .col(value) )
       }
     )
   }
   
 ```
 
+## myjstable
 
 ```{r include=F}
-make_table <- function(.q, defaultsort=NULL){
+myjstable <- function(.q, defaultSorted=NULL,
+                     searchable = T, striped = T, resizable = T,
+                     filterable = T, defaultPageSize = 4,
+                     highlight = T, showSortable = T, showSortIcon = T,
+                     compact = T, onClick = 'select', 
+                     ...
+                      ) {
   .q %>%
     rename_with( function(.) str_replace_all(., '_', ' ')) %>% 
-    reactable::reactable( searchable = T, striped = T, resizable = T, filterable = T, defaultPageSize = 4,
-                           highlight = T, showSortable = T, showSortIcon = T,
-                           compact = T, onClick = 'select', 
-                          defaultSorted = defaultsort,
+    reactable::reactable( searchable = searchable, striped = striped, resizable = resizable,
+                          filterable = filterable, 
+                          defaultPageSize = defaultPageSize,
+                           highlight = highlight, showSortable = showSortable,
+                          showSortIcon = showSortIcon,
+                          compact = compact, onClick = onClick, 
+                          defaultSorted = defaultSorted,
+                           )
+  
+}
                            # defaultSorted = list(`Hyperscore`="desc"),
                            # columns = list(
                            #   massdiff = massdiff_col,
@@ -101,14 +126,13 @@ make_table <- function(.q, defaultsort=NULL){
                            #                 )
                            # #groupBy = "peptide"
                            
-                           )
-}
+# }
 ```
 
 ```{r, include=F}
 knitr::opts_chunk$get("title")
 title <- params$title
-print(title)
+#print(title)
 expids <- params$expids
 directory <- params$directory
 knitr::opts_chunk$set(echo = params$expids)
@@ -122,21 +146,54 @@ knitr::opts_chunk$set(echo = params$expids)
 
 
 ```{r label="func def for nice table print"}
+
+stat_summary_formatters <- list(
+    mean = color_bar('skyblue'),
+    sd = color_tile('white', "red"),
+    median = color_bar('green'),
+    max = color_tile("white", "green"),
+    min = color_tile("white",  "red"),
+    sd = color_bar("lightorange"),
+    `9606` = color_bar("lightblue"),
+    `10090` = color_bar("lightgreen"),
+    count = color_bar('grey'),
+    ratio = color_tile("#2e0101", '#c80101')
+  )
+
 # output nice looking tables
-mytable <- function(data, caption="", ...) {
-    knitr::kable(data, 
-                 booktabs = TRUE,
-                 digits = 4,
-                 caption=caption,
-                 ...
-                 ) %>%
-        kable_styling(latex_options = c("striped", "scale_down"))
+mytable <- function(data, digits=4, booktabs=TRUE, caption="", 
+                    formatters = stat_summary_formatters,
+                    align='l',
+                    ...) 
+  {
+  
+  TABLE_WIDTH <- dim(data)[2]
+  TABLE_LENGTH <- dim(data)[1]
+  
+    formattable::format_table(data, 
+                 align="r",
+                 digits = digits,
+                 caption=glue::glue('<h3 style="color:#002396; background-color=#693200"><strong>', caption, "</strong></h3>", sep=""),
+                 formatters=formatters,
+                 fixed_header=list(enabled = T,
+                                   background = "anycolor"
+                                   ),
+                 ... 
+          )  %>%
+    kableExtra::column_spec(1:TABLE_WIDTH, bold=T) %>% 
+    kableExtra::row_spec(0, bold=T, font_size='xx-large', align='right', background=paste0(BCMBLUE, "55")) %>% 
+         kableExtra::kable_styling(
+           bootstrap_options = c("striped", "scale_down", "hover", "condensed", "responsive"),
+           html_font = "Noto Sans"
+                                  )  
+  #
 }
+    # kableExtra::kable_material()  %>% 
 
 
     
   
-mytable <-  function(...)  formattable::format_table(...,  booktabs = TRUE, digits = 4  ) 
+# mytable <-  function(...)  formattable::format_table(...,  booktabs = TRUE, digits = 4  ) 
 ```
 
 
@@ -147,22 +204,14 @@ calc_stat_summary <- function(.x, .var) {
     .x %>%
         summarize(
             mean = mean({{ .var }}, na.rm=T),
-            sd = sd({{ .var }}),
-            median = median({{ .var }}),
-            max = max({{ .var }}),
-            min = min({{ .var }}),
+            sd = sd({{ .var }}, na.rm = T),
+            median = median({{ .var }}, na.rm=T),
+            max = max({{ .var }}, na.rm=T),
+            min = min({{ .var }}, na.rm=T),
             .groups = "keep"
         )
 }
 
-stat_summary_formatters <- list(
-    mean = color_bar('skyblue'),
-    sd = color_bar('lightred'),
-    median = color_bar('lightgreen'),
-    max = color_tile("white", "green"),
-    min = color_tile("white",  "red"),
-    n = color_bar("lightblue")
-  )
 
 ```
 
@@ -173,7 +222,9 @@ name_abbrev <- function(.x) {
 ```
 
 
-# load data
+# load
+
+## e2g
 
 ```{r, label="findfiles", eval=F, include=F, debug=F}
 # prof <- c("45278", "45279", "45280", "45281", "45282") %>%
@@ -191,7 +242,7 @@ message(
         sep = " = ", collapse = "\n"
     )
 )
-knit_print(files)
+myjstable(files)
 ```
 
 ```{r, label="load data", include=F}
@@ -209,22 +260,14 @@ df <- expids %>%
         GPGroups_All = as.character(GPGroups_All),
     )) %>%
     bind_rows()
-# %>% map(~udnlist(.x))
-#    map(~unlist(.x))  %>%
-#  map(~ read_tsv(.x) %>% mutate(id = fs::path_file(.x))) %>%
-#  map(~ mutate(.x,
-#    GeneID = as.character(GeneID),
-#    TaxonID = as.character(TaxonID),
-#  )) %>%
-#  bind_rows()
-# map(~ read_tsv(.x) %>% mutate(id = fs::path_file(.x))) %>%
+
 ```
 
 
 ```{r, label='count'}
 df %>%
     count(id, EXPRecNo) %>%
-    mytable()
+  mytable()
 ```
 
 ```{r}
@@ -368,7 +411,6 @@ dfp %>%
     arrange(SpectrumFile) %>%
   mytable(
     formatters=stat_summary_formatters
-    
   )
 seq_along(unique_exps)
 for (i in seq_along(unique_exps)) {
@@ -399,16 +441,40 @@ spec_stats <- dfp %>%
             n_distinct(Sequence), .groups = "keep"
     ) %>%
     ungroup()
+.caption <- "count per spec file"
 # %>%
 #   pivot_wider(id_cols = "id",
 #               values_from = c('specids', "n_distinct_Sequence"))
-ggbarplot(data = spec_stats, y = "id", x = "n_distinct_Sequence")
+mytable(spec_stats, caption = .caption)
+# ggbarplot(data = spec_stats, y = "id", x = "n_distinct_Sequence")
+```
+```{r, eval=F}
+library(formattable)
+df <- data.frame(
+  id = 1:10,
+  name = c("Bob", "Ashley", "James", "David", "Jenny",
+    "Hans", "Leo", "John", "Emily", "Lee"),
+  age = c(28, 27, 30, 28, 29, 29, 27, 27, 31, 30),
+  grade = c("C", "A", "A", "C", "B", "B", "B", "A", "C", "C"),
+  test1_score = c(8.9, 9.5, 9.6, 8.9, 9.1, 9.3, 9.3, 9.9, 8.5, 8.6),
+  test2_score = c(9.1, 9.1, 9.2, 9.1, 8.9, 8.5, 9.2, 9.3, 9.1, 8.8),
+  final_score = c(9, 9.3, 9.4, 9, 9, 8.9, 9.25, 9.6, 8.8, 8.7),
+  registered = c(TRUE, FALSE, TRUE, FALSE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE),
+  stringsAsFactors = FALSE)
+formattable(df, list(
+  age = color_tile("white", "orange"),
+  grade = formatter("span", style = x ~ ifelse(x == "A",
+    style(color = "green", font.weight = "bold"), NA)),
+  area(col = c(test1_score, test2_score)) ~ normalize_bar("pink", 0.2),
+  final_score = formatter("span",
+    style = x ~ style(color = ifelse(rank(-x) <= 3, "green", "gray")),
+    x ~ sprintf("%.2f (rank: %02d)", x, rank(-x))),
+  registered = formatter("span",
+    style = x ~ style(color = ifelse(x, "green", "red")),
+    x ~ icontext(ifelse(x, "ok", "remove"), ifelse(x, "Yes", "No")))
+))
 ```
 
-
-```{r, eval=T}
-spec_stats %>%  mytable( formatters = stat_summary_formatters )
-```
 
 
 # miscuts avg
@@ -422,7 +488,8 @@ miscut_stats <- dfp %>%
 ```
 
 ```{r}
-miscut_stats %>% mytable()
+.caption <- 'Miscuts'
+miscut_stats %>% mytable(caption=.caption)
 ```
 
 
@@ -474,7 +541,7 @@ dfp %>%
 .res %>%  select(-id) %>% mytable( formatters=stat_summary_formatters )
 ```
 # overall SN ratio
-```{r sn ratio stats}
+```{r, label='sn ratio stats'}
 dfp %>%
     dplyr::filter(str_detect(GeneID, "sp_", negate = T) & !TaxonID == "NA") %>%
     group_by(filename) %>%
