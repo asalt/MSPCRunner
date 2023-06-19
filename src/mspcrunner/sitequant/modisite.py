@@ -151,7 +151,6 @@ def modisite_quant(
     GeneID
     """
 
-    # import ipdb; ipdb.set_trace()
     psms = psms[(psms.GeneID == str(geneid))].query("PSM_UseFLAG==1")
     psms = psms[ psms.LabelFLAG == label ]
     seqs = fa[fa.geneid == str(geneid)]  # will loop over each
@@ -177,8 +176,6 @@ def modisite_quant(
 
         peptides = make_peptides(peptide_positions, psms)
         pept_df = make_peptide_df(peptides)
-
-
         pept_df = aggregate_to_site(pept_df, entry.sequence)
 
 
@@ -233,6 +230,8 @@ def make_peptide_df(peptides):
             if not pept.mod_dict:
                 pept_list.append(d)
             for k, v in pept.mod_dict.items():
+                # if not v.startswith("79.9") and not v.startswith("15.9949"):
+                #     import ipdb; ipdb.set_trace()
                 d_copy = copy(d)
                 d_copy["Rel_ModiPos"] = k
                 d_copy["Modi"] = v

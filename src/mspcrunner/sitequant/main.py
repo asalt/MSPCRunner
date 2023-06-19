@@ -1,4 +1,8 @@
 # main.py
+"""
+need to fix cases where total mass shift is a combination of two mods
+need to ensure this works for label free
+"""
 import os
 import re
 from pathlib import Path
@@ -16,6 +20,12 @@ import click
 import enlighten
 
 from runner import runner
+
+modi_dict = {'79.96633':'p',
+'15.994915':'o',}
+#'42.011':'a',
+#'43.006':'a',
+#'79.966':'a',
 
 def make_nr(df) -> list([pd.DataFrame]):
 
@@ -36,7 +46,7 @@ def make_nr(df) -> list([pd.DataFrame]):
         if bool(primarysel) == False and bool(secondarysel) == False and proteins.count(',') == 0:
             uniquesel = proteins
             bestsel = None
-        else:
+        elif bool(primarysel) == False and bool(secondarysel) == False and proteins.count(',') > 0:
             bestsel = sel.sort_values(by="protein_length", ascending=False).iloc[0]["Protein"]
             uniquesel = None
 
@@ -55,6 +65,7 @@ def make_nr(df) -> list([pd.DataFrame]):
             finalsel = bestsel
             reason = "not primary or secondary, multiple choices, returning longest"
 
+        # import ipdb; ipdb.set_trace()
 
 
         #
@@ -63,13 +74,13 @@ def make_nr(df) -> list([pd.DataFrame]):
         # make unique before making string
         d = dict()
         d["Protein_Accessions"] = proteins
-        d["AApos_list"] = aapos_list
+        d["AApos_List"] = aapos_list
         d["Primary_select"] = primarysel or ""
         d["Secondary_select"] = secondarysel or ""
         d["Unique_select"] = uniquesel or ""
         d["Best_select"] = bestsel or ""
-        d["Final_select"] = finalsel
-        d["Reason"] = reason
+        d["Protein_Accession_Selected"] = finalsel
+        d["Reason_Selected"] = reason
         for k, v in zip(id_cols, group):
             d[k] = v
 
@@ -95,25 +106,20 @@ def make_nr(df) -> list([pd.DataFrame]):
         """
         c = str(c)
         c = c.strip("TMT").strip("_")
-        a = re.match(r"(\d+)", c).groups()
-        if a is None:
-            # import ipdb; ipdb.set_trace()
-            1+1
-        else:
-            a = a[0]
-        b = "0"
+        # a = re.match(r"(\d+)", c).groups()
+        numbers = re.findall(r"(\d+)", c)
+        #numbers = list(map(int, numbers))
         if c[-1].isalpha():
-            b = {"N": "0", "C": "1"}.get(c[-1])
-        cats = re.match(r"_?(\d+)[_(\w)]?", c).groups()
-        a = cats[0]
-        getint = lambda x: {"N": "0", "C": "1"}.get(x)
-        joined_str = str.join("", [a, b])
-        final_int = int(joined_str)
-        return final_int
+            val = {"N": "0", "C": "1"}.get(c[-1])
+            numbers.append(val)
+        unique_id = str.join("", map(str, numbers))
+        res = int(unique_id)
+        return res
 
     # n_before_c("127_C")
     # n_before_c("127_N")
     # n_before_c("134")
+    n_before_c("51942_1_7_126_N")
 
     # could do a check to ensure unmiqueness
     # assert (df.groupby(id_cols).label.value_counts() == 1).all()
@@ -133,6 +139,11 @@ def make_nr(df) -> list([pd.DataFrame]):
             "Protein": "Protein_Accessions",
             "Modi": "MassShift",
             "quality": "TopScore",
+            "Symbol": "GeneSymbol",
+            "Description": "GeneDescription",
+            # "Final_select" : "Protein_Accession_Selected",
+            # "Reason" : "Reason_Selected",
+            #"AApos" : "AApos_Selected",
         }
     )
     rec_run_search = re.compile(r"^(?P<recno>\d{5,})_(?P<runno>\d+)_(?P<searchno>\d+)")
@@ -146,17 +157,129 @@ def make_nr(df) -> list([pd.DataFrame]):
     # rename each of the TMT_1xx quant columns as as rec_run_search_label
     _renamer = dict()
     for x in out.columns:
-        if x.startswith("TMT_"):
-            _renamer[x] = f"{_rec_run_search_value}_{x}"
+        if x.startswith("TMT_") or x=="none":
+            _renamer[x] = f"{_rec_run_search_value}_{x.strip('TMT_')}"
             #out = out.rename(columns={x: f"{x}_{out.iloc[0]['basename']}"})
     out = out.rename(columns=_renamer)
 
+
+
+    # it may be better to use a dictionary to map dfall[['AApos']] to df_nr
+    # or do this:
+    _mapping = df.drop_duplicates(['Protein', "protein_length", "AApos", "Site"])[["Protein", "protein_length", "AApos" ,"Site"]]
+    _out = pd.merge(
+        out,
+        _mapping,
+        left_on=[
+            "Protein_Accession_Selected",
+                "Site"],
+        right_on=["Protein", "Site"],
+        how="left",
+    )
+    _out["AApos"] = _out["AApos"].fillna(0).astype(int)
+    _out["protein_length"] = _out["protein_length"].fillna(0).astype(int)
+    _out = _out.rename(columns=
+        { "AApos" : "AApos_Selected",
+                        "protein_length" : "Protein_Length_Selected"
+        })
+    # import ipdb ; ipdb.set_trace()
+    _out = _out.drop(columns=["Protein"])
+    out = _out
+
+    #
+    out["ModiType"] = out.apply(lambda x : modi_dict.get(x['MassShift'], '?'), axis=1)
+    out["SiteName"] = out.apply(lambda x: f"{x['GeneSymbol']}_{x['ModiType']}{x['AA']}{x['AApos_Selected']}", axis=1)
+    out["SiteID"] = out.apply(lambda x: f"{x['GeneID']}_{x['Protein_Accession_Selected']}_{x['ModiType']}{x['AA']}{x['AApos_Selected']}_{x['Site']}", axis=1)
+
+     #"_".join([x["GeneSymbol"], x["ModiType"], x["AA"], x["AApos"]]), axis=1)
+
+
+    #
+    # qual_cols = set(df.columns) - {*set(id_cols), "AApos", "Protein", "Description"}
+    # qual_cols = tuple(qual_cols)
+    # qual_cols = sorted(qual_cols, key=n_before_c)
+    col_order = [
+        "recno", # delete from final
+        "runno", # delete from final
+        "searchno", # delete from final
+        "basename", # delete from final
+        "SiteName", # (GeneSymbol)_(type of modi)(AA)(AApos_Selected)
+        "SiteID", # (GeneID)_(Protein_Accesion_Selected)_(type of modi)
+        "GeneID",
+        "GeneSymbol",
+        "GeneDescription",
+        "Site",
+        "AA",
+        "MassShift",
+        "ModiType", # delete from final
+        "Primary_select",  # delete from final
+        "Secondary_select", # delete from final
+        "Unique_select",# delete from final
+        "Best_select",# delete from final
+        "Protein_Accession_Selected",
+        "Reason_Selected",
+        "Protein_Length_Selected",
+        # "basename",
+        "AApos_Selected",
+        "Protein_Accessions",
+        "AApos_List",
+        "TopScore",
+        #*quant_cols
+        # *sorted(set(df.columns) - set(id_cols)),
+    ]
+    quant_cols = set(out.columns) - set(col_order)
+    quant_cols = sorted(quant_cols, key=n_before_c)
+    col_order = col_order + quant_cols
+    out = out[col_order]
+
     return out
+
+from rpy2.robjects.packages import importr
+from rpy2.robjects import r
+def write_gct(df, outname):
+    """
+    df is nr output
+    """
+
+    from rpy2.robjects.packages import importr
+    from rpy2.robjects import r
+    from rpy2.robjects import pandas2ri
+    pandas2ri.activate()
+
+    cmapR = importr("cmapR")
+    #data_obj = ctx.obj["data_obj"]
+    quant_cols = [x for x in df.columns if re.match("^\d+_\d+_\d+.*$", x) or x=="none"]
+
+    m = df[quant_cols]
+    # import ipdb; ipdb.set_trace()
+    rid = df.SiteID
+    rdesc_cols = set(df.columns) - set(quant_cols)
+    assert "SiteID" in rdesc_cols
+    rdesc = df[rdesc_cols].set_index("SiteID")
+    cid = quant_cols
+    #cdesc
+
+    r.assign("m", m)
+    r.assign("rid", rid)
+    r.assign("rdesc", rdesc.fillna(""))
+    # r.assign("cdesc", cdesc)
+    r.assign("cid", pd.Series(cid))
+    r.assign("outname", outname)
+    #my_new_ds <- new("GCT", mat=m)
+    # r('my_ds <- new("GCT", mat=as.matrix(m), rid=rid, cid=cid, cdesc=cdesc, rdesc=as.data.frame(rdesc))')
+    r('my_ds <- new("GCT", mat=as.matrix(m), rid=rid, cid=cid, rdesc=as.data.frame(rdesc))')
+    r('write_gct(my_ds, file.path(".", outname), precision=8)') # r doesn't keep the path relative for some reason
+
+    return
+
+
+
     # note here is where df_nr_mednorm was being produced previously
 
     # qual_cols = set(df.columns) - {*set(id_cols), "AApos", "Protein", "Description"}
     # qual_cols = tuple(qual_cols)
-    # qual_cols = sorted(qual_cols, key=n_before_c)
+    # qual_cols = sorted(qual_cols, key
+    # =n_before_c)
     # # q = out.iloc[0]["basename"]
     # # rec_run_search.findall()
     # # rec_run_search
@@ -290,6 +413,7 @@ def preprocess(df):
 
     df["GeneID"] = df["GeneID"].astype(str)
     df["Modifications"] = df["Modifications"].astype(str).fillna("")
+
     return df
 
 
@@ -422,7 +546,10 @@ def main(cores, psms, out, data_dir, fasta, **kwargs):
 
         _path = os.path.dirname(os.path.realpath(__file__))
         _f = os.path.join(_path, "GENCODE.V42.basic.CHR.isoform.selection.mapping.txt")
-        _df = pd.read_csv(_f, sep="\t")
+        _df1 = pd.read_csv(_f, sep="\t")
+        _f = os.path.join(_path, "GENCODE.M32.basic.CHR.protein.selection.mapping.txt")
+        _df2 = pd.read_csv(_f, sep="\t")
+        _df = pd.concat([_df1, _df2])
         dfall_with_priority_site = add_prioritize_site_table(dfall, _df)
         dfall = dfall_with_priority_site
 
@@ -438,22 +565,14 @@ def main(cores, psms, out, data_dir, fasta, **kwargs):
         logging.info("making non redundant table")
         df_nr = make_nr(dfall)
 
-        # it may be better to use a dictionary to map dfall[['AApos']] to df_nr
-        # or do this:
-        _mapping = dfall.drop_duplicates(['Protein', "protein_length"])
-        _df_nr = pd.merge(
-            df_nr,
-            _mapping,
-            left_on=["Final_select"],
-            right_on=["Protein"],
-            how="left",
-        )
-        _df_nr = _df_nr.drop(columns=["Protein"])
-        df_nr = _df_nr
+        # _f = 79.96633
+        # logging.info(f"Filtering mass shift for {_f}")
+        # df_nr = df_nr[df_nr.MassShift == _f]
 
 
         outname = os.path.join(data_dir, f"{basename}_site_table_nr.tsv")
         df_nr.to_csv(outname, sep="\t", index=False, mode="w")
+        write_gct(df_nr, outname=outname)
         logging.info(f"wrote {outname}")
 
         # _idx = ["recno", "runno", "searchno", "label"]
