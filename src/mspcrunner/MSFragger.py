@@ -63,19 +63,18 @@ class MSFragger(Command):
         self.inputfiles = inputfiles
         # self.runcontainers = runcontainers
         self.refseq = refseq
-        self.paramfile = paramfile
-        self.local_paramfile = None
-        self.force = force
-
+        if paramfile is None:
+            self.paramfile = paramfile
         if paramfile is not None:
+            self.paramfile = Path(paramfile)
+            self.local_paramfile = self.paramfile
             config = self.read_config(paramfile)
             self._config = config
-            self.local_paramfile = paramfile.name
 
         # we can edit the parameters right here
         self.set_param("database_name", str(refseq))
         self.set_param("data_type", "0")
-        self.set_param("allow_multiple_variable_mods_per_peptide", "1")
+        self.set_param("allow_multiple_variable_mods_per_residue", "1")
         # self.set_param("check_", "0")
         self.set_param("minimum_ratio", "0.01")
         self.set_param("output_format", "tsv_pepxml_pin")
@@ -85,7 +84,14 @@ class MSFragger(Command):
     def write_config(self):
         # should be called `write_config_and_set_self.paramfile_to_local_copy`
 
-        config_out = self.local_paramfile
+        if self.local_paramfile is None:
+            # create a local copy
+            config_out = Path(f"{self.name}.params")
+        else:
+            config_out = self.local_paramfile.parent / Path(
+                str.join("", [self.local_paramfile.stem + "_mspcrunner", ".params"])
+            )
+        # config_out = self.local_paramfile
         with open(config_out, "w") as fh:
             logger.info(f"Writing {config_out}")
             self._config.write(fh)
@@ -146,6 +152,12 @@ class MSFragger(Command):
         self._config["top"][param] = str(value)
         return 0
 
+    def get_param(self, param, value):
+        if self._config is None:
+            logger.warning(f"No param file set for {self}")
+            return -1
+        return self._config["top"][param]
+
     @property
     def CMD(self):
         # spectra_files = "<not set>"
@@ -153,6 +165,7 @@ class MSFragger(Command):
         if self.paramfile is not None:
             self.write_config()
 
+        # import ipdb; ipdb.set_trace()
         spectra_files = list()
         MSFRAGGER_EXE = get_exe()
 
