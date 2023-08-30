@@ -89,6 +89,9 @@ class Worker:  # invoker
                 pass
             # if command_name.startswith("build"):
 
+            # import ipdb
+
+            # ipdb.set_trace()
             factory = cmd.create(
                 runcontainers=self.get_runcontainers() or None,
                 sampleruncontainers=self.get_sampleruncontainers() or None,
@@ -101,13 +104,10 @@ class Worker:  # invoker
                 or command_name == "Rmd"
             ):
                 pass
-            if command_name == "collect-e2gs-for-Rmd":
+            # if command_name == "collect-e2gs-for-Rmd":
+            if command_name == "psms-collector-for-gpg":
                 pass
-                # import ipdb
 
-                # ipdb.set_trace()
-
-            # ipdb.set_trace()
             for obj in factory:
 
                 self._history.append((time(), command_name))
@@ -144,6 +144,10 @@ class Worker:  # invoker
                             #     pass
 
             # return output  # return nothing/...
+            # import ipdb
+
+            # ipdb.set_trace()
+            logger.info(self.get_sampleruncontainers())
             return  # return nothing/...
 
         else:

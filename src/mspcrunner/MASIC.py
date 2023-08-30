@@ -17,7 +17,7 @@ _EXE = None
 def get_exe():
     global _EXE
     if _EXE is None:
-        return get_masic_exe()
+        _EXE = get_masic_exe()
     return _EXE
 
 

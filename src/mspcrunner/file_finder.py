@@ -74,6 +74,11 @@ class FileFinder:  # receiver
                 globstr = "*/" * i + pat
                 # bug when depth == 1 and file has moved into its new home directory
                 for f in path.glob(globstr):  # DONE: ? fix if path is None
+                    # if f.name == "52355_1_7_psms_all.txt":
+                    #     print(f)
+                    #     import ipdb
+
+                    #     ipdb.set_trace()
                     # if (not f.is_file()) and (not f.is_symlink()):
 
                     # logger.debug(f"pat:{pat}, file:{f}")
@@ -90,39 +95,37 @@ class FileFinder:  # receiver
                     # name=parse_rawname(f.name)
                     # full_name =  f"{recno}_{runno}_{searchno}"
 
+                    if f.is_symlink():
+                        raise ValueError(f"No symlink allowed")
                     # basename = f.stem
                     basename = container_obj.make_basename(f)
                     if basename is None:  # if is some irrelevant file
+                        logger.debug(
+                            f"skipping {f.name} because could not make basename with {container_obj}"
+                        )
                         continue
-
-                    # if "psms_all" in basename:
-                    #     set_trace()
-
-                    if f.is_symlink():
-                        raise ValueError(f"No symlink allowed")
+                    elif basename is not None:
+                        res[basename].add_file(f)
+                    observed_files.append(f.name)
+                    # the defaultdict collection made it convienent to keep adding
+                    # files to the same "base" file
 
                     # =========================================================================
                     # sampleruncontainer "basename" is rec_run_search
-                    if (
-                        basename is not False
-                        and isinstance(container_obj(), SampleRunContainer)
-                        and "psms_all" in basename
-                    ):
-                        # logger.debug(f)
-                        # 1 + 1
-                        pass
-                        # logger.debug(f)
-                        # set_trace()
-                        # 1 + 1
+                    # if (
+                    #     basename is not False
+                    #     and isinstance(container_obj(), SampleRunContainer)
+                    #     and "psms_all" in basename
+                    # ):
+                    #     # logger.debug(f)
+                    #     # 1 + 1
+                    #     # set_trace()
+                    #     pass
+                    #     # logger.debug(f)
+                    #     # 1 + 1
                     # =========================================================================
 
-                    if basename is not None:
-                        res[basename].add_file(f)
-                        # the defaultdict collection made it convienent to keep adding
-                        # files to the same "base" file
-
                     #     # add files to RunContainers with a matching `_name`
-                    observed_files.append(f.name)
                     # weird behavior fix later
                     # run_container = RunContainer(stem=f.stem)
                     # res.append(run_container)
