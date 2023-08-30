@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 import pandas as pd
 from warnings import warn
+from fnmatch import fnmatch
+
 
 import ipdb
 
@@ -126,6 +128,8 @@ class RunContainer(AbstractContainer):
         self._stem = stem
         self._files = list()
         self._file_mappings = dict()
+        if rootdir is None:
+            rootdir = Path(".")
         self._rootdir = rootdir
         self._files_added = 0
         # self._spectra = None
@@ -163,17 +167,17 @@ class RunContainer(AbstractContainer):
     def reset_properties(self):
         self._stem = None
         # print('reste', self._stem)
-        self._rootdir = None
+        # self._rootdir = None
 
     @property
     def spectra(self):
         return
 
     def __repr__(self) -> str:
-        return f"RunContainer <{self.stem}>"
+        return f"RunContainer <{os.path.join(self._rootdir.__str__(), self.stem.__str__())}>"
 
     def __str__(self) -> str:
-        return f"RunContainer <{self.stem}>"
+        return f"RunContainer <{os.path.join(self._rootdir.__str__(), self.stem.__str__())}>"
 
     # def __hash__(self) -> int:
     #     return super().__hash__()
@@ -209,8 +213,8 @@ class RunContainer(AbstractContainer):
             # if len(stems) > 1:
             #   raise ValueError('!!')
             self._stem = _stem
-            if _stem.endswith("F1"):
-                pass
+            # if _stem.endswith("F1"):
+            #     pass
         # elif self._stem is None and not self._files:
         #     self._stem = "None"
         return self._stem
@@ -319,7 +323,7 @@ class RunContainer(AbstractContainer):
     def update_files(self):
         pass
 
-    def get_file(self, name: Path):
+    def get_file(self, name: str):
         # can expand this to different methods for getting different files, with various checks
         # Can add more logic such as checking if file exists, file size, creation time, etc
         self.update_files()
@@ -327,13 +331,17 @@ class RunContainer(AbstractContainer):
         # if name in ("raw", "spectra"):
         #     if self._file_mappings['raw'].name() == self._file_mappings['spectra'].name():
         #         self._file_mappings['raw'] = self._file_mappings['spectra'].resolve()
-        return self._file_mappings.get(name)
+        file = self._file_mappings.get(name, None)
+        if file is None:
+            return None
+        return self.rootdir / file
 
         # return self.attrs.get(name, lambda x: x)()
 
     def relocate(self, new_dir: Path):
+        logger.info(f"relocating {self} to {new_dir}")
 
-        self.update_files()
+        # self.update_files()
 
         for filetype, fileref in self._file_mappings.items():
             # file = self.get_file(filetype)
@@ -341,20 +349,17 @@ class RunContainer(AbstractContainer):
             if not isinstance(fileref, Path):
                 continue
 
+            if new_dir == fileref.parent:
+                continue  # already in the right place
             new_file = new_dir / fileref.parts[-1]
 
-            # print("===*** ", filetype, file.resolve(), new_file.resolve())
-            # print("===*** ", filetype, file.absolute(), new_file.absolute())
+            logger.info(f"{fileref} -> {new_file}")
+            try:
+                relocated_obj = fileref.rename(new_file)
+            except Exception as e:
+                raise e
 
-            if not fileref.absolute() == new_file.absolute():
-
-                logger.info(f"{fileref} -> {new_file}")
-                try:
-                    relocated_obj = fileref.rename(new_file)
-                except Exception as e:
-                    raise e
-
-                self._file_mappings[filetype] = relocated_obj
+            self._file_mappings[filetype] = relocated_obj
 
             if filetype in ("raw", "spectra"):
                 if (
@@ -395,7 +400,7 @@ class SampleRunContainer(AbstractContainer):
     #     self._files_added = 0
     #     self.runcontainers = None
     FILE_EXTENSIONS = ["tsv"]
-    PATTERNS = ["*tsv", "*txt", "*tab"]
+    PATTERNS = ["*tsv", "*txt", "*tab", "*gct", "*xlsx", "*xls"]
 
     def __init__(
         self,
@@ -518,6 +523,9 @@ class SampleRunContainer(AbstractContainer):
     @property
     def psms_filePath(self) -> Path:
 
+        _psms_file = self.get_file("psms_all")
+        if _psms_file is not None:
+            return _psms_file
         if self._psms_file is None:
             outname = f"{self.record_no}_{self.run_no}_{self.search_no}_psms_all.txt"
         elif isinstance(self._psms_file, Path):
@@ -551,23 +559,34 @@ class SampleRunContainer(AbstractContainer):
         if isinstance(f, str):
             f = Path(f)
         # keep a record of all files
-
         # always store raw files in "raw"
-        # print(f)
         # if f.name.endswith("raw"):
         #     self._file_mappings["raw"] = f
         keywords = (
-            "psms_all",
-            "e2g_QUAL",
-            "e2g_QUANT",
-            "psm_QUAL",
-            "psms_QUAL",
-            "psms_QUANT",
-        )
-        for kw in keywords:
-            if kw in f.name:
-                self._file_mappings[kw] = f
-            # if "psms_all" in f.name:
+            "*_psms_all*txt",
+            "*e2g_QUAL*tsv",
+            "*e2g_QUANT*tsv",
+            "*psm_QUAL*tsv",
+            "*psms_QUAL*tsv",
+            "*psms_QUANT*tsv",
+            "*site_table_nr*gct",
+        )  # we strip off the pattern matches after
+        for thekw in keywords:
+
+            kw_name = thekw.strip("tsv").strip("gct").strip("*")
+            if fnmatch(f.name, thekw):
+                if kw_name in self._file_mappings.keys():
+                    old_kw = self._file_mappings[kw_name]
+                    logger.warning(self)
+                    logger.warning(
+                        f"when setting {kw_name}, overwriting {old_kw} with {f}"
+                    )
+                logger.info(f"setting {kw_name} to {f}")
+                self._file_mappings[kw_name] = f
+        else:
+            logger.debug(f"not setting {f} to any file")
+        return self
+        # if "psms_all" in f.name:
         #    self._file_mappings["input_psms"] = f
         # elif "e2g_QUAL" in f.name:
         #    self._file_mappings["e2g_QUAL"] = f
@@ -576,14 +595,13 @@ class SampleRunContainer(AbstractContainer):
         # else:
         #     pass
 
-        return self
-
     def get_file(self, name):
         return self._file_mappings.get(name)
 
     @classmethod
     def make_basename(self, file) -> str:
         res = parse_rawname(file.name)
+
         res = [*filter(None, res)]
         if len(res) == 3:
             return f"{res[0]}_{res[1]}_{res[2]}"
