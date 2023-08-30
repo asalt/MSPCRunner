@@ -2,8 +2,8 @@ num_threads = 0                             # Number of CPU threads to use.
 # database_name = test.fasta                  # Path to the protein database file in FASTA format.
 database_name = /mnt/e/reference_databases/2020-11-23-decoys-contam-gpGrouper_Homo_sapiens_2020_03_24_refseq_GCF_000001405.39_GRCh38.p13_protein.fa.fas
 
-precursor_mass_lower = -10                  # Lower bound of the precursor mass window.
-precursor_mass_upper = 10                   # Upper bound of the precursor mass window.
+precursor_mass_lower = -20                  # Lower bound of the precursor mass window.
+precursor_mass_upper = 20                   # Upper bound of the precursor mass window.
 precursor_mass_units = 1                    # Precursor mass tolerance units (0 for Da, 1 for ppm, 2 for DIA-MS1, 3 for DIA-all).
 precursor_true_tolerance = 20               # True precursor mass tolerance (window is +/- this value).
 precursor_true_units = 1                    # True precursor mass tolerance units (0 for Da, 1 for ppm).
@@ -16,7 +16,7 @@ decoy_prefix = rev_                         # Prefix of the decoy protein entrie
 isotope_error = -1/0/1/2                    # Also search for MS/MS events triggered on specified isotopic peaks.
 mass_offsets = 0                            # Creates multiple precursor tolerance windows with specified mass offsets.
 restrict_deltamass_to = all                 # Specify amino acids on which delta masses (mass offsets or search modifications) can occur. Allowed values are single letter codes (e.g. ACD), must be capitalized. Use 'all' to allow any amino acid.
-precursor_mass_mode = selected              # One of isolated/selected/corrected.
+precursor_mass_mode = corrected              # One of isolated/selected/corrected.
 
 localize_delta_mass = 0                     # Include fragment ions mass-shifted by unknown modifications (recommended for open
                                             # and mass offset searches) (0 for OFF, 1 for ON).
@@ -50,7 +50,7 @@ max_variable_mods_combinations = 5000       # Maximum number of modified forms a
 mass_diff_to_variable_mod = 0               # Put mass diff as a variable modification. 0 for no; 1 for yes and change the original mass diff and the calculated mass accordingly; 2 for yes but do not change the original mass diff.
 
 output_file_extension = pepXML              # File extension of output files.
-output_format = tsv_pin                     # File format of output files (tsv, pin, pepxml, tsv_pin, tsv_pepxml, pepxml_pin, or tsv_pepxml_pin).
+output_format = tsv_pepxml_pin                     # File format of output files (tsv, pin, pepxml, tsv_pin, tsv_pepxml, pepxml_pin, or tsv_pepxml_pin).
 output_report_topN = 5                      # Reports top N PSMs per input spectrum.
 output_max_expect = 50                      # Suppresses reporting of PSM if top hit has expectation value greater than this threshold.
 report_alternative_proteins = 1             # Report alternative proteins for peptides that are found in multiple proteins (0 for no, 1 for yes).

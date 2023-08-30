@@ -2,6 +2,10 @@
 
 cd "$(dirname "$0")"
 
+BASEDIR=".."
+
+
+
 # first show config
 mspcrunner config show
 

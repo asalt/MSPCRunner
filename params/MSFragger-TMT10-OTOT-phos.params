@@ -13,7 +13,7 @@ calibrate_mass = 2                          # Perform mass calibration (0 for OF
 write_calibrated_mgf = 0                    # Write calibrated MS2 scan to a MGF file (0 for No, 1 for Yes).
 decoy_prefix = rev_                         # Prefix of the decoy protein entries. Used for parameter optimization only.
 
-isotope_error = 0/1/2                    # Also search for MS/MS events triggered on specified isotopic peaks.
+isotope_error = -1/0/1/2                    # Also search for MS/MS events triggered on specified isotopic peaks.
 mass_offsets = 0                            # Creates multiple precursor tolerance windows with specified mass offsets.
 restrict_deltamass_to = all                 # Specify amino acids on which delta masses (mass offsets or search modifications) can occur. Allowed values are single letter codes (e.g. ACD), must be capitalized. Use 'all' to allow any amino acid.
 precursor_mass_mode = corrected             # One of isolated/selected/corrected.
@@ -50,7 +50,7 @@ max_variable_mods_combinations = 5000       # Maximum number of modified forms a
 mass_diff_to_variable_mod = 0               # Put mass diff as a variable modification. 0 for no; 1 for yes and change the original mass diff and the calculated mass accordingly; 2 for yes but do not change the original mass diff.
 
 output_file_extension = pepXML              # File extension of output files.
-output_format = tsv_pin                     # File format of output files (tsv, pin, pepxml, tsv_pin, tsv_pepxml, pepxml_pin, or tsv_pepxml_pin).
+output_format = tsv_pepxml_pin                     # File format of output files (tsv, pin, pepxml, tsv_pin, tsv_pepxml, pepxml_pin, or tsv_pepxml_pin).
 output_report_topN = 5                      # Reports top N PSMs per input spectrum.
 output_max_expect = 50                      # Suppresses reporting of PSM if top hit has expectation value greater than this threshold.
 report_alternative_proteins = 1             # Report alternative proteins for peptides that are found in multiple proteins (0 for no, 1 for yes).
