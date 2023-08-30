@@ -4,7 +4,12 @@ import logging
 from typing import Iterable, Tuple
 
 
-def runner(geneids=None, df: pd.DataFrame=None, fasta: pd.DataFrame=None, basename="<basename>"):
+def runner(
+    geneids=None,
+    df: pd.DataFrame = None,
+    fasta: pd.DataFrame = None,
+    basename="<basename>",
+):
     # geneids = df["GeneID"]
     # geneids = geneids[:4]
     # print(os.getpid())
@@ -13,8 +18,10 @@ def runner(geneids=None, df: pd.DataFrame=None, fasta: pd.DataFrame=None, basena
         geneids = df.GeneID.unique()
     if isinstance(geneids, str) or not isinstance(geneids, Iterable):
         # print('----')
-        geneids = [geneids,]
-    df = df[ df.GeneID.isin(geneids) ]
+        geneids = [
+            geneids,
+        ]
+    df = df[df.GeneID.isin(geneids)]
     # import ipdb; ipdb.set_trace()
     ALL_RESULTS = list()
     # print(f"total geneids: {len(geneids)}")
@@ -29,14 +36,20 @@ def runner(geneids=None, df: pd.DataFrame=None, fasta: pd.DataFrame=None, basena
                 label=label,
             )
             if res is None or len(res) == 0:
-                logging.warning('res is None or empty')
-                logging.warning(f"""
-                geneid: {g}
-                label: {label}
-                basename: {samplename}
-                """)
-                # import ipdb;ipdb.set_trace()
-                continue
+                if "cont" in g.lower():  # this is an exception we can skip
+                    continue
+                elif "cont" not in g.lower():
+
+                    logging.warning("res is None or empty")
+                    logging.warning(
+                        f"""
+                    geneid: {g}
+                    label: {label}
+                    basename: {samplename}
+                    """
+                    )
+                    # import ipdb;ipdb.set_trace()
+                    continue
             _res_df = pd.concat(res)
             ALL_RESULTS.append(_res_df)
         # if ix % 100 == 0:

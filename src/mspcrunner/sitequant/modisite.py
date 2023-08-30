@@ -7,6 +7,7 @@ import ipdb
 
 import numpy as np
 
+
 class AA:
     def __init__(self, a, pos):
         if len(a) > 1:
@@ -152,7 +153,7 @@ def modisite_quant(
     """
 
     psms = psms[(psms.GeneID == str(geneid))].query("PSM_UseFLAG==1")
-    psms = psms[ psms.LabelFLAG == label ]
+    psms = psms[psms.LabelFLAG == label]
     seqs = fa[fa.geneid == str(geneid)]  # will loop over each
     if psms.empty:
         # then did not pass PSM_UseFLAG==1. Can happen if an unlabeled peptide shows up in a tmt experiment
@@ -178,8 +179,6 @@ def modisite_quant(
         pept_df = make_peptide_df(peptides)
         pept_df = aggregate_to_site(pept_df, entry.sequence)
 
-
-
         # _cols = ['Site', 'AApos', 'AA', 'Modi', 'quantity_without_modi']
         _cols = [
             "Site",
@@ -199,9 +198,20 @@ def modisite_quant(
             .reset_index()
             .merge(pept_df[_cols].drop_duplicates("Site"), on="Site", how="left")
         )
-        site_table = site_table.assign(GeneID=geneid, Symbol=entry.symbol, Protein=entry.ref, Description=entry.description, protein_length=len(entry.sequence)).sort_values(
-            by="AApos"
-        )
+        if "ref" in entry.index:
+            logging.debug("ref in entry.index")
+            protein = entry.ref
+        if "ENSP" in entry.index:
+            logging.debug("ENSP in entry.index")
+            protein = entry.ENSP
+            logging.debug("using ENSP")
+        site_table = site_table.assign(
+            GeneID=geneid,
+            Symbol=entry.symbol,
+            Protein=protein,
+            Description=entry.description,
+            protein_length=len(entry.sequence),
+        ).sort_values(by="AApos")
         # print(entry.ref)
         # site_table['enrichvalue'] = (site_table.quantity - site_table.quantity_without_modi) / (site_table.quantity + site_table.quantity_without_modi)
         site_table["AApos"] = site_table["AApos"].astype(int)
@@ -212,51 +222,47 @@ def modisite_quant(
     return ALL_RESULTS
 
 
-
 def make_peptide_df(peptides):
-        #
-        _fields = ["seq", "start", "end", "quantity", "quality"]
-        ## build dict
-        pept_list = list()
-        for pept in peptides:
-            # if pept.seq != "LAVGRHsFSR":
-            #     continue
-            d = dict()
-            for a in _fields:
-                d[a] = getattr(pept, a)
+    #
+    _fields = ["seq", "start", "end", "quantity", "quality"]
+    ## build dict
+    pept_list = list()
+    for pept in peptides:
+        # if pept.seq != "LAVGRHsFSR":
+        #     continue
+        d = dict()
+        for a in _fields:
+            d[a] = getattr(pept, a)
 
-            d["all_modis"] = "|".join(x for x in set(pept.mod_dict.values()))
+        d["all_modis"] = "|".join(x for x in set(pept.mod_dict.values()))
 
-            if not pept.mod_dict:
-                pept_list.append(d)
-            for k, v in pept.mod_dict.items():
-                # if not v.startswith("79.9") and not v.startswith("15.9949"):
-                #     import ipdb; ipdb.set_trace()
-                d_copy = copy(d)
-                d_copy["Rel_ModiPos"] = k
-                d_copy["Modi"] = v
-                d_copy["AA"] = pept.seq[k]
-                pept_list.append(d_copy)
+        if not pept.mod_dict:
+            pept_list.append(d)
+        for k, v in pept.mod_dict.items():
+            # if not v.startswith("79.9") and not v.startswith("15.9949"):
+            #     import ipdb; ipdb.set_trace()
+            d_copy = copy(d)
+            d_copy["Rel_ModiPos"] = k
+            d_copy["Modi"] = v
+            d_copy["AA"] = pept.seq[k]
+            pept_list.append(d_copy)
 
-        # pept_dict = [[getattr(pept, a) for a in _fields] for pept in peptides]
+    # pept_dict = [[getattr(pept, a) for a in _fields] for pept in peptides]
 
-        pept_df = pd.DataFrame(pept_list)
-        ## if there are no modifications at all, need to make these empty columns
-        for col in ["Rel_ModiPos", "Modi", "AA"]:
-            if col not in pept_df:
-                pept_df[col] = np.nan
+    pept_df = pd.DataFrame(pept_list)
+    ## if there are no modifications at all, need to make these empty columns
+    for col in ["Rel_ModiPos", "Modi", "AA"]:
+        if col not in pept_df:
+            pept_df[col] = np.nan
 
-        pept_df["AAindex"] = pept_df.start + pept_df.Rel_ModiPos
-        pept_df["AApos"] = (
-            pept_df.start + pept_df.Rel_ModiPos + 1
-        )  # add 1 for 1 indexing
+    pept_df["AAindex"] = pept_df.start + pept_df.Rel_ModiPos
+    pept_df["AApos"] = pept_df.start + pept_df.Rel_ModiPos + 1  # add 1 for 1 indexing
 
-        return pept_df
+    return pept_df
 
+    # do_something(protein_seq=entry.sequence, peptide_positions=peptide_positions)
 
-        # do_something(protein_seq=entry.sequence, peptide_positions=peptide_positions)
-
-        # don't wrap at any of these indices
+    # don't wrap at any of these indices
 
 
 def make_peptides(peptide_positions, psms: pd.DataFrame, **kws):
