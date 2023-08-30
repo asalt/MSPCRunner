@@ -7,6 +7,7 @@ import platform
 import re
 import subprocess
 import sys
+from mspcrunner.config import get_conf  # Import the get_conf function
 
 # from collections.abc import Iterable
 from collections import OrderedDict, defaultdict
@@ -21,6 +22,7 @@ from .containers import RunContainer, SampleRunContainer
 
 import click
 
+from RefProtDB.utils import fasta_dict_from_file
 import pandas as pd
 
 BASEDIR = os.path.split(__file__)[0]
@@ -57,6 +59,19 @@ def parse_rawname(name: str) -> Tuple[str, str, str]:
     while yield_counter < 3:
         yield_counter += 1
         yield None
+
+
+def find_rec_run(target: str):
+    "Try to get record, run, and search numbers with regex of a target string with pattern \d+_\d+_\d+"
+
+    _, target = os.path.split(target)  # ensure just searching on filename
+    rec_run_search = re.compile(r"^(\d+)_(\d+)_")
+
+    match = rec_run_search.search(target)
+    if match:
+        recno, runno = match.groups()
+        return recno, runno
+    return
 
 
 def run_and_log(CMD, *args, **kwargs):
@@ -402,7 +417,7 @@ class Command:
 
     def __init__(
         self,
-        receiver: Receiver,
+        receiver: Receiver = None,
         paramfile=None,
         outdir=None,
         name=None,
@@ -424,6 +439,7 @@ class Command:
         # self.outdir = outdir or Path(".")
         self.outdir = outdir  # let it stay as none if not given
         for k, v in kwargs.items():
+            logger.info(f"Setting {k} to {v}")
             setattr(self, k, v)
 
     def create(self, runcontainers=None, sampleruncontainers=None, **kwargs):
@@ -432,9 +448,7 @@ class Command:
         if sampleruncontainers is None:
             sampleruncontainers = tuple()
         containers = list(runcontainers) + list(sampleruncontainers)
-        # import ipdb
 
-        # ipdb.set_trace()
         if containers is None:
             yield self
         else:
@@ -452,9 +466,7 @@ class Command:
 
                 if isinstance(container, SampleRunContainer):
                     pass
-                    # import ipdb
 
-                    # ipdb.set_trace()
                 yield type(self)(**d)
 
     def __repr__(self):
@@ -522,7 +534,10 @@ class PythonCommand(Command):
             containers = list(runcontainers) + list(sampleruncontainers)
             d = self.__dict__.copy()
             d["containers"] = containers
+            d["runcontainers"] = runcontainers
+            d["sampleruncontainers"] = sampleruncontainers
             # quick fix
+
             if "receiver" not in d and "_receiver" in d:
                 d["receiver"] = d["_receiver"]
             # ================
@@ -547,6 +562,37 @@ class PythonCommand(Command):
         #    inputfiles=self.inputfiles,
         #    outdir=self.outdir,
         # )
+
+    def execute(self, *args, **kws):
+        logger.info(f"Running {self.name} with {self.CMD}")
+        return self._receiver.run(**self.CMD)
+
+
+class PythonCommandSampleRunContainerFactory(Command):
+
+    NAME = "PythonCommand"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            *args, **kwargs
+        )  # this has to be called before we can access "args"
+
+    def create(self, runcontainers=None, sampleruncontainers=None, **kwargs):
+
+        receiver = self.receiver
+        if "receiver" in kwargs.keys():
+            logger.warning(f"overriding receiver with {kwargs['receiver']}")
+            receiver = kwargs.pop("receiver")
+        if runcontainers is None and sampleruncontainers is None:
+            yield self
+        for sampleruncontainer in sampleruncontainers:
+            newname = f"{self.name}: {sampleruncontainer.rec_run_search}"
+            yield PythonCommand(
+                sampleruncontainer=sampleruncontainer,
+                name=newname,
+                receiver=receiver,
+                **kwargs,
+            )
 
     def execute(self, *args, **kws):
         return self._receiver.run(**self.CMD)
@@ -770,9 +816,8 @@ class PrepareForiSPEC(Receiver):  # receiver
         **kwargs,
     ):
 
-        force = False
-        if "force" in kwargs:
-            force = kwargs.pop("force")
+        # if "force" in kwargs:
+        #     force = kwargs.pop("force")
 
         if containers is None:
             logger.error(f"no sampleruncontainers passed")
@@ -919,10 +964,14 @@ class FileRealtor:  # receiver
 
     NAME = "FileRealtor"
 
+    def __init__(self, searchno=None, **kwargs):
+        self.searchno = searchno
+
     def run(
         self,
         runcontainers: Collection[RunContainer] = tuple(),
         outdir: Path = None,
+        searchno: int = 7,
         **kwargs,
     ) -> Dict[Path, List[Path]]:
         """
@@ -937,12 +986,18 @@ class FileRealtor:  # receiver
             run_container
         ) in runcontainers:  # id may be equivalent to stem, but doesn't have to be
             recno, runno, searchno = parse_rawname(run_container.stem)
+            if self.searchno is not None:
+                if searchno != self.searchno:
+                    logger.warning("searchno does not match")
             if recno is None:
                 logger.info(f"Could not find recno for {run_container.stem}, skipping")
                 continue
             if searchno is None:
-                searchno = "6"
-            outname = "_".join(filter(None, (recno, runno, searchno)))
+                searchno = self.searchno
+                logger.info(
+                    f"Could not find searchno for {run_container.stem}, setting to {searchno}"
+                )
+            outname = "_".join(filter(None, (recno, runno, str(searchno))))
             if outdir is None:
                 _outdir = run_container.rootdir
             else:
@@ -1047,6 +1102,440 @@ def make_psms_collect_object(container_cls, name=None, path=None):
     return collect_psms
 
 
+class AddE2GMetadata(Receiver):
+    NAME = "AddE2GMetadata"
+
+    def run(
+        self,
+        sampleruncontainer: SampleRunContainer = None,
+        name: str = None,
+        outdir: Path = None,
+        force: bool = False,
+        **kwargs,
+    ):
+        logger.info(f"starting {self}")
+
+        if sampleruncontainer is None:
+            logger.error(f"no sampleruncontainer passed")
+            # raise ValueError("no input")
+
+        qualf = sampleruncontainer.get_file("e2g_QUAL")
+        quantf = sampleruncontainer.get_file("e2g_QUANT")
+        if qualf is None or quantf is None:
+            logger.error(f"no e2g files found for {sampleruncontainer}")
+            return
+        else:
+            logger.info(f"{sampleruncontainer}: found {qualf} and {quantf}")
+
+        qualmat = pd.read_table(qualf)
+        quantmat = pd.read_table(quantf)
+        quantmat = quantmat.loc[~pd.isna(quantmat.GeneID)]
+
+        mat_wide = quantmat.pivot(
+            index="GeneID", columns="LabelFLAG", values="iBAQ_dstrAdj"
+        )
+        new_colnames = list(map(self.fix_colnames, mat_wide.columns))
+        mat_wide = mat_wide.set_axis(tuple(new_colnames), axis=1)
+
+        # e2g = ispec.E2G(
+        #     *rec_run_search_list, data_dir=sampleruncontainer.rootdir, only_local=True
+        # )
+        from bcmproteomics_ext import ispec
+
+        rec_run_search = sampleruncontainer.rec_run_search
+        exp = ispec.Experiment(
+            sampleruncontainer.record_no,
+            sampleruncontainer.run_no,
+            sampleruncontainer.search_no,
+        )
+
+        metadata = exp.metadata
+        if metadata.empty:
+            logger.error(f"no metadata found for {sampleruncontainer}")
+            return
+
+        if metadata is None or metadata.empty:
+            logger.error(f"no metadata found for {sampleruncontainer}")
+            return
+        assert "EXPLabelFLAG" in metadata.columns
+        for x in [
+            "EXPRecNo",
+            "EXPRunNo",
+            "EXPSearchNo",
+        ]:
+            metadata[x] = metadata[x].astype(str)
+        metadata.loc[metadata.EXPLabelFLAG == "131", "EXPLabelFLAG"] = "131N"
+
+        metadata = metadata.loc[metadata.EXPLabelFLAG.isin(mat_wide.columns)]
+        metadata = metadata.rename(
+            columns={
+                "EXPRecNo": "recno",
+                "EXPRunNo": "runno",
+                "EXPSearchNo": "searchno",
+                "EXPLabelFLAG": "label",
+            }
+        )
+        # metadata =
+        idx_name = metadata.apply(
+            lambda x: str.join(
+                "_", [x["recno"], x["runno"], x["searchno"], x["label"]]
+            ),
+            axis=1,
+        )
+        metadata = metadata.set_index(idx_name)
+        metadata["label"] = pd.Categorical(
+            metadata.label, ordered=True, categories=mat_wide.columns
+        )
+        metadata = metadata.sort_values("label")
+        mat_wide = mat_wide.set_axis(metadata.index, axis=1)
+
+        # --
+        from rpy2.robjects.packages import importr
+        from rpy2 import robjects
+        from rpy2.robjects import r
+        from rpy2.robjects import pandas2ri
+
+        cmapR = importr("cmapR")
+
+        pandas2ri.activate()
+        robjects.r.assign("cdesc", metadata.astype(str))
+        robjects.r.assign("cid", metadata.index)
+
+        rdesc = qualmat[
+            [
+                "GeneID",
+                "TaxonID",
+                "GeneSymbol",
+                "Description",
+                "PSMs",
+                "PeptideCount",
+                "GPGroup",
+                "PeptidePrint",
+                "EXPRecNo",
+                "EXPRunNo",
+                "EXPSearchNo",
+                "LabelFLAG",
+            ]
+        ]
+        # add GeneID, GeneSymbol, and Description from ensembl
+
+        rdesc.loc[pd.isna(rdesc.Description), "Description"] = ""
+        if not rdesc.GeneID.is_unique:
+            logger.error(f"GeneID is not unique for {sampleruncontainer}")
+            return
+        rdesc.index = rdesc["GeneID"].astype(str)
+        rdesc = rdesc.loc[mat_wide.index]
+
+        robjects.r.assign("rid", rdesc.index)
+        robjects.r.assign("rdesc", rdesc)
+
+        robjects.r.assign("edata", mat_wide)
+        robjects.r(
+            'my_ds <- new("GCT", mat=as.matrix(edata), rid=rid, cid=cid, rdesc=rdesc, cdesc=cdesc)'
+        )
+
+        labeltype = metadata["EXPLabelType"][0]
+        robjects.r.assign("rootdir", qualf.parent.__str__())
+        robjects.r.assign(
+            "filename",
+            str.join("_", [sampleruncontainer.rec_run_search, labeltype]) + ".gct",
+        )
+        robjects.r(
+            "cmapR::write_gct(my_ds, file.path(rootdir, filename), appenddim=T, precision=8)"
+        )
+
+    @staticmethod
+    def fix_colnames(s: str):
+        """check and fix if we have
+        12345_1_1_12x_X and fix to 12345_1_1_12xX
+        fix_colnames("12345_1_1_127_N") -> 12345_1_1_127N
+        fix_colnames("12345_1_1_126") -> 12345_1_1_126
+        """
+        res = s.split("_")
+        if len(res) == 5:
+            res[3] = res[3] + res[4]
+            res = res[:4]
+        elif len(res) == 3:
+            res[1] = res[1] + res[2]
+            res = res[:2]
+        ret = str.join("_", res)
+        ret = ret.lstrip("TMT_")
+        return ret
+
+
+class AddSiteMetadata(Receiver):
+    NAME = "AddSiteMetadata"
+
+    @staticmethod
+    def fix_colnames(s: str):
+        """check and fix if we have
+        12345_1_1_12x_X and fix to 12345_1_1_12xX
+        fix_colnames("12345_1_1_127_N") -> 12345_1_1_127N
+        fix_colnames("12345_1_1_126") -> 12345_1_1_126
+        """
+        res = s.split("_")
+        if len(res) == 5:
+            res[3] = res[3] + res[4]
+            res = res[:4]
+        elif len(res) == 3:
+            res[1] = res[1] + res[2]
+            res = res[:3]
+        ret = str.join("_", res)
+        return ret
+
+    def run(
+        self,
+        sampleruncontainer: SampleRunContainer = None,
+        name: str = None,
+        outdir: Path = None,
+        force: bool = False,
+        **kwargs,
+    ):
+        logger.info(f"starting {self}")
+
+        if sampleruncontainer is None:
+            logger.error(f"no sampleruncontainer passed")
+            # raise ValueError("no input")
+
+        site_table_nr = sampleruncontainer.get_file("site_table_nr")  # Path or None
+
+        if site_table_nr is None:
+            logger.error(f"no site table found for {sampleruncontainer}")
+            return
+
+        from bcmproteomics_ext import ispec
+
+        recno = sampleruncontainer.record_no
+        rec_run_search = sampleruncontainer.rec_run_search
+        ##
+
+        rec_run_search_list = rec_run_search.split("_")
+        exp = ispec.Experiment(
+            sampleruncontainer.record_no,
+            sampleruncontainer.run_no,
+            sampleruncontainer.search_no,
+        )
+        # genotype = exp.genotype
+        # treatment = exp.treatment
+        # description = exp.description
+
+        conf = get_conf()
+
+        # Retrieve the target file path from the config object
+        fa_db = None  # we try to load data into fa_db via previously defined parameters
+        target_file_name = "GENCODE_hsmm_new"
+        target_file_path = conf["refdb"].get(target_file_name, "")
+        # Check if the target file is present
+        if target_file_path and os.path.exists(target_file_path):
+            # Load the file or perform any other operation you need
+            # all of this is made up - theoretical but not possible yet
+            # chatGPT-4 Aug3
+            # will the AI from one generative language model
+            # be able to talk to the AI from another generative language model?
+            # as I try to think of a good answer, I get new suggestions from GitHub Copilot
+            # as it tries to complete my thoughts and make a final judgement.
+            # <<< the below is an example >>>
+            # so far, it has been able to complete my thoughts and make a final judgement.
+            # <<< the above is an example >>>.
+
+            # with open(target_file_path, "r") as file:
+            #     content = file.read()
+            #     # Add the content or any other processing you need
+            #     self.sites[site][target_file_name] = content
+
+            # now for the real code
+            _gen = fasta_dict_from_file(target_file_path)  # a generator
+            fa_db = pd.DataFrame.from_dict(_gen)
+
+        # load gencode ref db if present
+
+        metadata = exp.metadata
+        if metadata is None or metadata.empty:
+            logger.error(f"no metadata found for {sampleruncontainer}")
+            return
+        assert "EXPLabelFLAG" in metadata.columns
+        for x in [
+            "EXPRecNo",
+            "EXPRunNo",
+            "EXPSearchNo",
+        ]:
+            metadata[x] = metadata[x].astype(str)
+        metadata.loc[metadata.EXPLabelFLAG == "131", "EXPLabelFLAG"] = "131N"
+        # metadata = metadata.loc[:, ~metadata.columns.duplicated("first")]
+
+        # from cmapPy.pandasGEXpress.parse import parse, parse_gct, parse_gctx
+        # from cmapPy.pandasGEXpress import write_gct
+        # from cmapPy.pandasGEXpress.GCToo import GCToo
+
+        from rpy2.robjects.packages import importr
+        from rpy2 import robjects
+        from rpy2.robjects import r
+        from rpy2.robjects import pandas2ri
+
+        cmapR = importr("cmapR")
+
+        pandas2ri.activate()
+
+        # gct_obj = parse_gct.parse(site_table_nr.__str__())
+        gct_obj = cmapR.parse_gctx(site_table_nr.__str__())
+
+        # data_mat = gct_obj.do_slot("mat") # not using
+        # problem - row_metadata_df is not a pandas dataframe
+        row_metadata_df_robj = gct_obj.do_slot("rdesc")  # heare
+        row_metadata_df = pandas2ri.rpy2py(row_metadata_df_robj)
+
+        if fa_db is not None:
+            fa_db_cols = [
+                "ENSP",
+                "ENST",
+                "ENSG",
+                "geneid",
+                "taxon",
+                "symbol",
+                "description",
+                "sequence",
+            ]
+            if all([x in fa_db.columns for x in row_metadata_df.columns]):
+                pass
+            else:
+                # merged_df = row_metadata_df.merge(fa_db, left_on="GeneID", right_on="geneid",
+                #     how="left")
+                # merged_df = row_metadata_df.merge(fa_db, left_on="GeneID", right_on="geneid", how="left", validate="one_to_one")
+                fa_db_cols = [x for x in fa_db_cols if x not in row_metadata_df.columns]
+                merged_df = row_metadata_df.merge(
+                    fa_db[fa_db_cols],
+                    left_on="Primary_select",
+                    right_on="ENSP",
+                    how="left",
+                )
+                assert merged_df.shape[0] == row_metadata_df.shape[0]
+                merged_df.index = merged_df.id
+                row_metadata_df = merged_df
+            # assert
+            import ipdb
+
+            ipdb.set_trace()
+            # if row_metadata_df.Si
+            # row_metadata_df.index = row_metadata_df.apply(
+            #     lambda x: x["GeneSymbol"] + "_" + x["Primary_select"], axis=1
+            # )
+
+        # row_metadata_df = pandas2ri.rpy2py(row_metadata_df) # not using
+        col_metadata_df = gct_obj.do_slot("cdesc")
+        col_metadata_df = pandas2ri.rpy2py(col_metadata_df)
+        row_ids = pandas2ri.rpy2py(gct_obj.do_slot("rid"))
+        col_ids = pandas2ri.rpy2py(gct_obj.do_slot("cid"))
+
+        new_colnames = map(self.fix_colnames, col_ids)
+        new_colnames = list(new_colnames)
+
+        # now add metadata
+        # format "rec_run_search_label"
+        new_colnames = list(new_colnames)
+
+        assert [len(x) == 4 for x in new_colnames]
+        if not all(new_colnames == col_ids):
+            col_ids = new_colnames
+            logger.info("adjust colnames")
+            # gct_obj.col_metadata_df.index = new_colnames
+        # if len(col_metadata_df)
+        # rec_run_search_label_list = gct_obj.col_metadata_df.index.map(
+
+        rec_run_search_label_list = list(map(lambda x: x.split("_"), col_ids))
+        new_col_metadata = pd.DataFrame(
+            rec_run_search_label_list,
+            columns=["recno", "runno", "searchno", "label"],
+            index=col_ids,
+        )
+
+        res = pd.merge(
+            new_col_metadata,
+            metadata,
+            left_on=["recno", "runno", "searchno", "label"],
+            right_on=[
+                "EXPRecNo",
+                "EXPRunNo",
+                "EXPSearchNo",
+                "EXPLabelFLAG",
+            ],
+        )
+        # if "EXPRecNo" in res.columns:
+        #    res.drop(columns=["EXPRecNo", "EXPRunNo", "EXPSearchNo"], inplace=True)
+
+        res.index = new_col_metadata.index
+        if len(res) != len(metadata):
+            logger.error(f"metadata merge failed for {sampleruncontainer}")
+        new_col_metadata_df = res
+        new_col_metadata_df["id"] = new_col_metadata_df.index
+
+        # new_col_metadata_df.astype(str)
+
+        robjects.r.assign("new_col_metadata_df", new_col_metadata_df.astype(str))
+        robjects.r.assign("gct_obj", gct_obj)
+        robjects.r.assign("cids", new_col_metadata_df.index)
+        robjects.r.assign("cdesc", new_col_metadata_df.astype(str))
+        robjects.r.assign("rdesc", row_metadata_df.astype(str))
+        robjects.r.assign("rids", row_ids)
+        robjects.r("""m <- gct_obj@mat """)
+        # rids_r = pandas2ri.py2rpy(rids)
+        robjects.r("""rownames(m) <- rids""")
+        robjects.r("""colnames(m) <- cids""")
+
+        # robjects.r.assign("rid", new_row_metadata_df.astype(str))
+        robjects.r(
+            'my_ds <- new("GCT", mat=m, rid=as.character(rids), cid=cids, rdesc=rdesc, cdesc=cdesc)'
+        )
+        robjects.r.assign("filename", site_table_nr.__str__())
+        robjects.r("cmapR::write_gct(my_ds, filename, appenddim=F, precision=8)")
+
+        # melted_robj = cmapR.melt_gct(gct_obj)
+        # this takes a really long time
+        # we can just save it in r
+        # melted_matrix = pandas2ri.rpy2py(melted_robj)
+        robjects.r("m <- as.data.frame(my_ds@mat)")
+        robjects.r("rownames(m) <- my_ds@rid")
+        robjects.r("m <- tibble::rownames_to_column(m, 'id')")
+
+        _filename = site_table_nr.__str__().strip(".gct") + "_mat.tsv"
+        robjects.r.assign("filename", _filename)
+        robjects.r("readr::write_tsv(m, filename)")
+
+        # robjects.r("melted_obj_nocdesc <- cmapR::melt_gct(my_ds, keep_cdesc=F)")
+        # robjects.r("melted_robject <- cmapR::melt_gct(my_ds)")
+        robjects.r(
+            """melted_df <- cmapR::melt_gct(my_ds, keep_rdesc=F, keep_cdesc=F, suffixes=c('.site', '.sample'))"""
+        )
+        _filename = site_table_nr.__str__().strip(".gct") + "_melted.tsv"
+        robjects.r.assign("filename", _filename)
+        robjects.r("readr::write_tsv(melted_df, filename)")
+
+        # robjects.r(
+        #     """melted_df_more <- cmapR::melt_gct(my_ds, keep_rdesc=T, keep_cdesc=F, suffixes=c('.site', '.sample'))"""
+        # )
+        # _filename = site_table_nr.__str__().strip(".gct") + "_melted_manycolumns.tsv"
+        # robjects.r.assign("filename", _filename)
+        # robjects.r("readr::write_tsv(melted_df, filename)")
+
+        # _colnames_split = [x.split("_") for x in _colnames]
+        # robjects.r.assign("new_col_metadata", new_col_metadata_df)
+
+        # out_obj = GCToo(
+        #     data_df=data_df,
+        #     row_metadata_df=row_metadata_df,
+        #     col_metadata_df=new_col_metadata_df,
+        # )
+        # write_gct.write(out_obj, out_fname=str(site_table_nr) + "_new.gct")
+
+        # import cmapPy
+
+        # # load nr
+        # gct_obj = cmapR.parse_gctx(site_table_nr.__str__())
+        # gct_obj.get_attrib("cdesc")
+
+        # pass
+        # cmapR.p
+
+
 # class Builder(ABC):
 #     """Builder [...]
 #
@@ -1082,9 +1571,7 @@ def make_psms_collect_object(container_cls, name=None, path=None):
 #             newcls = cls.new(result_container)
 #             worker.register(f"{cls}-{ix}", newcls)
 #
-#         import ipdb
 #
-#         ipdb.set_trace()
 #         1 + 1
 #
 #     def execute(self):
@@ -1102,3 +1589,128 @@ def make_psms_collect_object(container_cls, name=None, path=None):
 #         # )
 #         # worker.register(f"gpgrouper-{ix}", gpgrouper)
 #
+
+
+class RunContainerBuilder(Receiver):
+    """gather runs for all experiments"""
+
+    NAME = "RunContainerBuilder"
+
+    def run(
+        self,
+        containers: List[RunContainer] = None,
+        **kwargs,
+    ):
+        if containers is None:
+            logger.error(f"no runcontainers passed")
+            # this is bad
+            return
+
+
+class SampleRunContainerBuilder(Receiver):
+    """combine multiple fractions of psm files for a given experiment"""
+
+    NAME = "PSM-Collect"
+
+    def run(
+        self,
+        containers: List[RunContainer] = None,
+        outdir: Path = None,
+        **kwargs,
+    ) -> str:
+        """
+        We can use this procedure to create SampleRunContainers
+        """
+
+        if containers is None:
+            logger.error(f"no runcontainers passed")
+            # this is bad
+            return
+            # raise ValueError("No input")
+
+        # logger.debug(f"{self}")
+        filegroups = defaultdict(list)
+        # for f in sorted(files):
+        for container in containers:
+            if not isinstance(container, RunContainer):  # SampleRunContainer skip down
+                # Grab from sampleruncontainer?
+                record_no = container.record_no
+                run_no = container.run_no
+                search_no = container.search_no
+                continue  # wrong container
+
+            # this is where search could be designated
+            recrun = find_rec_run(container.stem)
+            # print(recrun)
+            if not recrun:
+                recrun = container.stem[:10]
+                logger.warn(f"Could not get group for {container}, using {recrun}")
+                # continue
+
+            if recrun:
+                group = f"{recrun[0]}_{recrun[1]}"
+                # populate all of our "filegroups"
+                # filegroups[group].append(mspcfile)
+                filegroups[group].append(container)
+
+        record_no = recrun[0]
+        run_no = recrun[1]
+        # this is broken
+        if isinstance(container, SampleRunContainer):
+            search_no = container.search_no
+        else:
+            search_no = 6
+
+        # =========================== SampleRunContainer ===========================
+        sampleruncontainers = list()
+
+        # create run containers
+
+        for group, runcontainers in filegroups.items():
+
+            # recrun = find_rec_run(container.stem)
+            # if not recrun:  # ..
+            #     continue
+
+            # recrun = {find_rec_run(container.stem) for container in runcontainers}
+
+            # silently drops RunContainers that do not have a pin file
+            rootdir = filter(None, {container.rootdir for container in runcontainers})
+            rootdir = list(rootdir)
+            # assert len(recrun) == 1
+            # recrun = list(recrun)[0]
+            assert len(rootdir) == 1
+            rootdir = list(rootdir)[0]
+            rootdir = rootdir
+
+            # record_no = group[0]
+            # run_no = group[1]
+            # rootdir = rootdir
+
+            samplerun = SampleRunContainer(
+                name=group,
+                rootdir=rootdir,
+                runcontainers=runcontainers,
+                record_no=record_no,
+                run_no=run_no,
+                search_no=search_no,
+            )
+
+            sampleruncontainers.append(samplerun)
+        return sampleruncontainers
+        # print(group)
+
+        # # move this?
+        # for f in sorted(files):
+        #     print(f)
+        # print(len(files))
+        # df = pd.concat(pd.read_table(f) for f in files)
+        # outname = f"{group}_6_psms_all.txt"
+        # df.to_csv(outname, sep="\t", index=False)
+        # print(f"Wrote {outname}")
+
+        # for samplerun in sampleruncontainers:
+        #     samplerun.check_psms_files()
+        #     samplerun.concat(force=force)
+
+        # return sampleruncontainers

@@ -7,6 +7,7 @@ import pandas as pd
 from mokapot import read_pin
 from typing import Any, Dict, Iterable, List, Mapping, Tuple
 from .commands import RunContainer, Receiver
+import ipdb
 
 # from .containers import SampleRun
 
@@ -144,7 +145,14 @@ class RawResultProcessor:
         return
 
 
-def concat(search_result_f, percpsm_f, sic_f, ri_f):
+def concat(
+    search_result_f: str,
+    percpsm_f: str,
+    sic_f: str,
+    ri_f: str,
+    scanstats_extra_f: str = None,
+    percpept_f: str = None,
+):
 
     """
     script for combining:
@@ -154,20 +162,23 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
     :MASIC Reporter Ions (if applicable):
     concat
     """
-
     search_result = pd.read_table(search_result_f).rename(
         columns={
             "ScanNum": "scannum",
             "Peptide": "peptide",
         }
     )
+
     # percpsm = pd.read_table(percpsm_f, usecols=[0,1,2,3,4,5])
+
     percpsm = pd.read_table(percpsm_f)
+
+    percpept = None
+    if percpept_f is not None:
+        percpept = pd.read_table(percpept_f)
     # percpsm = read_pin(str(percpsm_f), to_df=True )
     if sic_f:
         sic = pd.read_table(sic_f)
-    if ri_f:
-        ri = pd.read_table(ri_f)
 
     PEPT_REGX = re.compile("(?<=\.)(\S+)(?=\.)")
 
@@ -191,24 +202,40 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
     percpsm = percpsm.rename(
         columns={"peptide": "peptide_modi", "Peptide": "peptide_modi"}
     )
+    if percpept is not None:
+        percpept = percpept.rename(
+            columns={"peptide": "peptide_modi", "Peptide": "peptide_modi"}
+        )
 
     # TODO clean
     # if 'peptide' in percpsm:
     #    percpsm['peptide'] = percpsm.peptide_modi.apply(get_peptide_sequence)
     # else:
     percpsm["peptide"] = percpsm.peptide_modi.apply(get_peptide_sequence)
+    if percpept is not None:
+        percpept["peptide"] = percpept.peptide_modi.apply(get_peptide_sequence)
     if "hit_rank" not in search_result:
         search_result["hit_rank"] = 1
 
     if percpsm_f:
+
         res = pd.merge(
             search_result,
             percpsm,
             on=["scannum", "peptide"],
             how="right",  # merge right as we don't want decoys
         )
+        #
+        if percpept is not None:
+            _peptide_selection = percpept[(percpept["mokapot q-value"] <= 0.01)].peptide
+            logger.info("Controling at 1% peptide FDR")
+        else:
+            _peptide_selection = percpsm[(percpsm["mokapot q-value"] <= 0.01)].peptide
+            logger.info("Controling at 1% psm FDR")
 
-        res = res[(res["mokapot q-value"] <= 0.01) & (res["hit_rank"] == 1)]
+        # res = res[(res["mokapot q-value"] <= 0.01) & (res["hit_rank"] == 1)]
+        res = res[(res["peptide"].isin(_peptide_selection)) & (res["hit_rank"] == 1)]
+        # res = res[(res["mokapot q-value"] <= 1.01) & (res["hit_rank"] == 1)]
     else:
         res = search_result
 
@@ -223,14 +250,60 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
     else:
         res2 = res
 
+    ### ScanStatsEx from MASIC
+    ### scan number is the MS3 scan
+    ### Master Scan Number is the MS2 scan
+    ### master scan number
+    # tmp = tmp[tmp["Collision Mode"] == "hcd"]
+    # tmp2 = tmp.merge(
+    #     sic,
+    #     left_on="Master Scan Number",
+    #     right_on="SurveyScanNumber",
+    #     how="outer",
+    #     indicator=True,
+    # )
+    # tmp2[ tmp2._merge == "both"]
+
+    # scanstats_extra = pd.read_table(scanstats_extra_f)
+
     if ri_f:
+
+        ri = pd.read_table(ri_f)
+        ri = ri.rename(columns={"ScanNumber": "FragScanNumber"})
+        # scanstats_extra_f = "./49775_7_ECL_837_TMT_HPLC_F10_MS3-RTS_ScanStatsEx.txt"
+        # temporary
+
+        _pat = ri_f.name.strip("ReporterIons.txt") + "*ScanStatsEx.txt"
+        # ScanStatsEx may or may not be present. Is necessary for MS3 data
+        _fileglobres = list(Path.cwd().glob(_pat))
+        # print(_fileglobres)
+
+        assert len(_fileglobres) <= 1
+        if _fileglobres:
+            scanstats_extra_f = _fileglobres[0]
+            #
+            scanstats_extra = pd.read_table(scanstats_extra_f)
+            scanstats_extra = scanstats_extra.rename(
+                columns={"ScanNumber": "FragScanNumber"}
+            )
+            ri = ri.merge(
+                scanstats_extra,
+                on=["FragScanNumber", "Collision Mode", "Dataset"],
+                # left_on = "ScanNumber",
+                # right_on = "ScanNumber",
+                how="left",
+                # indicator=True,
+            )
+
         res3 = pd.merge(
             res2,
             ri,
-            left_on=["scannum", "Dataset"],
-            right_on=["ScanNumber", "Dataset"],
+            # left_on=["FragScanNumber", "Dataset"],
+            # right_on=["Master Scan Number", "Dataset"],
+            on=["FragScanNumber", "Dataset"],
             how="left",
         )
+
     else:
         res3 = res2
 
@@ -241,6 +314,7 @@ def concat(search_result_f, percpsm_f, sic_f, ri_f):
 MASS_SHIFTS = "229\.1629|286\.184|304.207"
 
 # could consider incorporating in containers.SampleRunContainer
+# but it is nice to keep routines separate from container objects
 class PSM_Merger(Receiver):
 
     NAME = "PSM-Merger"
@@ -253,13 +327,25 @@ class PSM_Merger(Receiver):
     """
 
     def run(
-        self, runcontainer: RunContainer = None, outdir: Path = None, **kwargs
+        self,
+        runcontainer: RunContainer = None,
+        outdir: Path = None,
+        fdr_level="psm",
+        **kwargs,
     ) -> List[Path]:  # return ?
+        if fdr_level is None:
+            fdr_level = "psm"
+        if fdr_level not in ("psm", "peptide"):
+            raise ValueError("must be either psm or peptide")
 
         if runcontainer is None:
             raise ValueError("No input")
 
         search_res = runcontainer.get_file("tsv_searchres")
+        # _target_file = "mokapot-psms" if fdr_level == "psm" else "mokapot-peptides" if fdr_level=="peptide" else "mokapot-psms"
+        percpept_f = None
+        if fdr_level == "peptide":
+            percpept_f = runcontainer.get_file("mokapot-peptides")
         percpsm_f = runcontainer.get_file("mokapot-psms")
         sic_f = runcontainer.get_file("SICs")
         ri_f = runcontainer.get_file("ReporterIons")
@@ -281,7 +367,11 @@ class PSM_Merger(Receiver):
             return
 
         df = concat(
-            search_result_f=search_res, sic_f=sic_f, percpsm_f=percpsm_f, ri_f=ri_f
+            search_result_f=search_res,
+            sic_f=sic_f,
+            percpsm_f=percpsm_f,
+            ri_f=ri_f,
+            percpept_f=percpept_f or None,
         )
         df = df.rename(
             columns={
@@ -336,7 +426,11 @@ def maybe_calc_phos_enrichment(df, outname):
         f.write(f"{outname}\t{len(phos )}\t{len(df)}\t{len(phos )/len(df)}\n")
 
 
-def main(path=None):
+def main(path=None, fdr_level=None):
+    if fdr_level is None:
+        fdr_level = "psm"
+    if fdr_level not in ("psm", "peptide"):
+        raise ValueError("must be either psm or peptide")
     if len(sys.argv) < 2 and path is None:
         print("USAGE python psm_merge.py <target_directory>")
         sys.exit(0)
@@ -359,6 +453,7 @@ def main(path=None):
         # percpsm_f = glob(f'{basename}.pin-percolator-psms.txt')
         # percpsm_f = glob(f'{basename}*mokapot.psms.txt')
         percpsm_f = list([x for x in path.glob(f"{f.stem}*mokapot.psms.txt")])
+
         # print(x for x in percpsm_f)
         if not percpsm_f:
             print(f"Could not find percolator psm file for {f}")

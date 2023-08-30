@@ -8,7 +8,7 @@ import pandas as pd
 from typing import Collection, List
 
 from .containers import RunContainer, SampleRunContainer
-from .commands import Receiver
+from .commands import Receiver, SampleRunContainerBuilder
 
 from .logger import get_logger
 
@@ -38,6 +38,7 @@ class PSM_Concat:
         containers: List[RunContainer] = None,
         outdir: Path = None,
         force=False,
+        search_no=6,
         **kwargs,
     ) -> str:
         """
@@ -92,7 +93,6 @@ class PSM_Concat:
             assert len(rootdir) == 1
             rootdir = list(rootdir)[0]
 
-            import ipdb; ipdb.set_trace()
             record_no = recrun[0]
             run_no = recrun[1]
             rootdir = rootdir
@@ -103,6 +103,7 @@ class PSM_Concat:
                 runcontainers=runcontainers,
                 record_no=record_no,
                 run_no=run_no,
+                search_no=search_no,
             )
 
             sampleruncontainers.append(samplerun)
@@ -122,120 +123,6 @@ class PSM_Concat:
             samplerun.concat(force=force)
 
         return sampleruncontainers
-
-
-class SampleRunContainerBuilder(Receiver):
-    """combine multiple fractions of psm files for a given experiment"""
-
-    NAME = "PSM-Collect"
-
-    def run(
-        self,
-        containers: List[RunContainer] = None,
-        outdir: Path = None,
-        **kwargs,
-    ) -> str:
-        """
-        We can use this procedure to create SampleRunContainers
-        """
-
-        if containers is None:
-            logger.error(f"no runcontainers passed")
-            # this is bad
-            return
-            # raise ValueError("No input")
-
-        # logger.debug(f"{self}")
-        filegroups = defaultdict(list)
-        # for f in sorted(files):
-        # import ipdb; ipdb.set_trace()
-        for container in containers:
-            if not isinstance(container, RunContainer):  # SampleRunContainer skip down
-                #import ipdb; ipdb.set_trace()
-                # Grab from sampleruncontainer?
-                record_no = container.record_no
-                run_no = container.run_no
-                search_no = container.search_no
-                continue  # wrong container
-
-            # this is where search could be designated
-            recrun = find_rec_run(container.stem)
-            # print(recrun)
-            if not recrun:
-                recrun = container.stem[:10]
-                logger.warn(f"Could not get group for {container}, using {recrun}")
-                # continue
-
-            if recrun:
-                group = f"{recrun[0]}_{recrun[1]}"
-                # populate all of our "filegroups"
-                # filegroups[group].append(mspcfile)
-                filegroups[group].append(container)
-
-        record_no = recrun[0]
-        run_no = recrun[1]
-        # this is broken
-        if isinstance(container, SampleRunContainer):
-            search_no = container.search_no
-        else:
-            search_no = 6
-
-        # =========================== SampleRunContainer ===========================
-        sampleruncontainers = list()
-
-        # create run containers
-
-        for group, runcontainers in filegroups.items():
-
-            # recrun = find_rec_run(container.stem)
-            # if not recrun:  # ..
-            #     continue
-
-            # recrun = {find_rec_run(container.stem) for container in runcontainers}
-
-            # silently drops RunContainers that do not have a pin file
-            rootdir = filter(None, {container.rootdir for container in runcontainers})
-            rootdir = list(rootdir)
-            # assert len(recrun) == 1
-            # recrun = list(recrun)[0]
-            # import ipdb; ipdb.set_trace()
-            assert len(rootdir) == 1
-            rootdir = list(rootdir)[0]
-            rootdir = rootdir
-
-            # import ipdb; ipdb.set_trace()
-            # record_no = group[0]
-            # run_no = group[1]
-            # rootdir = rootdir
-
-
-            samplerun = SampleRunContainer(
-                name=group,
-                rootdir=rootdir,
-                runcontainers=runcontainers,
-                record_no=record_no,
-                run_no=run_no,
-                search_no=search_no,
-            )
-
-            sampleruncontainers.append(samplerun)
-        return sampleruncontainers
-        # print(group)
-
-        # # move this?
-        # for f in sorted(files):
-        #     print(f)
-        # print(len(files))
-        # df = pd.concat(pd.read_table(f) for f in files)
-        # outname = f"{group}_6_psms_all.txt"
-        # df.to_csv(outname, sep="\t", index=False)
-        # print(f"Wrote {outname}")
-
-        # for samplerun in sampleruncontainers:
-        #     samplerun.check_psms_files()
-        #     samplerun.concat(force=force)
-
-        # return sampleruncontainers
 
 
 if __name__ == "__main__":

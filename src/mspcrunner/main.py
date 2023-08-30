@@ -36,6 +36,9 @@ from .commands import (
     PythonCommand,
     RawObj,
     Worker,
+    AddSiteMetadata,
+    AddE2GMetadata,
+    PythonCommandSampleRunContainerFactory,
     get_logger,
     make_psms_collect_object,
 )
@@ -243,6 +246,9 @@ def main(
     dry: bool = typer.Option(
         False, "--dry", help="Dry run, do not actually execute commands"
     ),
+    searchno: Optional[int] = typer.Option(
+        7, help="search number to use for jobs", show_default=True
+    ),
     path: Optional[Path] = typer.Option(
         default=None,
         help="Path with raw files to process. Will process all raw files in path.",
@@ -300,7 +306,7 @@ def main(
         depth=depth,
         name="experiment_finder",
     )
-    worker.register("experiment_finder", collect_experiments)
+    worker.register(collect_experiments.name, collect_experiments)
     worker.set_file(rawfiles)
     worker.set_path(path)
 
@@ -314,7 +320,7 @@ def main(
     else:
         cmd_runner = CMDRunner()
         file_mover = FileMover()
-        file_realtor = FileRealtor()
+        file_realtor = FileRealtor(searchno=searchno)
 
     #
     calc_outdirs = PythonCommand(
@@ -378,9 +384,13 @@ def search(
     refseq: Predefined_RefSeq = typer.Option(None),
     local_refseq: Optional[Path] = typer.Option(None),
     calibrate_mass: Optional[int] = typer.Option(default=1, min=0, max=2),
+    nun_enzyme_termini: Optional[int] = typer.Option(default=2, min=0, max=2),
     ramalloc: Optional[int] = typer.Option(
         default=10, help="Amount of memory (in GB) for msfragger"
     ),
+    force: Optional[bool] = typer.Option(False),
+    check_spectral_files: Optional[bool] = typer.Option(True),
+    num_threads: Optional[int] = typer.Option(default=1, min=1),
     # msfragger_conf: Optional[Path] = typer.Option(MSFRAGGER_DEFAULT_CONF),
 ):
     logger.info("welcome to search")
@@ -410,8 +420,18 @@ def search(
         ramalloc=ramalloc,
         refseq=refseq,
         name="msfragger-cmd",
+        force=force,
     )
     msfragger.set_param("calibrate_mass", calibrate_mass)
+    if calibrate_mass == 0:
+        msfragger.set_param("precursor_mass_mode", "selected")
+    elif calibrate_mass > 0:
+        msfragger.set_param("precursor_mass_mode", "corrected")
+    msfragger.set_param("num_threads", num_threads)
+    msfragger.set_param(
+        "check_spectral_files", 0 if (check_spectral_files == False) else 1
+    )
+    msfragger.set_param("num_enzyme_termini", nun_enzyme_termini)
     worker.register("msfragger", msfragger)
 
 
@@ -499,6 +519,7 @@ def quant2(
     preset: Predefined_Quant = typer.Option(None, case_sensitive=False),
     paramfile: Optional[Path] = typer.Option(None),
     env: Optional[Path] = typer.Option(None),
+    workers: Optional[int] = typer.Option(8),
 ):
     """
     here we implement ploomber task management
@@ -527,10 +548,11 @@ def quant2(
             "outputdir": Path(".").__str__(),
             "paramfile": paramfile,
             "exe": get_masic_exe(),
+            "workers": workers,
         }
     }
 
-    run_masic.run(raw_files, local_env=local_env)
+    run_masic.run(raw_files, workers=workers, local_env=local_env)
 
 
 @run_app.command()
@@ -543,6 +565,7 @@ def percolate(
     decoy_prefix: Optional[str] = typer.Option(
         default="rev_", help="decoy prefix in database"
     ),
+    enzyme: Optional[str] = typer.Option(default="[KR]", help="regex for enzyme used"),
 ):
 
     ctx = get_current_context()
@@ -571,6 +594,7 @@ def percolate(
         test_fdr=test_fdr,
         folds=folds,
         decoy_prefix=decoy_prefix,
+        enzyme=enzyme,
         name=f"mokapot-parent"
         # outdir=WORKDIR
     )
@@ -578,7 +602,61 @@ def percolate(
 
 
 @run_app.command()
+def add_e2g_metadata(
+    force: Optional[bool] = typer.Option(False),
+):
+    """
+    add metadata to site table nr
+    """
+    ctx = get_current_context()
+    cmd_runner = ctx.obj["cmd_runner"]
+    worker = ctx.obj["worker"]
+    site_table_collector = make_psms_collect_object(
+        container_cls=SampleRunContainer,
+        name="e2g-table-collector-for-metadata",
+        path=worker.path,
+    )
+    worker.register(site_table_collector.name, site_table_collector)
+
+    obj = PythonCommandSampleRunContainerFactory(
+        receiver=AddE2GMetadata(),
+        name=f"AddE2GMetadata",
+    )
+    worker.register(obj.name, obj)
+
+    return
+
+
+@run_app.command()
+def add_site_metadata(
+    force: Optional[bool] = typer.Option(False),
+):
+    """
+    add metadata to site table nr
+    """
+    # take in fasta file and add all the information we want
+    ctx = get_current_context()
+    cmd_runner = ctx.obj["cmd_runner"]
+    worker = ctx.obj["worker"]
+    site_table_collector = make_psms_collect_object(
+        container_cls=SampleRunContainer,
+        name="site-table-collector-for-metadata",
+        path=worker.path,
+    )
+    worker.register(site_table_collector.name, site_table_collector)
+
+    obj = PythonCommandSampleRunContainerFactory(
+        receiver=AddSiteMetadata(),
+        name=f"AddSiteMetadata",
+    )
+    worker.register(obj.name, obj)
+
+    return
+
+
+@run_app.command()
 def concat_psms(
+    search_no: int = typer.Option(6, help="search_no"),
     force: Optional[bool] = typer.Option(False),
 ):
     ctx = get_current_context()
@@ -604,6 +682,7 @@ def concat_psms(
         # runcontainers=worker._output.get("experiment_finder", tuple()),
         # psm_merger,
         name=f"concat-psms-0",
+        search_no=search_no,
         force=force,
     )
     worker.register(f"concat_psms", psm_obj)
@@ -687,11 +766,33 @@ def prepare_ispec_import(
     worker.register(f"ispec-renamer", file_cleaner)
 
 
+class FDR_CONTROL_MODES(str, Enum):
+    psm = "psm"
+    peptide = "peptide"
+
+
 @run_app.command()
-def merge_psms():
+def merge_psms(
+    fdr_level: FDR_CONTROL_MODES = typer.Option(
+        ...,
+        help="Mode. 'psm' for Peptide-Spectrum Match FDR ctrl, 'peptide' for peptide False Discovery Rate control ",
+    ),
+    force: Optional[bool] = typer.Option(False),
+):
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
+
+    # correct way to do this:
+    #
+    # psms_collector = PythonCommand(
+    #     receiver=FileFinder(),
+    #     path=worker.path,
+    #     container_obj=SampleRunContainer,
+    #     # outdir=outdir,
+    #     # depth=depth,
+    #     name="experiment_finder_SampleRunContainer",
+    # )
 
     for (ix, runcontainer) in enumerate(
         worker._output.get("experiment_finder", tuple())
@@ -704,9 +805,10 @@ def merge_psms():
             PSM_Merger(),
             runcontainer=runcontainer,
             # psm_merger,
-            name=f"psm_concat_{ix}",
+            name=f"psm_merger_{ix}",
+            fdr_level=fdr_level,
         )
-        worker.register(f"psm-merger_{ix}", psm_merger)
+        worker.register(psm_merger.name, psm_merger)
 
     # worker.register(f"PSM-Merger", psm_merger)
 
@@ -729,20 +831,20 @@ def merge_psms():
 
 @run_app.command()
 def annotate_sites(
-    refseq: Predefined_RefSeq = typer.Option(None),
-    local_refseq: Optional[Path] = typer.Option(None),
+    fasta: Predefined_RefSeq = typer.Option(None),
+    local_fasta: Optional[Path] = typer.Option(None),
     workers: int = typer.Option(1, help="number of workers (CPU cores) to deploy"),
 ):
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
 
-    if local_refseq is None:
-        refseq = PREDEFINED_REFSEQ_PARAMS.get(refseq, refseq)
+    if local_fasta is None:
+        fasta = PREDEFINED_REFSEQ_PARAMS.get(fasta, fasta)
     else:
-        refseq = local_refseq
+        fasta = local_fasta
 
-    if refseq is None:
+    if fasta is None:
         raise ValueError("No refseq specified")
 
     psms_collector = make_psms_collect_object(
@@ -760,7 +862,7 @@ def annotate_sites(
         # inputfiles=searchruncontainer,
         workers=workers,
         name=f"AnnotateSite-inhouse",
-        refseq=refseq,
+        refseq=fasta,
     )
 
     worker.register(f"site_annotate_factory", site_annotate_factory)
@@ -776,6 +878,7 @@ def gpgroup(
     refseq: Predefined_RefSeq = typer.Option(None),
     phospho: Optional[bool] = typer.Option(False),
     no_taxa_redistrib: bool = typer.Option(False, "--no-taxa-redistrib", help=""),
+    force: Optional[bool] = typer.Option(False),
 ):
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
@@ -808,20 +911,30 @@ def gpgroup(
     # worker.register(f"build-sampleruncontainers", psm_obj)
 
     # ====
-    psms_collector = make_psms_collect_object(
-        container_cls=SampleRunContainer, name="collect-psms-for-gpg", path=worker.path
-    )
-    worker.register(f"psms-collector-for-gpg", psms_collector)
+    # psms_collector = make_psms_collect_object(
+    #     container_cls=SampleRunContainer, name="collect-psms-for-gpg", path=worker.path
+    # )
 
-    psm_obj = PythonCommand(
-        SampleRunContainerBuilder(),
-        name=f"SampleRunContainerBuilder",
-        force=False,
+    psms_collector = PythonCommand(
+        receiver=FileFinder(),
+        path=worker.path,
+        container_obj=SampleRunContainer,
+        # outdir=outdir,
+        # depth=depth,
+        name="experiment_finder_SampleRunContainer",
     )
-    worker.register(f"build-sampleruncontainers", psm_obj)
+
+    worker.register(psms_collector.name, psms_collector)
+
+    # psm_obj = PythonCommand(
+    #     SampleRunContainerBuilder(),
+    #     name=f"SampleRunContainerBuilder",
+    #     force=False,
+    # )
+    # worker.register(f"build-sampleruncontainers", psm_obj)
 
     gpgrouper = gpGrouper(
-        cmd_runner,
+        receiver=cmd_runner,
         # inputfiles=searchruncontainer,
         workers=workers,
         name=f"gpgrouper-builder",
@@ -830,6 +943,7 @@ def gpgroup(
         labeltype=labeltype,
         phospho=phospho,
         no_taxa_redistrib=no_taxa_redistrib,
+        force=force,
     )
 
     worker.register(f"gpgrouper-builder", gpgrouper)
