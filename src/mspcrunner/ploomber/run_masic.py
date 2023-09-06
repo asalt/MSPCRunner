@@ -12,6 +12,7 @@ from ploomber.tasks import ShellScript
 from ploomber.executors import Parallel
 
 # from tasks import get_raw, get_raw_only
+from ..logger import get_logger
 
 import yaml  # this is a good diea
 from copy import deepcopy
@@ -23,6 +24,8 @@ MASIC_EXE = "<MASIC_EXE>"
 PARAMFILE_MASIC = Path("<paramfile_masic>")
 OUTPUTDIR_MASIC = Path("<outputdir_masic>")
 INPUTFILE_MASIC = Path("<inputfile_masic>")
+
+logger = get_logger(__name__)
 
 
 def _merge_nested_dicts(d1: dict, d2: dict) -> dict:
@@ -71,9 +74,11 @@ def set_env(orig_env: dict, raw_file: Path) -> dict:
 
 
 def run(
-    raw_files: list, local_env_file: Union[str, Path] = None, local_env: dict = None
+    raw_files: list,
+    local_env_file: Union[str, Path] = None,
+    local_env: dict = None,
+    workers: int = 8,
 ):
-    print("hello world")
     # grab the files from the folder and run the pipeline
 
     # _d = get_glob_directory()
@@ -89,10 +94,8 @@ def run(
         orig_env = _merge_nested_dicts(orig_env, local_env)
 
     # we build a new DAG to accumulate all masic tasks
-    dag = DAG(executor=Parallel(processes=8, print_progress=False))
-    # import ipdb
-
-    # ipdb.set_trace()
+    logger.info(f"using {workers} workers")
+    dag = DAG(executor=Parallel(processes=workers, print_progress=False))
 
     # ============================================================
     def add_task(raw_file):

@@ -101,7 +101,6 @@ logger = get_logger(__name__)
 
 
 class Context:
-
     _worker = None
     _experiments = None
 
@@ -222,7 +221,6 @@ def worker_run(*args, **kwargs):
     worker = ctx.obj["worker"]
 
     for name, cmd in worker._commands.items():
-
         # filecontainers = worker._output.get("experiment_finder", None)
 
         ## ==========================================================
@@ -352,7 +350,6 @@ def main(
 
 @run_app.command()
 def add_phos_boolean():
-
     ctx = get_current_context()
 
     cmd_runner = ctx.obj.get("cmd_runner")
@@ -364,7 +361,7 @@ def add_phos_boolean():
     # worker.register(f"psms_collector-for-concat", psms_collector)
 
     # needs updating!
-    for (ix, run_container) in enumerate(
+    for ix, run_container in enumerate(
         worker._output.get("experiment_finder", tuple())
     ):
         name = f"add-phos-boolean-{ix}"
@@ -484,6 +481,7 @@ def make_rmd(
 def quant(
     preset: Predefined_Quant = typer.Option(None, case_sensitive=False),
     paramfile: Optional[Path] = typer.Option(None),
+    # num_threads: Optional[int] = typer.Option(default=1, min=1),
     # masic_conf: Optional[Path] = typer.Option(MASIC_DEFAULT_CONF),
 ):
     logger.info("welcome to quant")
@@ -497,10 +495,9 @@ def quant(
     paramfile = confirm_param_or_exit(paramfile, preset, PREDEFINED_QUANT_PARAMS)
 
     # replace this
-    for (ix, run_container) in enumerate(
+    for ix, run_container in enumerate(
         worker._output.get("experiment_finder", tuple())
     ):
-
         masic = MASIC(
             cmd_runner,
             inputfile=run_container,
@@ -567,7 +564,6 @@ def percolate(
     ),
     enzyme: Optional[str] = typer.Option(default="[KR]", help="regex for enzyme used"),
 ):
-
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
@@ -745,7 +741,6 @@ def prepare_ispec_import(
     ),
     force: Optional[bool] = typer.Option(False),
 ):
-
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
@@ -794,10 +789,7 @@ def merge_psms(
     #     name="experiment_finder_SampleRunContainer",
     # )
 
-    for (ix, runcontainer) in enumerate(
-        worker._output.get("experiment_finder", tuple())
-    ):
-
+    for ix, runcontainer in enumerate(worker._output.get("experiment_finder", tuple())):
         # psm_merger = PSM_Merger()
         # if run_container
 
