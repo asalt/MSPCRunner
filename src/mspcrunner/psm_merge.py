@@ -43,7 +43,9 @@ MSFRAGGER_TSV_COLUMNS = (
     "alternative_proteins",
 )
 
-REGX = "(.*[f|F]?\\d)(?=\\.\\d+\\.\\d+\\.\\d+)"
+# REGX = "(.*[f|F]?\\d)(?=\\.\\d+\\.\\d+\\.\\d+)"
+
+REGX = r"^(.*?)\.\d+\.\d+\.\d+_\d+$"
 
 
 def extract_file_from_scan_header(s: pd.Series):
