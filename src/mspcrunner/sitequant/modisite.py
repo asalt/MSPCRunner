@@ -61,7 +61,6 @@ class Peptide:
 
 
 def get_positions(peptides, protein):
-
     """
     returns a dict of lists of start,end positions for each peptide
     in given protein.
@@ -73,7 +72,6 @@ def get_positions(peptides, protein):
         pos = 0
         start = 0
         while pos != -1:
-
             pos = protein.find(p.upper(), start)
 
             if pos == -1:
@@ -109,7 +107,6 @@ inside_paren = re.compile(r"\((\S+)\)")
 
 
 def aggregate_to_site(pept_df, sequence):
-
     sequence = "_" * 7 + sequence + "_" * 7  # easy solution??
     # don't forget to add 15
 
@@ -191,8 +188,8 @@ def modisite_quant(
             pept_df.groupby("Site")
             .aggregate(
                 {
-                    "quantity": sum,
-                    "quality": max,
+                    "quantity": "sum",
+                    "quality": "max",
                 }
             )
             .reset_index()
@@ -277,13 +274,12 @@ def make_peptides(peptide_positions, psms: pd.DataFrame, **kws):
     # import ipdb; ipdb.set_trace()
     # if TARGET in in
     for peptide_seq, positions in peptide_positions.items():
-        for (start, end) in positions:
+        for start, end in positions:
             # get all PEPTIDES that are of this sequence
             # not sure why drop duplicates seqmodi
             query = psms[psms.Sequence == peptide_seq].drop_duplicates(["SequenceModi"])
 
             for modi in query.Modifications.fillna(""):
-
                 # peptide_seq_modi = query.SequenceModi.iloc[0]
                 # import ipdb; ipdb.set_trace()
                 for peptide_seq_modi in query.SequenceModi.unique():

@@ -42,20 +42,26 @@ from runner import runner
 # }
 
 DEFAULT_MODI_DICT = {
-    79.96633: {'name': 'p', 'possible_aa': ('S', 'T', 'Y')},
-    15.994915: {'name': 'o', 'possible_aa': ('M',)},
-    114.042927: {'name': 'gg', 'possible_aa': ('K',)},
-    114.04293: {'name': 'gg', 'possible_aa': ('K',)},
-    42.010565: {'name': 'a', 'possible_aa': ('Any (N-term)',)},
-    304.207: {'name': 't', 'possible_aa': ('K', 'Any (N-term)')},
-    -17.02650: {'name': 'q', 'possible_aa': ('Q', 'Any (N-term)')},
-    -18.01060: {'name': 'e', 'possible_aa': ('E',)},
-    320.2019: {'name': 'at', 'possible_aa': ('M', 'Any (N-term)')},  # Needs further investigation
-    418.24994: {'name': 'gt', 'possible_aa': ('K',)},  # Needs further investigation
-    361.22845: {'name': 'ot', 'possible_aa': ('M', 'K')},  # Needs further investigation
-    608.414: {'name': 'tt', 'possible_aa': ('K', 'Any (N-term)')},  # Needs further investigation
-    722.4569: {'name': '??', 'possible_aa': ()},  # Unknown
-    286.1964: {'name': '??', 'possible_aa': ()},  # Unknown
+    79.96633: {"name": "p", "possible_aa": ("S", "T", "Y")},
+    15.994915: {"name": "o", "possible_aa": ("M",)},
+    114.042927: {"name": "gg", "possible_aa": ("K",)},
+    114.04293: {"name": "gg", "possible_aa": ("K",)},
+    42.010565: {"name": "a", "possible_aa": ("Any (N-term)",)},
+    304.207: {"name": "t", "possible_aa": ("K", "Any (N-term)")},
+    -17.02650: {"name": "q", "possible_aa": ("Q", "Any (N-term)")},
+    -18.01060: {"name": "e", "possible_aa": ("E",)},
+    320.2019: {
+        "name": "at",
+        "possible_aa": ("M", "Any (N-term)"),
+    },  # Needs further investigation
+    418.24994: {"name": "gt", "possible_aa": ("K",)},  # Needs further investigation
+    361.22845: {"name": "ot", "possible_aa": ("M", "K")},  # Needs further investigation
+    608.414: {
+        "name": "tt",
+        "possible_aa": ("K", "Any (N-term)"),
+    },  # Needs further investigation
+    722.4569: {"name": "??", "possible_aa": ()},  # Unknown
+    286.1964: {"name": "??", "possible_aa": ()},  # Unknown
 }
 
 
@@ -68,13 +74,14 @@ class ModiTypeAssigner:
         if isinstance(mass_shift, str):
             mass_shift = float(mass_shift)
         mass_shift = round(mass_shift, 6)  # Rounding to avoid floating-point errors
-        modi_info = self.modi_dict.get(mass_shift, {'name': '?', 'possible_aa': []})
-        if aa in modi_info['possible_aa']:
-            #modi_name 
-            modi_name = modi_info['name'] 
+        modi_info = self.modi_dict.get(mass_shift, {"name": "?", "possible_aa": []})
+        if aa in modi_info["possible_aa"]:
+            # modi_name
+            modi_name = modi_info["name"]
         else:
-            modi_name = '?'
-        return modi_name 
+            modi_name = "?"
+        return modi_name
+
 
 def make_nr(df) -> list([pd.DataFrame]):
     logging.info("makenr")
@@ -286,11 +293,12 @@ def make_nr(df) -> list([pd.DataFrame]):
     # import ipdb; ipdb.set_trace()
     # Instantiate the class and use method to assign ModiType
     modi_assigner = ModiTypeAssigner()
-    out["ModiType"] = out.apply(lambda x: modi_assigner.get_modi_type(x["MassShift"], x["AA"]), axis=1)
-
+    out["ModiType"] = out.apply(
+        lambda x: modi_assigner.get_modi_type(x["MassShift"], x["AA"]), axis=1
+    )
 
     # out["ModiType"] = out.apply(lambda x: assign_modi_type(x, modi_dict), axis=1)
-    #out["ModiType"] = out.apply(lambda x: modi_dict.get(x["MassShift"], "?"), axis=1)
+    # out["ModiType"] = out.apply(lambda x: modi_dict.get(x["MassShift"], "?"), axis=1)
     out["SiteName"] = out.apply(
         lambda x: f"{x['GeneSymbol']}_{x['ModiType']}{x['AA']}{x['AApos_Selected']}",
         axis=1,
@@ -368,8 +376,12 @@ def write_gct(df, outname):
     # import ipdb; ipdb.set_trace()
     rid = df.SiteID
     rdesc_cols = set(df.columns) - set(quant_cols)
+    rdesc_cols = list(rdesc_cols)
     assert "SiteID" in rdesc_cols
-    rdesc = df[rdesc_cols].set_index("SiteID")
+
+    # testing to see if this is the problem
+    # set_index might need a list as input
+    rdesc = df[rdesc_cols].set_index(["SiteID"])
     cid = quant_cols
     # cdesc
 
@@ -641,8 +653,14 @@ def main(cores, psms, out, data_dir, fasta, **kwargs):
         id_cols = [x for x in dfall.columns if x not in ("quantity", "label")]
         assert (dfall.groupby(id_cols).label.value_counts() == 1).all()
         # id_cols = [x for x in dfall.columns if x not in ("quantity", "label", "quality")]
-        _dfall = dfall.pivot(
-            index=id_cols, columns="label", values="quantity"
+        # _dfall = dfall.pivot(
+        #     index=id_cols, columns="label", values="quantity"
+        # ).reset_index()
+        # pivot does not work here sometimes (even though I think it should)
+        # maybe floating point error?
+        #
+        _dfall = dfall.pivot_table(
+            index=id_cols, columns="label", values="quantity", aggfunc=sum
         ).reset_index()
         dfall = _dfall
 
