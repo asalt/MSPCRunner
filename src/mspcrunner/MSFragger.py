@@ -39,28 +39,28 @@ def get_exe():
 
 
 class MSFragger(Command):
-
     NAME = "MSFragger"
 
     def __init__(
         self,
         *args,
         receiver: Receiver,
-        inputfiles=tuple(),
+        # inputfiles=tuple(),
         ramalloc="50G",
         refseq=None,
         paramfile=None,
         force=False,
+        containers=None,
         **kwargs,
     ):
-
         if "receiver" in kwargs:
             receiver = kwargs.pop("receiver")
 
-        super().__init__(*args, receiver=receiver, **kwargs)
+        super().__init__(
+            *args, receiver=receiver, containers=containers, force=force, **kwargs
+        )
         self.ramalloc = ramalloc
         self._config = None
-        self.inputfiles = inputfiles
         # self.runcontainers = runcontainers
         self.refseq = refseq
         if paramfile is None:
@@ -104,7 +104,6 @@ class MSFragger(Command):
     def read_config(
         self, conf
     ) -> ConfigParser:  # this is smarter than using csv module
-
         parser = ConfigParser(inline_comment_prefixes="#")
         parser.optionxform = str  # preserve case
 
@@ -120,7 +119,10 @@ class MSFragger(Command):
         if runcontainers is None:
             yield self
         else:
+            # from copy import deepcopy
+
             d = self.__dict__.copy()
+
             for kw in kwargs:
                 if kw in d:
                     d.update(kw, kwargs[kw])
@@ -128,6 +130,8 @@ class MSFragger(Command):
                 # d["container"] = container  # depreciate
                 ix = 0
                 d["name"] = d.get("name", "name") + f"-{ix}"
+            # finally add the containers
+            d["containers"] = runcontainers
             if "receiver" not in d and "_receiver" in d:
                 d["receiver"] = d["_receiver"]
             yield type(self)(**d)
@@ -171,20 +175,22 @@ class MSFragger(Command):
 
         # inputfile = self.inputfiles[0].get_file("spectra")
 
-        if not self.inputfiles:
+        if not self.containers:
             return
             # raise ValueError("then why are we here?")
 
-        for run_container in self.inputfiles:
-
+        for run_container in self.containers:
             spectraf = run_container.get_file("spectra")
+            if spectraf is None:
+                logger.info(f"cannot find spectra file {run_container}, skipping")
+                continue
             search_res = run_container.get_file("tsv_searchres")
             if search_res is not None and not self.force:
                 logger.info(f"{search_res} exists for {run_container}")
                 continue
-
             if spectraf is not None:
                 spectra_files.append(spectraf)
+
             else:
                 logger.info(f"cannot find spectra file {run_container}")
 
