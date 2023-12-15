@@ -228,6 +228,10 @@ def merge_pipes(**named_pipes):
 
 class Receiver:
     pass
+    # __slots__ = ("name", "force")
+
+    # def __init__(self, *args, force=False, **kwargs):
+    #     self.force = force
     # input_required = None
 
 
@@ -376,7 +380,6 @@ class CMDRunner_Tester:  # receiver
             self.NAME = f"{production_receiver.NAME} Tester"
 
     def run(self, *args, CMD=None, **kwargs):
-
         # logger.info(f"Running: {' '.join(map(str, CMD))}")
         # logger.info(
         #    f"{self!r} is pretending to run {CMD}\n\targs:{args}, kwargs:{kwargs}"
@@ -412,7 +415,6 @@ class RawObj:  # command?
 
 
 class Command:
-
     NAME = "Command"
 
     def __init__(
@@ -502,7 +504,6 @@ class Command:
         if isinstance(self.CMD, (list, tuple)) and isinstance(
             self.CMD[0], (list, tuple)
         ):
-
             all_return = list()
             for CMD in self.CMD:
                 ret = self._receiver.run(CMD=CMD)
@@ -513,7 +514,6 @@ class Command:
 
 
 class PythonCommand(Command):
-
     NAME = "PythonCommand"
 
     def __init__(self, *args, **kwargs):
@@ -522,7 +522,6 @@ class PythonCommand(Command):
         )  # this has to be called before we can access "args"
 
     def create(self, runcontainers=None, sampleruncontainers=None, **kwargs):
-
         if runcontainers is None and sampleruncontainers is None:
             yield self
         else:
@@ -563,13 +562,17 @@ class PythonCommand(Command):
         #    outdir=self.outdir,
         # )
 
-    def execute(self, *args, **kws):
+    def execute(self, *args, **kwargs):
+        if "force" in kwargs:
+            force = kwargs.pop("force")
+        cmd = self.CMD
+        if hasattr(self, "force"):
+            cmd["force"] = self.force
         logger.info(f"Running {self.name} with {self.CMD}")
-        return self._receiver.run(**self.CMD)
+        return self._receiver.run(**cmd)
 
 
 class PythonCommandSampleRunContainerFactory(Command):
-
     NAME = "PythonCommand"
 
     def __init__(self, *args, **kwargs):
@@ -578,7 +581,6 @@ class PythonCommandSampleRunContainerFactory(Command):
         )  # this has to be called before we can access "args"
 
     def create(self, runcontainers=None, sampleruncontainers=None, **kwargs):
-
         receiver = self.receiver
         if "receiver" in kwargs.keys():
             logger.warning(f"overriding receiver with {kwargs['receiver']}")
@@ -594,12 +596,11 @@ class PythonCommandSampleRunContainerFactory(Command):
                 **kwargs,
             )
 
-    def execute(self, *args, **kws):
-        return self._receiver.run(**self.CMD)
+    # def execute(self, *args, **kws):
+    #     return self._receiver.run(**self.CMD)
 
 
 class MokaPotConsole(Command):
-
     NAME = "MokaPot Console"
 
     def __init__(
@@ -618,7 +619,6 @@ class MokaPotConsole(Command):
         enzyme="[KR]",
         **kws,
     ):
-
         super().__init__(*args, **kws)
         self.decoy_prefix = decoy_prefix
         self.train_fdr = train_fdr
@@ -639,7 +639,6 @@ class MokaPotConsole(Command):
 
     # remember this class inherits a create method, which sets self.runcontainers
     def create(self, runcontainers=None, sampleruncontainers=None, **kws):
-
         if runcontainers is None and sampleruncontainers is None:
             yield self
         else:
@@ -761,15 +760,8 @@ class MokaPotConsole(Command):
         self._CMD = res
         return self._CMD
 
-    def execute(self):
-        "execute"
-        # return self._receiver.action("run", self.CMD)
-        # self.find_pinfiles()  # should be created by the time this executs
-        return self._receiver.run(CMD=self.CMD)
-
 
 class FileMover(Receiver):  # receiver
-
     NAME = "FileMover Receiver"
     """execute something internally"""
 
@@ -803,7 +795,6 @@ def extract_file_from_scan_header(s: pd.Series):
 
 
 class PrepareForiSPEC(Receiver):  # receiver
-
     NAME = ""
 
     # def run(self, *args, e2g_qual, e2g_quant, **kwargs):
@@ -815,7 +806,6 @@ class PrepareForiSPEC(Receiver):  # receiver
         label="none",
         **kwargs,
     ):
-
         # if "force" in kwargs:
         #     force = kwargs.pop("force")
 
@@ -883,7 +873,6 @@ class MSPC_Rename(Receiver):  # receiver
 
     # def run(self, inputfiles=None, outdir=None, CMD=None, **kws) -> Iterable[Path]:
     def run(self, runcontainer=None, **kws):
-
         logger.info(f"starting {self}")
         if runcontainer is None:
             logger.info(f"{self}: no run container")
@@ -932,7 +921,6 @@ class AddPhosBoolean:  # receiver
     NAME = "AddPhosBoolean"
 
     def run(self, runcontainer=None, **kws):
-
         logger.info(f"starting {self}")
 
         file = runcontainer.get_file("pinfile")
@@ -1053,7 +1041,6 @@ class Loop(Command):
 
 
 class Percolator(Command):
-
     # import mokapot
 
     def execute(self):
@@ -1085,7 +1072,6 @@ from .containers import AbstractContainer
 
 
 def make_psms_collect_object(container_cls, name=None, path=None):
-
     # if not isinstance(container_cls, AbstractContainer):
     if not type(container_cls) == type(AbstractContainer):
         raise ValueError(f"wrong type for {container_cls}")
@@ -1273,6 +1259,7 @@ class AddSiteMetadata(Receiver):
         fix_colnames("12345_1_1_127_N") -> 12345_1_1_127N
         fix_colnames("12345_1_1_126") -> 12345_1_1_126
         """
+        logger.info(f"fixing {s}")
         res = s.split("_")
         if len(res) == 5:
             res[3] = res[3] + res[4]
@@ -1281,6 +1268,7 @@ class AddSiteMetadata(Receiver):
             res[1] = res[1] + res[2]
             res = res[:3]
         ret = str.join("_", res)
+        logger.info(f"returning {ret}")
         return ret
 
     def run(
@@ -1366,6 +1354,7 @@ class AddSiteMetadata(Receiver):
         # from cmapPy.pandasGEXpress.parse import parse, parse_gct, parse_gctx
         # from cmapPy.pandasGEXpress import write_gct
         # from cmapPy.pandasGEXpress.GCToo import GCToo
+        #  ===================================================================
 
         from rpy2.robjects.packages import importr
         from rpy2 import robjects
@@ -1374,7 +1363,7 @@ class AddSiteMetadata(Receiver):
 
         cmapR = importr("cmapR")
 
-        pandas2ri.activate()
+        # pandas2ri.activate()
 
         # gct_obj = parse_gct.parse(site_table_nr.__str__())
         gct_obj = cmapR.parse_gctx(site_table_nr.__str__())
@@ -1382,7 +1371,17 @@ class AddSiteMetadata(Receiver):
         # data_mat = gct_obj.do_slot("mat") # not using
         # problem - row_metadata_df is not a pandas dataframe
         row_metadata_df_robj = gct_obj.do_slot("rdesc")  # heare
-        row_metadata_df = pandas2ri.rpy2py(row_metadata_df_robj)
+        pandas_df = pd.DataFrame()
+
+        for column in row_metadata_df_robj.colnames:
+            print(column)
+            numpy_array = row_metadata_df_robj.rx2(str(column))
+            pandas_df[str(column)] = numpy_array
+
+        row_metadata_df = pandas_df
+
+        #  ===================================================================
+        # row_metadata_df = pandas2ri.rpy2py(row_metadata_df_robj)
 
         if fa_db is not None:
             fa_db_cols = [
@@ -1393,7 +1392,6 @@ class AddSiteMetadata(Receiver):
                 "taxon",
                 "symbol",
                 "description",
-                "sequence",
             ]
             if all([x in fa_db.columns for x in row_metadata_df.columns]):
                 pass
@@ -1402,19 +1400,18 @@ class AddSiteMetadata(Receiver):
                 #     how="left")
                 # merged_df = row_metadata_df.merge(fa_db, left_on="GeneID", right_on="geneid", how="left", validate="one_to_one")
                 fa_db_cols = [x for x in fa_db_cols if x not in row_metadata_df.columns]
-                merged_df = row_metadata_df.merge(
-                    fa_db[fa_db_cols],
-                    left_on="Primary_select",
-                    right_on="ENSP",
-                    how="left",
-                )
-                assert merged_df.shape[0] == row_metadata_df.shape[0]
-                merged_df.index = merged_df.id
-                row_metadata_df = merged_df
+                if len(fa_db_cols) > 0:
+                    merged_df = row_metadata_df.merge(
+                        fa_db[fa_db_cols],
+                        left_on="Primary_select",
+                        right_on="ENSP",
+                        how="left",
+                    )
+                    assert merged_df.shape[0] == row_metadata_df.shape[0]
+                    merged_df.index = merged_df.id
+                    row_metadata_df = merged_df
             # assert
-            import ipdb
 
-            ipdb.set_trace()
             # if row_metadata_df.Si
             # row_metadata_df.index = row_metadata_df.apply(
             #     lambda x: x["GeneSymbol"] + "_" + x["Primary_select"], axis=1
@@ -1470,7 +1467,22 @@ class AddSiteMetadata(Receiver):
 
         # new_col_metadata_df.astype(str)
 
-        robjects.r.assign("new_col_metadata_df", new_col_metadata_df.astype(str))
+        # robjects.r.assign("new_col_metadata_df", new_col_metadata_df.astype(str))
+
+        import rpy2
+        from rpy2 import robjects as ro
+
+
+        # with rpy2.robjects.conversion.localconverter(ro.default_converter + rpy2.robjects.pandas2ri.converter):
+        # bug here not properly deactivated/activated elsewhere or previously
+        pandas2ri.deactivate()
+        pandas2ri.activate()
+
+        if "Exp_Date" in new_col_metadata_df:
+            new_col_metadata_df["Exp_Date"] = new_col_metadata_df["Exp_Date"].astype(
+                str
+            )
+        robjects.r.assign("new_col_metadata_df", new_col_metadata_df)
         robjects.r.assign("gct_obj", gct_obj)
         robjects.r.assign("cids", new_col_metadata_df.index)
         robjects.r.assign("cdesc", new_col_metadata_df.astype(str))
@@ -1667,7 +1679,6 @@ class SampleRunContainerBuilder(Receiver):
         # create run containers
 
         for group, runcontainers in filegroups.items():
-
             # recrun = find_rec_run(container.stem)
             # if not recrun:  # ..
             #     continue

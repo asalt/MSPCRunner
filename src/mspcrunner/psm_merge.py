@@ -103,7 +103,6 @@ class RawResultProcessor:
         ri_file=None,
         outpath=None,
     ):
-
         # for f in (psm_file, percolator_file, sic_file, ri_file):
 
         self.psm_file = filechecker(psm_file)
@@ -132,13 +131,11 @@ class RawResultProcessor:
         return f"RawResultProcessor {self.name}"
 
     def concat(self):
-
         res = concat(self.psm_file, self.percolator_file, self.sic_file, self.ri_file)
         self.result = res
         return
 
     def save(self):
-
         outname = self.outpath / f"{self.name}_percolator_MASIC.txt"
         print(f"Writing {outname}")
         self.result.to_csv(outname, sep="\t", index=False)
@@ -153,7 +150,6 @@ def concat(
     scanstats_extra_f: str = None,
     percpept_f: str = None,
 ):
-
     """
     script for combining:
     :MSFragger search results:
@@ -190,7 +186,6 @@ def concat(
         return "".join(peptide)
 
     if all(x in search_result for x in ("precursor_neutral_mass", "charge")):
-
         search_result["mz"] = (
             search_result.precursor_neutral_mass + search_result.charge
         ) / search_result.charge
@@ -218,7 +213,6 @@ def concat(
         search_result["hit_rank"] = 1
 
     if percpsm_f:
-
         res = pd.merge(
             search_result,
             percpsm,
@@ -267,7 +261,6 @@ def concat(
     # scanstats_extra = pd.read_table(scanstats_extra_f)
 
     if ri_f:
-
         ri = pd.read_table(ri_f)
         ri = ri.rename(columns={"ScanNumber": "FragScanNumber"})
         # scanstats_extra_f = "./49775_7_ECL_837_TMT_HPLC_F10_MS3-RTS_ScanStatsEx.txt"
@@ -313,10 +306,10 @@ def concat(
 # MASS_SHIFTS = ['229.1629', '286.184']
 MASS_SHIFTS = "229\.1629|286\.184|304.207"
 
+
 # could consider incorporating in containers.SampleRunContainer
 # but it is nice to keep routines separate from container objects
 class PSM_Merger(Receiver):
-
     NAME = "PSM-Merger"
     """
     concatenation of the following:
@@ -331,8 +324,11 @@ class PSM_Merger(Receiver):
         runcontainer: RunContainer = None,
         outdir: Path = None,
         fdr_level="psm",
+        force=False,
         **kwargs,
     ) -> List[Path]:  # return ?
+        if "force" in kwargs:
+            force = kwargs.pop("force")
         if fdr_level is None:
             fdr_level = "psm"
         if fdr_level not in ("psm", "peptide"):
@@ -340,6 +336,22 @@ class PSM_Merger(Receiver):
 
         if runcontainer is None:
             raise ValueError("No input")
+        if outdir is None and runcontainer.rootdir is not None:
+            outdir = runcontainer.rootdir
+        #
+        if outdir is None:
+            outdir = Path(".")
+
+        existing_outfile = runcontainer.get_file("MSPCRunner")
+        if existing_outfile is not None and existing_outfile.exists() and not force:
+            logger.info(f"{existing_outfile} exists for {runcontainer}, skippig")
+            return
+
+        outname = os.path.join(
+            outdir,
+            # runcontainer.rootdir,
+            f"{runcontainer.stem}_MSPCRunner_a1.txt",
+        )
 
         search_res = runcontainer.get_file("tsv_searchres")
         # _target_file = "mokapot-psms" if fdr_level == "psm" else "mokapot-peptides" if fdr_level=="peptide" else "mokapot-psms"
@@ -356,6 +368,8 @@ class PSM_Merger(Receiver):
             percolator: {percpsm_f}
             SIC: {sic_f}
             ReporterIons: {ri_f}
+            ---
+            outname: {outname}
             """
         )
 
@@ -391,10 +405,6 @@ class PSM_Merger(Receiver):
         df["SpectrumFile"] = extract_file_from_scan_header(df["SpecId"])
 
         # outname = f"{basename}_percolator_MASIC.txt"
-        outname = os.path.join(
-            runcontainer.rootdir,
-            f"{runcontainer.stem}_MSPCRunner_a1.txt",
-        )
 
         maybe_calc_labeling_efficiency(df, outname)
         maybe_calc_phos_enrichment(df, outname)
@@ -403,7 +413,7 @@ class PSM_Merger(Receiver):
         df.to_csv(outname, sep="\t", index=False)
         # here we shoudl create and return a SampleRun object?
         # sr = SampleRun()
-        return 0
+        return
 
 
 def maybe_calc_labeling_efficiency(df, outname):
@@ -477,5 +487,4 @@ def main(path=None, fdr_level=None):
 
 
 if __name__ == "__main__":
-
     main()

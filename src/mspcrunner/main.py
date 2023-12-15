@@ -388,9 +388,15 @@ def search(
     force: Optional[bool] = typer.Option(False),
     check_spectral_files: Optional[bool] = typer.Option(True),
     num_threads: Optional[int] = typer.Option(default=1, min=1),
+    workers: Optional[int] = typer.Option(default=1, min=1),  # alias
     # msfragger_conf: Optional[Path] = typer.Option(MSFRAGGER_DEFAULT_CONF),
 ):
     logger.info("welcome to search")
+    if num_threads != workers:
+        if workers != 1:
+            num_threads = workers
+        elif num_threads != 1:
+            workers = num_threads  # not really necesary
 
     ctx = get_current_context()
     # rawfiles = ctx.obj.get("rawfiles")
@@ -769,7 +775,7 @@ class FDR_CONTROL_MODES(str, Enum):
 @run_app.command()
 def merge_psms(
     fdr_level: FDR_CONTROL_MODES = typer.Option(
-        ...,
+        default="psm",
         help="Mode. 'psm' for Peptide-Spectrum Match FDR ctrl, 'peptide' for peptide False Discovery Rate control ",
     ),
     force: Optional[bool] = typer.Option(False),
@@ -798,6 +804,7 @@ def merge_psms(
             runcontainer=runcontainer,
             # psm_merger,
             name=f"psm_merger_{ix}",
+            force=force,
             fdr_level=fdr_level,
         )
         worker.register(psm_merger.name, psm_merger)
