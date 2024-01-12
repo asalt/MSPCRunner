@@ -662,6 +662,9 @@ def concat_psms(
     search_no: int = typer.Option(None, help="alias for search_no"),
     force: Optional[bool] = typer.Option(False),
 ):
+    ctx = get_current_context()
+    cmd_runner = ctx.obj["cmd_runner"]
+    worker = ctx.obj["worker"]
 
     if search_no is not None:
         searchno = search_no
@@ -669,11 +672,6 @@ def concat_psms(
     if parent_searchno is not None:
         logger.info("Using parent searchno {parent_searchno}")
         searchno = parent_searchno
-
-    ctx = get_current_context()
-    cmd_runner = ctx.obj["cmd_runner"]
-    worker = ctx.obj["worker"]
-
 
     psms_collector = make_psms_collect_object(
         container_cls=SampleRunContainer,
