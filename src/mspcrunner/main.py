@@ -245,7 +245,7 @@ def main(
         False, "--dry", help="Dry run, do not actually execute commands"
     ),
     searchno: Optional[int] = typer.Option(
-        7, help="search number to use for jobs", show_default=True
+        None, help="search number to use for jobs", show_default=True
     ),
     path: Optional[Path] = typer.Option(
         default=None,
@@ -658,14 +658,23 @@ def add_site_metadata(
 
 @run_app.command()
 def concat_psms(
-    search_no: int = typer.Option(6, help="search_no"),
+    searchno: int = typer.Option(7, help="search_no"),
+    search_no: int = typer.Option(None, help="alias for search_no"),
     force: Optional[bool] = typer.Option(False),
 ):
+
+    if search_no is not None:
+        searchno = search_no
+    parent_searchno = ctx.parent.params.get("searchno")
+    if parent_searchno is not None:
+        logger.info("Using parent searchno {parent_searchno}")
+        searchno = parent_searchno
+
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
     worker = ctx.obj["worker"]
 
-    # 'k
+
     psms_collector = make_psms_collect_object(
         container_cls=SampleRunContainer,
         name="psms-collector-for-concat",
