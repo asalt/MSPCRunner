@@ -57,6 +57,11 @@ class MASIC(Command):
             self._params = tree
         return self._params
 
+    def create(self, *args, **kwargs):
+        import ipdb; ipdb.set_trace()
+        res = super().create(*args, **kwargs)
+        return res
+
     def set_attr(self, section_name, item_key, item_value):
         """
         <section name="MasicExportOptions">

@@ -227,7 +227,7 @@ def worker_run(*args, **kwargs):
         # {cmd.NAME} : {cmd._receiver.NAME} with {cmd.CMD}
         logger.info(
             f"""
-        {cmd.NAME} : {cmd.CMD}
+        {cmd.NAME} : {cmd.name}
         """
         )
         res = worker.execute(name)
@@ -245,7 +245,8 @@ def main(
         False, "--dry", help="Dry run, do not actually execute commands"
     ),
     searchno: Optional[int] = typer.Option(
-        None, help="search number to use for jobs", show_default=True
+        default=7,
+        help="search number to use for jobs", show_default=True
     ),
     path: Optional[Path] = typer.Option(
         default=None,
@@ -500,21 +501,33 @@ def quant(
 
     paramfile = confirm_param_or_exit(paramfile, preset, PREDEFINED_QUANT_PARAMS)
 
+    masic_factory = MASIC(
+        cmd_runner,
+        # inputfile=run_container,
+        # inputfiles=worker._output.get("experiment_finder"),
+        # inputfile=run_container,
+        # paramfile=msfragger_conf.absolute(),
+        paramfile=paramfile.absolute(),
+        # ramalloc=ramalloc,
+        name=f"masic-factory",
+    )
+
+    worker.register(f"masic-factory", masic_factory)
     # replace this
-    for ix, run_container in enumerate(
-        worker._output.get("experiment_finder", tuple())
-    ):
-        masic = MASIC(
-            cmd_runner,
-            inputfile=run_container,
-            # inputfiles=worker._output.get("experiment_finder"),
-            # inputfile=run_container,
-            # paramfile=msfragger_conf.absolute(),
-            paramfile=paramfile.absolute(),
-            # ramalloc=ramalloc,
-            name=f"masic-cmd-{ix}",
-        )
-        worker.register(f"masic-cmd-{ix}", masic)
+    # for ix, run_container in enumerate(
+    #     worker._output.get("experiment_finder", tuple())
+    # ):
+    #     masic = MASIC(
+    #         cmd_runner,
+    #         # inputfile=run_container,
+    #         # inputfiles=worker._output.get("experiment_finder"),
+    #         # inputfile=run_container,
+    #         # paramfile=msfragger_conf.absolute(),
+    #         paramfile=paramfile.absolute(),
+    #         # ramalloc=ramalloc,
+    #         name=f"masic-cmd-{ix}",
+    #     )
+    #     worker.register(f"masic-cmd-{ix}", masic)
 
 
 @run_app.command()

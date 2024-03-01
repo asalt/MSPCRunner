@@ -415,9 +415,6 @@ class RunContainer(AbstractContainer):
                     self._file_mappings["raw"] = new_file
                     self._file_mappings["spectra"] = new_file
 
-        # import ipdb
-
-        # ipdb.set_trace()
         # self.update_files()
         # if filetype in ("raw", "spectra"):
         #     self._file_mappings['raw'] = new_file

@@ -83,6 +83,7 @@ class Worker:  # invoker
             # # the_command.set_files(the_files)
 
             print(command_name)
+            # import ipdb; ipdb.set_trace()
             cmd = self._commands[command_name]
 
             if isinstance(cmd, tuple()):
@@ -92,7 +93,9 @@ class Worker:  # invoker
             # import ipdb
 
             # ipdb.set_trace()
+            containers = (set(self.get_runcontainers()) or set()) | (set(self.get_sampleruncontainers()) or set())
             factory = cmd.create(
+                containers=containers,
                 runcontainers=self.get_runcontainers() or None,
                 sampleruncontainers=self.get_sampleruncontainers() or None,
             )
@@ -147,7 +150,7 @@ class Worker:  # invoker
             # import ipdb
 
             # ipdb.set_trace()
-            logger.info(self.get_sampleruncontainers())
+            # logger.info(self.get_sampleruncontainers())
             return  # return nothing/...
 
         else:

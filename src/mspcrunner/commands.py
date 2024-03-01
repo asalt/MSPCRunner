@@ -9,6 +9,7 @@ import subprocess
 import sys
 from mspcrunner.config import get_conf  # Import the get_conf function
 
+
 # from collections.abc import Iterable
 from collections import OrderedDict, defaultdict
 from pathlib import Path
@@ -22,8 +23,15 @@ from .containers import RunContainer, SampleRunContainer
 
 import click
 
-from RefProtDB.utils import fasta_dict_from_file
 import pandas as pd
+
+from RefProtDB.utils import fasta_dict_from_file
+
+from rpy2.robjects.packages import importr
+from rpy2 import robjects
+from rpy2.robjects import r
+from rpy2.robjects import pandas2ri
+
 
 BASEDIR = os.path.split(__file__)[0]
 
@@ -457,12 +465,13 @@ class Command:
             for ix, container in enumerate(containers):
                 d = self.__dict__.copy()
 
-                for kw in kwargs:
-                    if kw in d:
-                        d.update(kw, kwargs[kw])
-                    d["inputfiles"] = container  # depreciate
-                    d["container"] = container  # depreciate
-                    d["name"] = d.get("name", "name") + f"-{ix}"
+                d.update(kwargs)
+                d["inputfile"] = container  # a single inputfile
+                d["inputfiles"] = container  # depreciate
+                d["container"] = container  # depreciate
+                d["runcontainers"] = runcontainers
+                d["sampleruncontainers"] = sampleruncontainers
+                d["name"] = d.get("name", "name") + f"-{ix}"
                 if "receiver" not in d and "_receiver" in d:
                     d["receiver"] = d["_receiver"]
 
@@ -540,9 +549,7 @@ class PythonCommand(Command):
             if "receiver" not in d and "_receiver" in d:
                 d["receiver"] = d["_receiver"]
             # ================
-            for kw in kwargs:
-                if kw in d:
-                    d.update(kw, kwargs[kw])
+            d.update(kwargs)
             if "inputfiles" in d:
                 inputfiles = d.pop("inputfiles")
                 if inputfiles is not None:
@@ -1176,10 +1183,6 @@ class AddE2GMetadata(Receiver):
         mat_wide = mat_wide.set_axis(metadata.index, axis=1)
 
         # --
-        from rpy2.robjects.packages import importr
-        from rpy2 import robjects
-        from rpy2.robjects import r
-        from rpy2.robjects import pandas2ri
 
         cmapR = importr("cmapR")
 
@@ -1280,6 +1283,8 @@ class AddSiteMetadata(Receiver):
         **kwargs,
     ):
         logger.info(f"starting {self}")
+        from rpy2.robjects import pandas2ri # ??
+        pandas2ri.activate()
 
         if sampleruncontainer is None:
             logger.error(f"no sampleruncontainer passed")
@@ -1363,7 +1368,6 @@ class AddSiteMetadata(Receiver):
 
         cmapR = importr("cmapR")
 
-        # pandas2ri.activate()
 
         # gct_obj = parse_gct.parse(site_table_nr.__str__())
         gct_obj = cmapR.parse_gctx(site_table_nr.__str__())
@@ -1407,6 +1411,7 @@ class AddSiteMetadata(Receiver):
                         right_on="ENSP",
                         how="left",
                     )
+                    # this should be done with a proper join
                     assert merged_df.shape[0] == row_metadata_df.shape[0]
                     merged_df.index = merged_df.id
                     row_metadata_df = merged_df
@@ -1420,8 +1425,10 @@ class AddSiteMetadata(Receiver):
         # row_metadata_df = pandas2ri.rpy2py(row_metadata_df) # not using
         col_metadata_df = gct_obj.do_slot("cdesc")
         col_metadata_df = pandas2ri.rpy2py(col_metadata_df)
-        row_ids = pandas2ri.rpy2py(gct_obj.do_slot("rid"))
-        col_ids = pandas2ri.rpy2py(gct_obj.do_slot("cid"))
+        # row_ids = pandas2ri.rpy2py(gct_obj.do_slot("rid"))
+        # col_ids = pandas2ri.rpy2py(gct_obj.do_slot("cid"))
+        row_ids = gct_obj.do_slot("rid")
+        col_ids = gct_obj.do_slot("cid")
 
         new_colnames = map(self.fix_colnames, col_ids)
         new_colnames = list(new_colnames)
@@ -1462,6 +1469,7 @@ class AddSiteMetadata(Receiver):
         res.index = new_col_metadata.index
         if len(res) != len(metadata):
             logger.error(f"metadata merge failed for {sampleruncontainer}")
+            return
         new_col_metadata_df = res
         new_col_metadata_df["id"] = new_col_metadata_df.index
 
@@ -1514,12 +1522,15 @@ class AddSiteMetadata(Receiver):
 
         # robjects.r("melted_obj_nocdesc <- cmapR::melt_gct(my_ds, keep_cdesc=F)")
         # robjects.r("melted_robject <- cmapR::melt_gct(my_ds)")
-        robjects.r(
-            """melted_df <- cmapR::melt_gct(my_ds, keep_rdesc=F, keep_cdesc=F, suffixes=c('.site', '.sample'))"""
-        )
-        _filename = site_table_nr.__str__().strip(".gct") + "_melted.tsv"
-        robjects.r.assign("filename", _filename)
-        robjects.r("readr::write_tsv(melted_df, filename)")
+
+        # robjects.r(
+        #     """melted_df <- cmapR::melt_gct(my_ds, keep_rdesc=F, keep_cdesc=F, suffixes=c('.site', '.sample'))"""
+        # )
+        # _filename = site_table_nr.__str__().strip(".gct") + "_melted.tsv"
+        # robjects.r.assign("filename", _filename)
+        # robjects.r("readr::write_tsv(melted_df, filename)")
+
+        pandas2ri.deactivate()
 
         # robjects.r(
         #     """melted_df_more <- cmapR::melt_gct(my_ds, keep_rdesc=T, keep_cdesc=F, suffixes=c('.site', '.sample'))"""
