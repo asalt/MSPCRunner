@@ -21,23 +21,7 @@ logger = get_logger(__name__)
 #
 # _ion_score_bins = "15 17 19"
 
-BASE = [
-    "gpgrouper",
-    "run",
-    # "--ion-score-bins",
-    # _ion_score_bins,
-    "-s",
-    "./params/gpgrouper.conf",
-    # Predefined_gpG.default,
-    "--taxonid",
-    "9606",
-    "--workers",
-    8,
-]
-
-
 class gpGrouper(Command):
-
     NAME = "gpGrouper"
 
     def __init__(
@@ -55,7 +39,6 @@ class gpGrouper(Command):
         sampleruncontainers=None,  # or 1 sample (collection of runs)
         **kwargs,
     ):
-
         super().__init__(
             receiver,
             paramfile=paramfile,
@@ -82,16 +65,14 @@ class gpGrouper(Command):
         if self.labeltype is None:
             self.labeltype = "none"
         self.paramfile = kwargs.get("paramfile", Predefined_gpG.default.value)
-        self.sampleruncontainer = sampleruncontainer
+        self.sampleruncontainer = sampleruncontainer #depreciated
         self.sampleruncontainers = sampleruncontainers
-        import ipdb
-
+        self.geneignore = kwargs.get("geneignore", Predefined_gpG.geneignore.value)
         # self.record_no = kwargs.get("record_no", "none")
         # self.run_no = kwargs.get("run_no", "none")
         # self.search_no = kwargs.get("search_no", "none")
 
     def create(self, sampleruncontainers=None, **kwargs):
-
         if "force" in kwargs:
             force = kwargs.pop("force")
         else:
@@ -108,7 +89,6 @@ class gpGrouper(Command):
         # set([x.rec_run_search for x in sampleruncontainers])
 
         _done = set()
-        # import ipdb; ipdb.set_trace()
 
         for ix, samplerun_container in enumerate(sampleruncontainers):
             if samplerun_container.psms_filePath is None:
@@ -199,6 +179,8 @@ class gpGrouper(Command):
             #
             "--outdir",
             str(psms_file.parent),
+            "-c",
+            self.geneignore
         ]
         if self.phospho:
             BASE.append("--phospho")

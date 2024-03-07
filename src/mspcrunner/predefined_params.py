@@ -109,6 +109,7 @@ Predefined_Quant = param_obj_creator("Predefined_Quant", PREDEFINED_QUANT_PARAMS
 
 class Predefined_gpG(str, Enum):
     default = PARAMDIR / "gpgrouper.conf"
+    geneignore = PARAMDIR / "geneignore.txt"
 
 
 class RMD_OUT_FORMAT(str, Enum):
@@ -118,6 +119,7 @@ class RMD_OUT_FORMAT(str, Enum):
 
 PREDEFINED_RMD_TEMPLATES = {
     "TMTreport": TEMPLATEDIR / Path("TMTreport_a1.Rmd"),
+    "PeptideReport": TEMPLATEDIR / Path("peptide-report-withphos.Rmd"),
 }
 
 RMD_TEMPLATES = param_obj_creator("RMD_TEMPLATES", PREDEFINED_RMD_TEMPLATES)
