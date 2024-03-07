@@ -50,16 +50,21 @@ class MSFragger(Command):
         refseq=None,
         paramfile=None,
         force=False,
-        containers=None,
+        containers=None, # depreciate
+        runcontainers=None,
         **kwargs,
     ):
         if "receiver" in kwargs:
             receiver = kwargs.pop("receiver")
 
         super().__init__(
-            *args, receiver=receiver, containers=containers, force=force, **kwargs
+            *args, receiver=receiver,
+            containers=containers,  # depreciate
+            runcontainers=runcontainers,
+            force=force, **kwargs
         )
         self.ramalloc = ramalloc
+        self.runcontainers = runcontainers
         self._config = None
         # self.runcontainers = runcontainers
         self.refseq = refseq
@@ -67,7 +72,6 @@ class MSFragger(Command):
             self.paramfile = paramfile
         if paramfile is not None:
             self.paramfile = Path(paramfile)
-            self.local_paramfile = self.paramfile
             config = self.read_config(paramfile)
             self._config = config
 
@@ -84,14 +88,8 @@ class MSFragger(Command):
     def write_config(self):
         # should be called `write_config_and_set_self.paramfile_to_local_copy`
 
-        if self.local_paramfile is None:
-            # create a local copy
-            config_out = Path(f"{self.name}.params")
-        else:
-            config_out = self.local_paramfile.parent / Path(
-                str.join("", [self.local_paramfile.stem + "_mspcrunner", ".params"])
-            )
         # config_out = self.local_paramfile
+        config_out = Path(".") / f"{self.paramfile.stem}_mspcrunner.params"
         with open(config_out, "w") as fh:
             logger.info(f"Writing {config_out}")
             self._config.write(fh)
@@ -116,25 +114,38 @@ class MSFragger(Command):
         return parser
 
     def create(self, runcontainers=None, **kwargs):
-        if runcontainers is None:
-            yield self
-        else:
-            # from copy import deepcopy
+        import ipdb; ipdb.set_trace()
+        if self.paramfile is not None:
+            self.write_config()
+        d = self.__dict__.copy()
+        # d['name'] = d.get("name", "name") + f"-{len(runcontainers)}" # this is a bit of a hack
+        d['runcontainers'] = runcontainers
+        yield type(self)(**d) # I think this solves the problem of spawning multiple objects with the same files
+        # for _ in range(1): # return just 1 object with all runcontainers to be searched all together
+        #     yield type(self)(**d) # I think this solves the problem of spawning multiple objects with the same files
+        # return [self]
 
-            d = self.__dict__.copy()
+        #return super().create(runcontainers=runcontainers, **kwargs)
+    # def create(self, runcontainers=None, **kwargs):
+    #     if runcontainers is None:
+    #         yield self
+    #     else:
+    #         # from copy import deepcopy
 
-            for kw in kwargs:
-                if kw in d:
-                    d.update(kw, kwargs[kw])
-                # d["inputfiles"] = container  # depreciate
-                # d["container"] = container  # depreciate
-                ix = 0
-                d["name"] = d.get("name", "name") + f"-{ix}"
-            # finally add the containers
-            d["containers"] = runcontainers
-            if "receiver" not in d and "_receiver" in d:
-                d["receiver"] = d["_receiver"]
-            yield type(self)(**d)
+    #         d = self.__dict__.copy()
+
+    #         for kw in kwargs:
+    #             if kw in d:
+    #                 d.update(kw, kwargs[kw])
+    #             # d["inputfiles"] = container  # depreciate
+    #             # d["container"] = container  # depreciate
+    #             ix = 0
+    #             d["name"] = d.get("name", "name") + f"-{ix}"
+    #         # finally add the containers
+    #         d["containers"] = runcontainers
+    #         if "receiver" not in d and "_receiver" in d:
+    #             d["receiver"] = d["_receiver"]
+    #         yield type(self)(**d)
 
     # @property
     # def params() -> dict:
@@ -156,7 +167,7 @@ class MSFragger(Command):
         self._config["top"][param] = str(value)
         return 0
 
-    def get_param(self, param, value):
+    def get_param(self, param):
         if self._config is None:
             logger.warning(f"No param file set for {self}")
             return -1
@@ -166,8 +177,6 @@ class MSFragger(Command):
     def CMD(self):
         # spectra_files = "<not set>"
 
-        if self.paramfile is not None:
-            self.write_config()
 
         # import ipdb; ipdb.set_trace()
         spectra_files = list()
@@ -175,11 +184,11 @@ class MSFragger(Command):
 
         # inputfile = self.inputfiles[0].get_file("spectra")
 
-        if not self.containers:
+        if not self.runcontainers:
             return
             # raise ValueError("then why are we here?")
 
-        for run_container in self.containers:
+        for run_container in self.runcontainers:
             spectraf = run_container.get_file("spectra")
             if spectraf is None:
                 logger.info(f"cannot find spectra file {run_container}, skipping")
