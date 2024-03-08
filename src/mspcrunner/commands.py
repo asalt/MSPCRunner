@@ -468,15 +468,12 @@ class Command:
                 d.update(kwargs)
                 d["inputfile"] = container  # a single inputfile
                 d["inputfiles"] = container  # depreciate
-                d["container"] = container  # depreciate
+                d["container"] = container  # depreciate # check if still used anywhere
                 d["runcontainers"] = runcontainers
                 d["sampleruncontainers"] = sampleruncontainers
                 d["name"] = d.get("name", "name") + f"-{ix}"
                 if "receiver" not in d and "_receiver" in d:
                     d["receiver"] = d["_receiver"]
-
-                if isinstance(container, SampleRunContainer):
-                    pass
 
                 yield type(self)(**d)
 

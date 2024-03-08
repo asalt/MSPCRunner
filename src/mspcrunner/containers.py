@@ -72,11 +72,14 @@ class AbstractContainer(ABC):
             parents = sorted(parents, reverse=True)
             # probably not most ideal way of picking parent
 
-        logger.debug(f"rootdir: {self._rootdir}")
+        # logger.debug(f"rootdir: {self._rootdir}")
 
+        orig_rootdir = self._rootdir
         self._rootdir = list(parents)[0]
+        new_rootdir = self._rootdir
+        if orig_rootdir != new_rootdir:
+            logger.debug(f"rootdir: {orig_rootdir} -> {new_rootdir}")
 
-        logger.debug(f"rootdir: {self._rootdir}")
 
         return self._rootdir
 

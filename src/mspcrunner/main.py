@@ -853,6 +853,7 @@ def annotate_sites(
     fasta: Predefined_RefSeq = typer.Option(None),
     local_fasta: Optional[Path] = typer.Option(None),
     workers: int = typer.Option(1, help="number of workers (CPU cores) to deploy"),
+    force: Optional[bool] = typer.Option(False),
 ):
     ctx = get_current_context()
     cmd_runner = ctx.obj["cmd_runner"]
@@ -882,6 +883,7 @@ def annotate_sites(
         workers=workers,
         name=f"AnnotateSite-inhouse",
         refseq=fasta,
+        force=force,
     )
 
     worker.register(f"site_annotate_factory", site_annotate_factory)
